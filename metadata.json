@@ -1,0 +1,6 @@
+{
+  "name": "FoodLink Solidario",
+  "description": "Plataforma de rescate y aprovechamiento de alimentos excedentes en Colombia: 'Menos desperdicio, más oportunidades'.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

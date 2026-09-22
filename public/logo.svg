@@ -1,0 +1,180 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 650" width="100%" height="100%">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="greenSwoosh" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#15803d" />
+      <stop offset="60%" stop-color="#16a34a" />
+      <stop offset="100%" stop-color="#22c55e" />
+    </linearGradient>
+
+    <linearGradient id="blueArrow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284c7" />
+      <stop offset="60%" stop-color="#0369a1" />
+      <stop offset="100%" stop-color="#0284c7" />
+    </linearGradient>
+
+    <linearGradient id="orangeHand" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#ea580c" />
+      <stop offset="50%" stop-color="#f97316" />
+      <stop offset="100%" stop-color="#fb923c" />
+    </linearGradient>
+
+    <linearGradient id="woodFront" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#d97706" />
+      <stop offset="100%" stop-color="#b45309" />
+    </linearGradient>
+
+    <linearGradient id="woodSide" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#92400e" />
+      <stop offset="100%" stop-color="#78350f" />
+    </linearGradient>
+
+    <linearGradient id="appleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ef4444" />
+      <stop offset="100%" stop-color="#b91c1c" />
+    </linearGradient>
+
+    <linearGradient id="pepperGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fde047" />
+      <stop offset="100%" stop-color="#eab308" />
+    </linearGradient>
+
+    <linearGradient id="breadGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#b45309" />
+    </linearGradient>
+
+    <filter id="softShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="6" flood-color="#0f172a" flood-opacity="0.12" />
+    </filter>
+  </defs>
+
+  <!-- EMBLEM GROUP (Center at x=300, y=210) -->
+  <g transform="translate(300, 210)">
+    <!-- 1. Green Leaf and Upper-Left Circular Arc -->
+    <!-- Leaf at tip (approx -140, -135) -->
+    <path d="M -135 -145 C -115 -180 -70 -170 -60 -150 C -60 -125 -95 -125 -135 -145 Z" fill="#22c55e" />
+    <path d="M -135 -145 Q -95 -145 -60 -150" stroke="#15803d" stroke-width="2.5" fill="none" stroke-linecap="round" />
+    
+    <!-- Green circular arc swoosh -->
+    <path d="M -132 -95 A 165 165 0 0 1 10 -165 L 14 -140 A 138 138 0 0 0 -105 -82 Z" fill="url(#greenSwoosh)" />
+
+    <!-- 2. Blue Circular Arc and Arrow pointing downward on right side -->
+    <path d="M 35 -161 A 165 165 0 0 1 165 5 L 138 5 A 138 138 0 0 0 32 -135 Z" fill="url(#blueArrow)" />
+    <!-- Blue Arrow Head pointing down at (x=152, y=35) -->
+    <polygon points="122,-5 182,-5 152,42" fill="#0284c7" />
+
+    <!-- 3. Orange Supportive Hand Arc at bottom -->
+    <path d="M -160 -15 C -170 80 -100 168 0 168 C 65 168 125 130 155 75 C 135 95 95 125 35 125 C -55 125 -118 65 -122 -5 C -124 -15 -138 -20 -148 -18 C -154 -17 -158 -16 -160 -15 Z" fill="url(#orangeHand)" />
+    <!-- Hand Palm/Thumb detail -->
+    <path d="M 155 75 C 130 85 90 98 45 98 C 20 98 10 90 10 82 C 10 70 35 68 65 65 C 100 62 135 60 155 75 Z" fill="#f97316" />
+
+    <!-- 4. WOODEN CRATE WITH FOOD (Center isometric box) -->
+    <g filter="url(#softShadow)" transform="translate(0, 5)">
+      <!-- FOOD ITEMS INSIDE CRATE (Back layer) -->
+      <!-- Leafy Greens (Lettuce/spinach) -->
+      <path d="M -50 -25 C -65 -65 -35 -85 -15 -65 C 5 -85 35 -65 20 -25 Z" fill="#22c55e" />
+      <path d="M -30 -30 C -45 -70 -15 -80 -5 -55 C 15 -75 40 -50 25 -20 Z" fill="#16a34a" />
+      <circle cx="-15" cy="-60" r="14" fill="#4ade80" />
+      <circle cx="10" cy="-55" r="16" fill="#15803d" />
+
+      <!-- Bread Baguette (Right side leaning) -->
+      <g transform="rotate(35, 65, -45)">
+        <rect x="35" y="-95" width="38" height="90" rx="19" fill="url(#breadGrad)" />
+        <!-- Score marks -->
+        <ellipse cx="54" cy="-80" rx="10" ry="3" fill="#fef3c7" opacity="0.8" />
+        <ellipse cx="54" cy="-60" rx="11" ry="3.5" fill="#fef3c7" opacity="0.8" />
+        <ellipse cx="54" cy="-40" rx="11" ry="3.5" fill="#fef3c7" opacity="0.8" />
+        <ellipse cx="54" cy="-20" rx="9" ry="3" fill="#fef3c7" opacity="0.8" />
+      </g>
+
+      <!-- Yellow Bell Pepper (Center) -->
+      <g transform="translate(-5, -35)">
+        <!-- Pepper stem -->
+        <rect x="3" y="-22" width="5" height="10" rx="2" fill="#15803d" />
+        <!-- Pepper lobes -->
+        <ellipse cx="-7" cy="-5" rx="14" ry="19" fill="url(#pepperGrad)" />
+        <ellipse cx="14" cy="-5" rx="14" ry="19" fill="url(#pepperGrad)" />
+        <ellipse cx="3" cy="-2" rx="13" ry="20" fill="#facc15" />
+      </g>
+
+      <!-- Fresh Red Apple (Left side) -->
+      <g transform="translate(-65, -30)">
+        <!-- Stem & leaf -->
+        <path d="M 5 -20 Q 8 -28 15 -28" stroke="#78350f" stroke-width="2.5" fill="none" stroke-linecap="round" />
+        <path d="M 7 -22 C 14 -26 18 -22 17 -17 C 12 -17 8 -19 7 -22 Z" fill="#22c55e" />
+        <!-- Apple body lobes -->
+        <circle cx="-8" cy="-5" r="19" fill="url(#appleGrad)" />
+        <circle cx="10" cy="-5" r="19" fill="url(#appleGrad)" />
+        <ellipse cx="1" cy="5" rx="16" ry="14" fill="#dc2626" />
+        <!-- Apple highlight -->
+        <ellipse cx="-10" cy="-10" rx="4" ry="7" fill="#fca5a5" opacity="0.6" transform="rotate(-20, -10, -10)" />
+      </g>
+
+      <!-- Green Cucumber / Zucchini (Bottom right foreground) -->
+      <rect x="0" y="-12" width="55" height="22" rx="11" fill="#15803d" transform="rotate(-15, 25, 0)" />
+      <rect x="8" y="-9" width="40" height="14" rx="7" fill="#16a34a" transform="rotate(-15, 25, 0)" />
+
+      <!-- Small green grapes/peas bunch -->
+      <circle cx="-35" cy="-5" r="7" fill="#84cc16" />
+      <circle cx="-25" cy="-2" r="8" fill="#a3e635" />
+      <circle cx="-20" cy="5" r="7" fill="#65a30d" />
+      <circle cx="-32" cy="7" r="7.5" fill="#84cc16" />
+
+      <!-- THE WOODEN CRATE -->
+      <!-- Left side (in perspective) -->
+      <polygon points="-105,-10 -65,-30 -65,45 -105,65" fill="url(#woodSide)" />
+      <polygon points="-105,25 -65,5 -65,15 -105,35" fill="#5c2605" opacity="0.5" />
+
+      <!-- Front side slats (in perspective) -->
+      <!-- Top Slat -->
+      <polygon points="-105,-10 65,-10 105,15 -65,15" fill="url(#woodFront)" />
+      <polygon points="-105,-10 -65,15 -65,22 -105,-3" fill="#b45309" />
+      <polygon points="-65,15 65,-10 65,-4 -65,22" fill="#d97706" />
+
+      <!-- Front Wall (2 Slats with spacing) -->
+      <!-- Slat 1 (Upper) -->
+      <polygon points="-65,18 65,-4 65,18 -65,40" fill="#f59e0b" />
+      <polygon points="-65,40 65,18 65,20 -65,42" fill="#b45309" />
+      <!-- Slat 2 (Lower) -->
+      <polygon points="-65,46 65,24 65,46 -65,68" fill="#d97706" />
+
+      <!-- Corner Corner Posts -->
+      <polygon points="-65,12 -55,8 -55,62 -65,66" fill="#b45309" />
+      <polygon points="55,-6 65,-10 65,46 55,50" fill="#92400e" />
+
+      <!-- Crate Nails / Rivets -->
+      <circle cx="-59" cy="28" r="2.5" fill="#451a03" />
+      <circle cx="-59" cy="54" r="2.5" fill="#451a03" />
+      <circle cx="59" cy="8" r="2.5" fill="#451a03" />
+      <circle cx="59" cy="34" r="2.5" fill="#451a03" />
+    </g>
+  </g>
+
+  <!-- TEXT TYPOGRAPHY (Food Link solidario) -->
+  <!-- "Food Link" -->
+  <g transform="translate(300, 480)" text-anchor="middle">
+    <text font-family="system-ui, -apple-system, 'Plus Jakarta Sans', 'Inter', sans-serif" font-weight="900" font-size="82" letter-spacing="-1">
+      <tspan fill="#16a34a">Food</tspan><tspan dx="14" fill="#0284c7">Link</tspan>
+    </text>
+  </g>
+
+  <!-- "—  s o l i d a r i o  —" -->
+  <g transform="translate(300, 535)">
+    <!-- Left Dash -->
+    <line x1="-190" y1="-8" x2="-115" y2="-8" stroke="#ea580c" stroke-width="4.5" stroke-linecap="round" />
+    <!-- "solidario" -->
+    <text x="0" y="0" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="34" letter-spacing="11" fill="#ea580c">
+      solidario
+    </text>
+    <!-- Right Dash -->
+    <line x1="115" y1="-8" x2="190" y2="-8" stroke="#ea580c" stroke-width="4.5" stroke-linecap="round" />
+  </g>
+
+  <!-- TAGLINE: "Menos desperdicio, más oportunidades." -->
+  <g transform="translate(300, 585)" text-anchor="middle">
+    <text font-family="system-ui, -apple-system, sans-serif" font-weight="500" font-size="25" fill="#475569" letter-spacing="0.2">
+      Menos desperdicio, más oportunidades.
+    </text>
+  </g>
+</svg>
