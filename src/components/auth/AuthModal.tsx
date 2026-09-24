@@ -164,7 +164,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setVerificationSent(false);
 
     try {
-      if (isFirebaseConfigured) {
+      if (isFirebaseConfigured && auth) {
         try {
           // Authenticate with Firebase Authentication
           const userCredential = await signInWithEmailAndPassword(auth, email.trim(), password);
@@ -302,7 +302,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     setIsResendingVerification(true);
     try {
-      if (isFirebaseConfigured) {
+      if (isFirebaseConfigured && auth) {
         try {
           const userCredential = await signInWithEmailAndPassword(auth, targetEmail, password);
           await sendEmailVerification(userCredential.user);
@@ -346,7 +346,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setIsLoading(true);
 
     try {
-      if (isFirebaseConfigured) {
+      if (isFirebaseConfigured && auth) {
         try {
           // 1. Create account in Firebase Auth
           const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password);
@@ -427,7 +427,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setIsLoading(true);
 
     try {
-      if (isFirebaseConfigured) {
+      if (isFirebaseConfigured && auth) {
         try {
           // Send real password reset email via Firebase Auth
           await sendPasswordResetEmail(auth, email.trim());
@@ -476,7 +476,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setIsLoading(true);
 
     try {
-      if (isFirebaseConfigured) {
+      if (isFirebaseConfigured && auth) {
         try {
           await confirmPasswordReset(auth, resetToken.trim(), password);
           showToast('¡Contraseña restablecida exitosamente! Ya puedes iniciar sesión con tu nueva clave.', 'success');
@@ -522,7 +522,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     if (provider === 'google') {
       setIsLoading(true);
       try {
-        if (isFirebaseConfigured) {
+        if (isFirebaseConfigured && auth) {
           try {
             const googleProvider = new GoogleAuthProvider();
             googleProvider.setCustomParameters({ prompt: 'select_account' });

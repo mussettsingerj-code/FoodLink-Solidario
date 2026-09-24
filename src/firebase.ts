@@ -1,12 +1,13 @@
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
+import { getAuth, Auth } from 'firebase/auth';
 
 const rawApiKey = (import.meta.env.VITE_FIREBASE_API_KEY || '').trim();
 const rawProjectId = (import.meta.env.VITE_FIREBASE_PROJECT_ID || '').trim();
 
 /**
  * Valida si se dispone de una clave y configuración real de Firebase
- * para evitar llamadas a la API de Google Identity con claves de prueba inválidas.
+ * para evitar llamadas a la API de Google Identity con claves de prueba inválidas
+ * o errores no capturados cuando no se proporcionan credenciales.
  */
 export const isFirebaseConfigured = Boolean(
   rawApiKey &&
@@ -28,11 +29,23 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || ''
 };
 
-// Initialize Firebase App safely (singleton pattern)
-export const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+// Initialize Firebase App safely (singleton pattern, only when valid configuration exists)
+let initializedApp: FirebaseApp | null = null;
+let initializedAuth: Auth | null = null;
 
-// Initialize Firebase Authentication
-export const auth = getAuth(app);
+if (isFirebaseConfigured) {
+  try {
+    initializedApp = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+    initializedAuth = getAuth(initializedApp);
+  } catch (error) {
+    console.warn('Firebase no pudo inicializarse con la configuración actual. Continuando en modo local:', error);
+    initializedApp = null;
+    initializedAuth = null;
+  }
+}
+
+export const app: FirebaseApp | null = initializedApp;
+export const auth: Auth | null = initializedAuth;
 
 /**
  * Detecta si un error proviene de una API Key no válida o no configurada.

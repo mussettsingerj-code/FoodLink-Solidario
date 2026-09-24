@@ -46,6 +46,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth }) => {
     theme,
     setTheme,
     setIsAuthModalOpen,
+    authModalTab,
     setAuthModalTab,
   } = useApp();
 
@@ -94,7 +95,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth }) => {
         <div className="flex items-center justify-between h-20">
           {/* Brand Logo & Slogan */}
           <div
-            onClick={() => setCurrentView('landing')}
+            onClick={() => setCurrentView(isAuthenticated ? 'dashboard' : 'auth')}
             className="cursor-pointer group flex items-center gap-3 py-1"
           >
             <div className="flex items-center justify-center bg-white rounded-xl p-1 shadow-2xs border border-slate-250 dark:border-slate-700">
@@ -110,14 +111,14 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth }) => {
           {/* Desktop Nav Links */}
           <nav className="hidden md:flex items-center gap-1 text-sm font-semibold text-slate-600 dark:text-slate-300">
             <button
-              onClick={() => setCurrentView('landing')}
+              onClick={() => setCurrentView(isAuthenticated ? 'landing' : 'auth')}
               className={`px-3.5 py-2 rounded-lg transition-colors cursor-pointer ${
-                currentView === 'landing'
+                (isAuthenticated && currentView === 'landing') || (!isAuthenticated && currentView === 'auth')
                   ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 font-bold border border-emerald-100/70 dark:border-emerald-800/60'
                   : 'hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
             >
-              {t('nav.home')}
+              {isAuthenticated ? t('nav.home') : 'Acceso y Registro'}
             </button>
 
             <button
@@ -447,9 +448,13 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth }) => {
                   type="button"
                   onClick={() => {
                     setAuthModalTab('login');
-                    setIsAuthModalOpen(true);
+                    setCurrentView('auth');
                   }}
-                  className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-xs cursor-pointer"
+                  className={`px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 font-semibold transition-colors text-xs cursor-pointer ${
+                    currentView === 'auth' && authModalTab === 'login'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700'
+                      : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800'
+                  }`}
                 >
                   {t('nav.login')}
                 </button>
@@ -457,9 +462,9 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth }) => {
                   type="button"
                   onClick={() => {
                     setAuthModalTab('register');
-                    setIsAuthModalOpen(true);
+                    setCurrentView('auth');
                   }}
-                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg transition-colors text-xs cursor-pointer"
+                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg transition-colors text-xs cursor-pointer shadow-xs"
                 >
                   {t('nav.register')}
                 </button>
@@ -504,12 +509,12 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth }) => {
           <div className="space-y-1">
             <button
               onClick={() => {
-                setCurrentView('landing');
+                setCurrentView(isAuthenticated ? 'landing' : 'auth');
                 setIsMobileMenuOpen(false);
               }}
               className="w-full text-left py-2 px-3 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200"
             >
-              {t('nav.home')}
+              {isAuthenticated ? t('nav.home') : 'Acceso y Registro'}
             </button>
             <button
               onClick={() => {
@@ -567,10 +572,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth }) => {
                     type="button"
                     onClick={() => {
                       setAuthModalTab('login');
-                      setIsAuthModalOpen(true);
+                      setCurrentView('auth');
                       setIsMobileMenuOpen(false);
                     }}
-                    className="py-2 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-xs font-bold text-center"
+                    className="py-2 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-xs font-bold text-center cursor-pointer"
                   >
                     {t('nav.login')}
                   </button>
@@ -578,10 +583,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth }) => {
                     type="button"
                     onClick={() => {
                       setAuthModalTab('register');
-                      setIsAuthModalOpen(true);
+                      setCurrentView('auth');
                       setIsMobileMenuOpen(false);
                     }}
-                    className="py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold text-center"
+                    className="py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold text-center cursor-pointer"
                   >
                     {t('nav.register')}
                   </button>

@@ -151,45 +151,51 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Subscribe to Firebase Authentication in real-time if configured
   useEffect(() => {
-    if (!isFirebaseConfigured) {
+    if (!isFirebaseConfigured || !auth) {
       // En modo local / desarrollo no sobrescribimos el usuario con null de Firebase
       return;
     }
 
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
-      // Only set user when Firebase confirms an active, email-verified session
-      if (firebaseUser && firebaseUser.emailVerified) {
-        const storedRole = (localStorage.getItem(`foodlink_role_${firebaseUser.uid}`) as RoleType) ||
-          (localStorage.getItem('foodlink_role') as RoleType) ||
-          'establishment';
-        const storedOrg = localStorage.getItem(`foodlink_org_${firebaseUser.uid}`) || 'Organización Solidaria';
-        const storedCity = localStorage.getItem(`foodlink_city_${firebaseUser.uid}`) || 'Medellín';
-        const storedNit = localStorage.getItem(`foodlink_nit_${firebaseUser.uid}`) || '900.123.456-7';
-        const storedPhone = localStorage.getItem(`foodlink_phone_${firebaseUser.uid}`) || '+57 300 123 4567';
+    const unsubscribe = onAuthStateChanged(
+      auth,
+      (firebaseUser: FirebaseUser | null) => {
+        // Only set user when Firebase confirms an active, email-verified session
+        if (firebaseUser && firebaseUser.emailVerified) {
+          const storedRole = (localStorage.getItem(`foodlink_role_${firebaseUser.uid}`) as RoleType) ||
+            (localStorage.getItem('foodlink_role') as RoleType) ||
+            'establishment';
+          const storedOrg = localStorage.getItem(`foodlink_org_${firebaseUser.uid}`) || 'Organización Solidaria';
+          const storedCity = localStorage.getItem(`foodlink_city_${firebaseUser.uid}`) || 'Medellín';
+          const storedNit = localStorage.getItem(`foodlink_nit_${firebaseUser.uid}`) || '900.123.456-7';
+          const storedPhone = localStorage.getItem(`foodlink_phone_${firebaseUser.uid}`) || '+57 300 123 4567';
 
-        const userProfile: UserProfile = {
-          id: firebaseUser.uid,
-          name: firebaseUser.displayName || localStorage.getItem(`foodlink_name_${firebaseUser.uid}`) || firebaseUser.email?.split('@')[0] || 'Usuario Solidario',
-          email: firebaseUser.email || '',
-          role: storedRole,
-          organizationName: storedOrg,
-          nitOrId: storedNit,
-          phone: firebaseUser.phoneNumber || storedPhone,
-          city: storedCity,
-          verified: true,
-          avatarUrl: firebaseUser.photoURL || undefined,
-        };
+          const userProfile: UserProfile = {
+            id: firebaseUser.uid,
+            name: firebaseUser.displayName || localStorage.getItem(`foodlink_name_${firebaseUser.uid}`) || firebaseUser.email?.split('@')[0] || 'Usuario Solidario',
+            email: firebaseUser.email || '',
+            role: storedRole,
+            organizationName: storedOrg,
+            nitOrId: storedNit,
+            phone: firebaseUser.phoneNumber || storedPhone,
+            city: storedCity,
+            verified: true,
+            avatarUrl: firebaseUser.photoURL || undefined,
+          };
 
-        setCurrentUser(userProfile);
-        setCurrentRole(userProfile.role);
-        localStorage.setItem('foodlink_user', JSON.stringify(userProfile));
-      } else {
-        // If not verified or signed out, ensure public restricted state
-        setCurrentUser(null);
-        setCurrentRole('public');
-        localStorage.removeItem('foodlink_user');
+          setCurrentUser(userProfile);
+          setCurrentRole(userProfile.role);
+          localStorage.setItem('foodlink_user', JSON.stringify(userProfile));
+        } else {
+          // If not verified or signed out, ensure public restricted state
+          setCurrentUser(null);
+          setCurrentRole('public');
+          localStorage.removeItem('foodlink_user');
+        }
+      },
+      (error) => {
+        console.warn('Observador de Firebase Auth en espera o con error:', error);
       }
-    });
+    );
 
     return () => unsubscribe();
   }, []);
@@ -283,7 +289,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Secure Logout with Firebase
   const logout = async () => {
     try {
-      await signOut(auth);
+      if (isFirebaseConfigured && auth) {
+        await signOut(auth);
+      }
     } catch (err) {
       console.warn('Firebase signOut error:', err);
     }
