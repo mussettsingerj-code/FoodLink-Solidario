@@ -9,12 +9,14 @@ import {
   INITIAL_PRODUCTS,
   MOCK_USERS,
 } from '../data/initialData';
+import { PARTNER_ORGANIZATIONS } from '../data/demoData';
 import {
   CommissionPricing,
   CommissionRecord,
   DurationDays,
   FoodProduct,
   NotificationItem,
+  NotificationType,
   ProductOffer,
   ProductStatus,
   RoleType,
@@ -87,8 +89,11 @@ interface AppContextType {
   // Notifications
   notifications: NotificationItem[];
   markNotificationAsRead: (id: string) => void;
+  toggleNotificationRead: (id: string) => void;
   markAllNotificationsAsRead: () => void;
   unreadNotificationsCount: number;
+  checkProductExpirations: (manual?: boolean) => number;
+  simulateCritical6hForProduct: (id: string) => void;
   
   // Commission Records
   commissionRecords: CommissionRecord[];
@@ -112,6 +117,11 @@ interface AppContextType {
 
   // Simulator helper: simulate expiry for demo
   simulateExpirationForProduct: (id: string) => void;
+
+  // Global search & demo seed
+  globalSearchQuery: string;
+  setGlobalSearchQuery: (query: string) => void;
+  loadDemoData: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -240,7 +250,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [theme]);
 
   // Navigation, Route Guards & Auth Modal State
-  const [currentView, setCurrentView] = useState<string>('landing');
+  const [currentView, setCurrentView] = useState<string>('login');
   const [redirectTo, setRedirectTo] = useState<string | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [authModalTab, setAuthModalTab] = useState<'login' | 'register' | 'forgot' | 'reset'>('login');
@@ -248,15 +258,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const navigateWithGuard = (targetView: string, requiredRole?: RoleType): boolean => {
     if (!isAuthenticated) {
-      if (targetView !== 'landing') {
+      if (targetView !== 'landing' && targetView !== 'catalog' && targetView !== 'login' && targetView !== 'organizations') {
         setRedirectTo(targetView);
         setAuthModalTab('login');
         setAuthModalMessage('Acceso privado: Debes iniciar sesión para interactuar con la plataforma.');
-        setIsAuthModalOpen(true);
+        setCurrentView('login');
         showToast('Acceso restringido: Inicia sesión para continuar.', 'warning');
         return false;
       }
-      setCurrentView('landing');
+      setCurrentView(targetView);
       return true;
     }
 
@@ -275,15 +285,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Safe setter for currentView that respects authentication
   const handleSetCurrentView = (targetView: string) => {
-    if (!isAuthenticated && targetView !== 'landing') {
-      setRedirectTo(targetView);
+    const normalizedView = targetView === 'establishment_dashboard' ? 'my_publications' : targetView;
+    if (!isAuthenticated && normalizedView !== 'landing' && normalizedView !== 'catalog' && normalizedView !== 'login' && normalizedView !== 'organizations') {
+      setRedirectTo(normalizedView);
       setAuthModalTab('login');
       setAuthModalMessage('Acceso privado: Debes iniciar sesión o registrarte para ver el catálogo y funciones.');
-      setIsAuthModalOpen(true);
+      setCurrentView('login');
       showToast('Acceso privado: Inicia sesión para continuar.', 'warning');
       return;
     }
-    setCurrentView(targetView);
+    setCurrentView(normalizedView);
   };
 
   // Secure Logout with Firebase
@@ -314,7 +325,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setCurrentRole('public');
     setCurrentUser(null);
     setRedirectTo(null);
-    setCurrentView('landing');
+    setCurrentView('login');
     showToast('Has cerrado sesión correctamente', 'info');
   };
 
@@ -338,7 +349,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setCurrentView(destination);
       showToast(`Redirigiendo a: ${destination === 'dashboard' ? 'Panel de Control' : destination === 'catalog' ? 'Catálogo' : destination}`, 'info');
     } else {
-      setCurrentView(user.role === 'admin' ? 'admin' : user.role === 'public' ? 'landing' : 'dashboard');
+      setCurrentView(user.role === 'public' ? 'login' : 'dashboard');
     }
   };
 
@@ -383,7 +394,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
+        if (Array.isArray(parsed) && parsed.length > 0) {
           const hasOldMocks = parsed.some((p: FoodProduct) => p.id === 'prod-01' || p.id === 'prod-02');
           if (!hasOldMocks) {
             return parsed;
@@ -402,7 +413,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
+        if (Array.isArray(parsed) && parsed.length > 0) {
           const hasOldMocks = parsed.some((o: ProductOffer) => o.id === 'off-01' || o.id === 'off-02');
           if (!hasOldMocks) {
             return parsed;
@@ -439,7 +450,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const saved = localStorage.getItem('foodlink_notifs');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const hasUpdatedSamples = parsed.some((n: NotificationItem) => n.id === 'notif-demo-crit-1');
+          if (hasUpdatedSamples) {
+            return parsed;
+          }
+        }
       } catch (e) {
         console.error(e);
       }
@@ -453,7 +470,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
+        if (Array.isArray(parsed) && parsed.length > 0) {
           const hasOldMocks = parsed.some((c: CommissionRecord) => c.id === 'com-01' || c.id === 'com-02');
           if (!hasOldMocks) {
             return parsed;
@@ -471,6 +488,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [selectedOfferIdForNegotiation, setSelectedOfferIdForNegotiation] = useState<string | null>(null);
   const [productForRenewal, setProductForRenewal] = useState<FoodProduct | null>(null);
   const [isPublishModalOpen, setIsPublishModalOpen] = useState<boolean>(false);
+  const [globalSearchQuery, setGlobalSearchQuery] = useState<string>('');
+
+  const loadDemoData = () => {
+    setProducts(INITIAL_PRODUCTS);
+    setOffers(INITIAL_OFFERS);
+    setNotifications(INITIAL_NOTIFICATIONS);
+    setCommissionRecords(INITIAL_COMMISSION_RECORDS);
+    showToast('Datos de demostración cargados correctamente', 'success');
+  };
 
   // Guarded setters that enforce authentication for interactive modals and detail views
   const handleSetIsPublishModalOpen = (open: boolean) => {
@@ -556,7 +582,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateCurrentUser = (updates: Partial<UserProfile>) => {
     if (!currentUser) return;
-    setCurrentUser((prev) => (prev ? { ...prev, ...updates } : null));
+    setCurrentUser((prev) => {
+      if (!prev) return null;
+      const updated = { ...prev, ...updates };
+      localStorage.setItem('foodlink_user', JSON.stringify(updated));
+      return updated;
+    });
     showToast('Perfil actualizado correctamente', 'success');
   };
 
@@ -697,7 +728,277 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast('Publicación retirada de la plataforma', 'info');
   };
 
+  // Helper to resolve email and display name for any user or partner organization
+  const resolveUserContact = (userId: string, fallbackName?: string): { email: string; name: string } => {
+    if (currentUser && currentUser.id === userId && currentUser.email) {
+      return {
+        email: currentUser.email,
+        name: currentUser.organizationName ? `${currentUser.name} (${currentUser.organizationName})` : currentUser.name,
+      };
+    }
+
+    for (const mockUser of Object.values(MOCK_USERS)) {
+      if (mockUser.id === userId) {
+        return {
+          email: mockUser.email,
+          name: `${mockUser.name} (${mockUser.organizationName})`,
+        };
+      }
+    }
+
+    const partner = PARTNER_ORGANIZATIONS.find((org) => org.id === userId || org.name === fallbackName);
+    if (partner) {
+      return {
+        email: partner.email,
+        name: partner.name,
+      };
+    }
+
+    return {
+      email: 'contacto@superlosandes.com.co',
+      name: fallbackName || 'Usuario Publik Solidario',
+    };
+  };
+
+  // Central dispatcher for in-app + transactional email notifications
+  const dispatchNotification = (params: {
+    userId: string;
+    recipientFallbackName?: string;
+    type: NotificationType;
+    title: string;
+    message: string;
+    emailSubject?: string;
+    actionLabel?: string;
+    relatedProductId?: string;
+    relatedOfferId?: string;
+    dedupKey?: string;
+  }) => {
+    const nowIso = new Date().toISOString();
+    const notifId = 'notif-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6);
+    const contact = resolveUserContact(params.userId, params.recipientFallbackName);
+    const subject = params.emailSubject || `[Publik Solidario] ${params.title}`;
+
+    // Check user notification preferences
+    let shouldSendEmail = true;
+    try {
+      const savedPrefs = localStorage.getItem('foodlink_notif_prefs');
+      if (savedPrefs) {
+        const prefs = JSON.parse(savedPrefs);
+        if (
+          (params.type === 'nueva_oferta' ||
+            params.type === 'nueva_contraoferta' ||
+            params.type === 'oferta_aceptada' ||
+            params.type === 'oferta_rechazada') &&
+          prefs.emailOffers === false
+        ) {
+          shouldSendEmail = false;
+        }
+        if (
+          (params.type === 'publicacion_proxima_finalizar' ||
+            params.type === 'publicacion_menos_6h') &&
+          prefs.emailExpirations === false
+        ) {
+          shouldSendEmail = false;
+        }
+      }
+    } catch {
+      // default to true
+    }
+
+    let createdNew = false;
+
+    setNotifications((prev) => {
+      if (params.dedupKey && prev.some((n) => n.dedupKey === params.dedupKey)) {
+        return prev;
+      }
+      createdNew = true;
+      const newNotif: NotificationItem = {
+        id: notifId,
+        userId: params.userId,
+        type: params.type,
+        title: params.title,
+        message: params.message,
+        timestamp: 'Hace un momento',
+        createdAt: nowIso,
+        read: false,
+        relatedProductId: params.relatedProductId,
+        relatedOfferId: params.relatedOfferId,
+        recipientEmail: contact.email,
+        recipientName: contact.name,
+        emailStatus: shouldSendEmail ? 'queued_local' : 'disabled',
+        emailSubject: subject,
+        dedupKey: params.dedupKey,
+      };
+      return [newNotif, ...prev];
+    });
+
+    if (shouldSendEmail) {
+      fetch('/api/notifications/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          notificationId: notifId,
+          userId: params.userId,
+          to: contact.email,
+          recipientName: contact.name,
+          subject,
+          eventType: params.type,
+          title: params.title,
+          message: params.message,
+          actionLabel: params.actionLabel || 'Ver operación en Publik Solidario',
+        }),
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (data?.emailRecord) {
+            setNotifications((prev) =>
+              prev.map((n) =>
+                n.id === notifId
+                  ? {
+                      ...n,
+                      emailStatus: data.emailRecord.status,
+                      emailHtmlPreview: data.emailRecord.htmlBody,
+                    }
+                  : n
+              )
+            );
+          }
+        })
+        .catch(() => {
+          // Keep queued_local fallback
+        });
+    }
+
+    return createdNew;
+  };
+
+  // Automatic & manual detector for publications approaching expiration (<24h and <6h)
+  const checkProductExpirations = (manual = false): number => {
+    const now = Date.now();
+    let generatedAlerts = 0;
+    const statusUpdates: Record<string, ProductStatus> = {};
+
+    products.forEach((p) => {
+      if (p.status === 'finalizada' || p.status === 'vendida' || p.status === 'pausada') {
+        return;
+      }
+
+      const expiresMs = new Date(p.expiresAt).getTime();
+      const diffHours = (expiresMs - now) / (1000 * 3600);
+
+      if (diffHours <= 0) {
+        if (p.status !== 'finalizada') {
+          statusUpdates[p.id] = 'finalizada';
+        }
+        return;
+      }
+
+      // Less than or equal to 6 hours remaining -> Critical <6h alert
+      if (diffHours <= 6) {
+        if (p.status !== 'proxima_a_finalizar') {
+          statusUpdates[p.id] = 'proxima_a_finalizar';
+        }
+        const hoursLeft = Math.max(1, Math.ceil(diffHours));
+        const dedupKey = `critica_6h_${p.id}`;
+        const alreadyNotified = notifications.some((n) => n.dedupKey === dedupKey);
+        if (!alreadyNotified) {
+          generatedAlerts++;
+          dispatchNotification({
+            userId: p.sellerId,
+            recipientFallbackName: p.sellerName,
+            type: 'publicacion_menos_6h',
+            title: '¡Alerta urgente! Menos de 6 horas para vencer',
+            message: `La publicación "${p.name}" (${p.quantity} ${p.unit}) vence en aproximadamente ${hoursLeft} hora(s). Revisa ofertas pendientes o extiende su vigencia.`,
+            emailSubject: `[Urgente < 6h] Tu publicación "${p.name}" está por vencer`,
+            actionLabel: 'Gestionar publicación ahora',
+            relatedProductId: p.id,
+            dedupKey,
+          });
+        }
+      } else if (diffHours <= 24) {
+        // Between 6h and 24h remaining -> Upcoming expiration alert
+        if (p.status !== 'proxima_a_finalizar') {
+          statusUpdates[p.id] = 'proxima_a_finalizar';
+        }
+        const hoursLeft = Math.round(diffHours);
+        const dedupKey = `proxima_24h_${p.id}`;
+        const alreadyNotified = notifications.some((n) => n.dedupKey === dedupKey);
+        if (!alreadyNotified) {
+          generatedAlerts++;
+          dispatchNotification({
+            userId: p.sellerId,
+            recipientFallbackName: p.sellerName,
+            type: 'publicacion_proxima_finalizar',
+            title: 'Publicación próxima a vencer',
+            message: `El lote "${p.name}" (${p.quantity} ${p.unit}) finaliza en ${hoursLeft} horas (menos de 24 horas restantes).`,
+            emailSubject: `Aviso de vencimiento próximo: "${p.name}"`,
+            actionLabel: 'Ver estado de la publicación',
+            relatedProductId: p.id,
+            dedupKey,
+          });
+        }
+      }
+    });
+
+    if (Object.keys(statusUpdates).length > 0) {
+      setProducts((prev) =>
+        prev.map((p) => (statusUpdates[p.id] ? { ...p, status: statusUpdates[p.id] } : p))
+      );
+    }
+
+    if (manual) {
+      if (generatedAlerts > 0) {
+        showToast(`Se detectaron y enviaron ${generatedAlerts} alerta(s) de vencimiento por correo.`, 'warning');
+      } else {
+        showToast('Verificación completada: todas las publicaciones próximas a vencer ya fueron notificadas.', 'info');
+      }
+    }
+
+    return generatedAlerts;
+  };
+
+  useEffect(() => {
+    checkProductExpirations(false);
+    const interval = setInterval(() => {
+      checkProductExpirations(false);
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [products.length]);
+
+  const simulateCritical6hForProduct = (id: string) => {
+    const target = products.find((p) => p.id === id);
+    if (!target) return;
+
+    const newExpiresAt = new Date(Date.now() + 4 * 3600 * 1000).toISOString();
+    setProducts((prev) =>
+      prev.map((p) =>
+        p.id === id
+          ? {
+              ...p,
+              expiresAt: newExpiresAt,
+              status: 'proxima_a_finalizar' as ProductStatus,
+            }
+          : p
+      )
+    );
+
+    dispatchNotification({
+      userId: target.sellerId,
+      recipientFallbackName: target.sellerName,
+      type: 'publicacion_menos_6h',
+      title: '¡Alerta urgente! Menos de 6 horas para vencer',
+      message: `La publicación "${target.name}" (${target.quantity} ${target.unit}) tiene menos de 6 horas restantes (4h). Revisa ofertas o renueva su publicación.`,
+      emailSubject: `[Urgente < 6h] Tu publicación "${target.name}" vence en 4 horas`,
+      actionLabel: 'Gestionar publicación urgente',
+      relatedProductId: target.id,
+      dedupKey: `critica_6h_${target.id}_${Date.now()}`,
+    });
+
+    showToast(`Alerta de < 6 horas generada y correo enviado para "${target.name}"`, 'warning');
+  };
+
   const simulateExpirationForProduct = (id: string) => {
+    const target = products.find((p) => p.id === id);
     setProducts((prev) =>
       prev.map((p) => {
         if (p.id === id) {
@@ -710,6 +1011,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return p;
       })
     );
+    if (target) {
+      dispatchNotification({
+        userId: target.sellerId,
+        recipientFallbackName: target.sellerName,
+        type: 'publicacion_finalizada',
+        title: 'Publicación finalizada por tiempo',
+        message: `El tiempo contratado para "${target.name}" ha concluido. Puedes renovarla desde Mis Publicaciones.`,
+        emailSubject: `Publicación finalizada: "${target.name}"`,
+        actionLabel: 'Renovar publicación',
+        relatedProductId: target.id,
+      });
+    }
     showToast('Se ha simulado la finalización del tiempo contratado.', 'warning');
   };
 
@@ -748,21 +1061,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       prev.map((p) => (p.id === offerData.productId ? { ...p, offersCount: (p.offersCount || 0) + 1 } : p))
     );
 
-    // Notify seller
-    const sellerNotif: NotificationItem = {
-      id: 'notif-' + Date.now().toString(36),
+    // Notify seller in-app + via transactional email
+    dispatchNotification({
       userId: offerData.sellerId,
+      recipientFallbackName: offerData.sellerName,
       type: 'nueva_oferta',
       title: '¡Nueva oferta recibida!',
-      message: `${offerData.buyerOrganization} ofreció $${offerData.totalOfferedPrice.toLocaleString('es-CO')} COP por ${offerData.productName}.`,
-      timestamp: 'Hace un momento',
-      read: false,
+      message: `${offerData.buyerOrganization} ofreció $${offerData.totalOfferedPrice.toLocaleString('es-CO')} COP por ${offerData.requestedQuantity} ${offerData.unit} de "${offerData.productName}".`,
+      emailSubject: `Nueva oferta recibida por "${offerData.productName}"`,
+      actionLabel: 'Revisar y responder oferta',
       relatedProductId: offerData.productId,
       relatedOfferId: id,
-    };
-    setNotifications((prev) => [sellerNotif, ...prev]);
+    });
 
-    showToast('¡Oferta enviada al establecimiento con éxito!', 'success');
+    showToast('¡Oferta enviada al establecimiento y notificada por correo!', 'success');
     return newOffer;
   };
 
@@ -773,6 +1085,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     counterQuantity?: number,
     messageText?: string
   ) => {
+    const targetOffer = offers.find((o) => o.id === offerId);
+
     setOffers((prev) =>
       prev.map((off) => {
         if (off.id === offerId) {
@@ -828,13 +1142,51 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       })
     );
 
-    // If accepted, we can also mark product as partially sold or sold if desired
-    if (action === 'aceptada') {
-      showToast('¡Oferta aceptada! Se ha notificado al comprador para concretar la entrega.', 'success');
-    } else if (action === 'contraoferta') {
-      showToast('Contraoferta enviada al comprador.', 'info');
-    } else {
-      showToast('Oferta rechazada.', 'warning');
+    if (targetOffer) {
+      const finalPrice = counterPrice || targetOffer.offeredPricePerUnit;
+      const finalQty = counterQuantity || targetOffer.requestedQuantity;
+      const finalTotal = finalPrice * finalQty;
+
+      if (action === 'aceptada') {
+        dispatchNotification({
+          userId: targetOffer.buyerId,
+          recipientFallbackName: targetOffer.buyerOrganization,
+          type: 'oferta_aceptada',
+          title: '¡Tu oferta ha sido aceptada!',
+          message: `${targetOffer.sellerName} aceptó tu oferta por ${finalQty} ${targetOffer.unit} de "${targetOffer.productName}" (Total: $${finalTotal.toLocaleString('es-CO')} COP). Coordina el retiro en el chat.`,
+          emailSubject: `¡Oferta aceptada! "${targetOffer.productName}" en Publik Solidario`,
+          actionLabel: 'Coordinar retiro en Negociaciones',
+          relatedProductId: targetOffer.productId,
+          relatedOfferId: targetOffer.id,
+        });
+        showToast('¡Oferta aceptada! Se ha notificado por correo al comprador.', 'success');
+      } else if (action === 'contraoferta') {
+        dispatchNotification({
+          userId: targetOffer.buyerId,
+          recipientFallbackName: targetOffer.buyerOrganization,
+          type: 'nueva_contraoferta',
+          title: 'Nueva contraoferta recibida',
+          message: `${targetOffer.sellerName} envió una contraoferta para "${targetOffer.productName}": ${finalQty} ${targetOffer.unit} a $${finalPrice.toLocaleString('es-CO')} c/u (Total: $${finalTotal.toLocaleString('es-CO')} COP).`,
+          emailSubject: `Nueva contraoferta de ${targetOffer.sellerName} por "${targetOffer.productName}"`,
+          actionLabel: 'Responder contraoferta',
+          relatedProductId: targetOffer.productId,
+          relatedOfferId: targetOffer.id,
+        });
+        showToast('Contraoferta enviada y notificada por correo al comprador.', 'info');
+      } else if (action === 'rechazada') {
+        dispatchNotification({
+          userId: targetOffer.buyerId,
+          recipientFallbackName: targetOffer.buyerOrganization,
+          type: 'oferta_rechazada',
+          title: 'Oferta rechazada',
+          message: `${targetOffer.sellerName} no pudo aceptar los términos de la oferta por "${targetOffer.productName}". Puedes explorar otros lotes o presentar una nueva propuesta.`,
+          emailSubject: `Actualización sobre tu oferta por "${targetOffer.productName}"`,
+          actionLabel: 'Ver detalles de la oferta',
+          relatedProductId: targetOffer.productId,
+          relatedOfferId: targetOffer.id,
+        });
+        showToast('Oferta rechazada y notificada al comprador.', 'warning');
+      }
     }
   };
 
@@ -890,6 +1242,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
   };
 
+  const toggleNotificationRead = (id: string) => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read: !n.read } : n))
+    );
+  };
+
   const markAllNotificationsAsRead = () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
     showToast('Todas las notificaciones marcadas como leídas', 'info');
@@ -942,8 +1300,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         isFavorite,
         notifications,
         markNotificationAsRead,
+        toggleNotificationRead,
         markAllNotificationsAsRead,
         unreadNotificationsCount,
+        checkProductExpirations,
+        simulateCritical6hForProduct,
         commissionRecords,
         currentView,
         setCurrentView: handleSetCurrentView,
@@ -959,6 +1320,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         showToast,
         removeToast,
         simulateExpirationForProduct,
+        globalSearchQuery,
+        setGlobalSearchQuery,
+        loadDemoData,
       }}
     >
       {children}

@@ -55,7 +55,7 @@ export const ShareQrModal: React.FC<ShareQrModalProps> = ({ isOpen, onClose }) =
   const handleDownload = () => {
     if (!canvasRef.current) return;
     const link = document.createElement('a');
-    link.download = 'FoodLink-Solidario-QR.png';
+    link.download = 'Publik-Solidario-QR.png';
     link.href = canvasRef.current.toDataURL('image/png');
     link.click();
   };
@@ -94,7 +94,7 @@ export const ShareQrModal: React.FC<ShareQrModalProps> = ({ isOpen, onClose }) =
           <div className="inline-flex items-center justify-center bg-white rounded-xl p-1.5 shadow-2xs border border-slate-200 dark:border-slate-700 mx-auto">
             <img
               src="/logo.png"
-              alt="FoodLink Solidario"
+              alt="Publik Solidario"
               className="h-10 w-auto object-contain"
               referrerPolicy="no-referrer"
             />
@@ -103,7 +103,7 @@ export const ShareQrModal: React.FC<ShareQrModalProps> = ({ isOpen, onClose }) =
           <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
             {t(
               'qr.instructions',
-              'Apunta con la cámara de tu celular para acceder directamente a la plataforma FoodLink Solidario o compartirla con tu comunidad.'
+              'Apunta con la cámara de tu celular para acceder directamente a la plataforma Publik Solidario o compartirla con tu comunidad.'
             )}
           </p>
 

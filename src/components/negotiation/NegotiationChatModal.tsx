@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { ProductOffer } from '../../types';
 import { useApp } from '../../context/AppContext';
 import { useI18n } from '../../i18n/I18nContext';
+import { ProductImage } from '../common/ProductImage';
+import { DeliveryCertificateModal } from '../common/DeliveryCertificateModal';
 import {
   X,
   Send,
@@ -9,10 +11,9 @@ import {
   XCircle,
   RefreshCw,
   Clock,
-  Building2,
-  DollarSign,
   AlertCircle,
   Truck,
+  FileText,
 } from 'lucide-react';
 
 interface NegotiationChatModalProps {
@@ -28,6 +29,7 @@ export const NegotiationChatModal: React.FC<NegotiationChatModalProps> = ({ offe
   const [isCounterOfferOpen, setIsCounterOfferOpen] = useState(false);
   const [counterPrice, setCounterPrice] = useState<number>(0);
   const [counterQty, setCounterQty] = useState<number>(0);
+  const [isCertificateOpen, setIsCertificateOpen] = useState(false);
 
   const offer = offers.find((o) => o.id === offerId);
 
@@ -100,11 +102,12 @@ export const NegotiationChatModal: React.FC<NegotiationChatModalProps> = ({ offe
         {/* Header */}
         <div className="p-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
           <div className="flex items-center gap-3">
-            <img
-              src={offer.productImageUrl}
-              alt={offer.productName}
-              className="w-12 h-12 rounded-lg object-cover border border-slate-700 bg-slate-800"
-            />
+            <div className="w-12 h-12 rounded-lg overflow-hidden border border-slate-700 bg-slate-800 shrink-0">
+              <ProductImage
+                src={offer.productImageUrl}
+                alt={offer.productName}
+              />
+            </div>
             <div>
               <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">
                 {t('negotiation.moduleTitle', 'Módulo de Negociación Solidaria')}
@@ -129,10 +132,23 @@ export const NegotiationChatModal: React.FC<NegotiationChatModalProps> = ({ offe
         </div>
 
         {/* Status Bar */}
-        <div className="px-5 py-2.5 bg-slate-50 dark:bg-slate-850 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs">
-          <div className={`px-2.5 py-1 rounded-full border font-bold flex items-center gap-1.5 ${statusBadge.bg}`}>
-            <StatusIcon className="w-3.5 h-3.5" />
-            <span>{statusBadge.text}</span>
+        <div className="px-5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs">
+          <div className="flex items-center gap-2">
+            <div className={`px-2.5 py-1 rounded-full border font-bold flex items-center gap-1.5 ${statusBadge.bg}`}>
+              <StatusIcon className="w-3.5 h-3.5" />
+              <span>{statusBadge.text}</span>
+            </div>
+
+            {offer.status === 'aceptada' && (
+              <button
+                type="button"
+                onClick={() => setIsCertificateOpen(true)}
+                className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>Generar acta de entrega</span>
+              </button>
+            )}
           </div>
 
           <div className="flex items-center gap-4 text-slate-600 dark:text-slate-300">
@@ -308,6 +324,12 @@ export const NegotiationChatModal: React.FC<NegotiationChatModalProps> = ({ offe
         </form>
 
       </div>
+
+      {/* Modal de Acta de Entrega en PDF (Exclusivo para operaciones Aceptadas) */}
+      <DeliveryCertificateModal
+        offer={isCertificateOpen && offer.status === 'aceptada' ? offer : null}
+        onClose={() => setIsCertificateOpen(false)}
+      />
     </div>
   );
 };

@@ -1,0 +1,742 @@
+import { FoodCategory, FoodProduct, NotificationItem, ProductOffer } from '../types';
+
+/**
+ * Ilustraciones SVG en Data URI de alta nitidez por categoría para garantizar
+ * cero imágenes rotas (Zero-Broken-Image Policy) sin depender de servidores externos.
+ */
+const createCategorySvg = (
+  bgStart: string,
+  bgEnd: string,
+  accent: string,
+  label: string,
+  iconPath: string
+): string => {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 450" width="600" height="450">
+    <defs>
+      <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="${bgStart}"/>
+        <stop offset="100%" stop-color="${bgEnd}"/>
+      </linearGradient>
+      <radialGradient id="glow" cx="75%" cy="25%" r="50%">
+        <stop offset="0%" stop-color="${accent}" stop-opacity="0.22"/>
+        <stop offset="100%" stop-color="${accent}" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <rect width="600" height="450" fill="url(#bg)"/>
+    <rect width="600" height="450" fill="url(#glow)"/>
+    <circle cx="300" cy="195" r="88" fill="#ffffff" fill-opacity="0.78"/>
+    <circle cx="300" cy="195" r="72" fill="${accent}" fill-opacity="0.14"/>
+    <g transform="translate(264, 159) scale(3)" fill="none" stroke="${accent}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      ${iconPath}
+    </g>
+    <text x="300" y="335" text-anchor="middle" font-family="Plus Jakarta Sans, system-ui, sans-serif" font-weight="700" font-size="22" fill="#0f172a" letter-spacing="-0.02em">${label}</text>
+    <text x="300" y="362" text-anchor="middle" font-family="Plus Jakarta Sans, system-ui, sans-serif" font-weight="500" font-size="13" fill="#475569">Lote verificado · Publik Solidario</text>
+  </svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+};
+
+export const CATEGORY_ILLUSTRATIONS: Record<FoodCategory, string> = {
+  'Frutas': createCategorySvg(
+    '#f0fdf4',
+    '#dcfce7',
+    '#15803d',
+    'Frutas Frescas',
+    '<path d="M12 20.94c1.5 0 2.75 1.06 4 1.06 3 0 6-8 6-12.22A4.91 4.91 0 0 0 17 5c-2.22 0-4 1.44-5 2-1-.56-2.78-2-5-2a4.9 4.9 0 0 0-5 4.78C2 14 5 22 8 22c1.25 0 2.5-1.06 4-1.06Z"/><path d="M10 2c1 .5 2 2 2 5"/>'
+  ),
+  'Verduras': createCategorySvg(
+    '#ecfdf5',
+    '#d1fae5',
+    '#047857',
+    'Verduras y Hortalizas',
+    '<path d="M2 22 16 8"/><path d="M3.47 12.53 5 11l1.53 1.53a3.5 3.5 0 0 1 0 4.94L5 19l-1.53-1.53a3.5 3.5 0 0 1 0-4.94Z"/><path d="M7.47 8.53 9 7l1.53 1.53a3.5 3.5 0 0 1 0 4.94L9 15l-1.53-1.53a3.5 3.5 0 0 1 0-4.94Z"/><path d="M11.47 4.53 13 3l1.53 1.53a3.5 3.5 0 0 1 0 4.94L13 11l-1.53-1.53a3.5 3.5 0 0 1 0-4.94Z"/><path d="M20 2h2v2a4 4 0 0 1-4 4h-2V6a4 4 0 0 1 4-4Z"/>'
+  ),
+  'Lácteos': createCategorySvg(
+    '#f0f9ff',
+    '#e0f2fe',
+    '#0369a1',
+    'Lácteos y Derivados',
+    '<path d="M8 2h8l2 4v14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V6l2-4Z"/><path d="M6 6h12"/><path d="M10 12h4"/>'
+  ),
+  'Carnes y proteínas': createCategorySvg(
+    '#fff1f2',
+    '#ffe4e6',
+    '#be123c',
+    'Carnes y Proteínas',
+    '<circle cx="12.5" cy="8.5" r="2.5"/><path d="M12.5 2a6.5 6.5 0 0 0-6.22 4.6c-1.1 3.13-.78 3.9-3.18 6.08A3 3 0 0 0 5 18c4 0 8.4-1.8 11.4-4.3A6.5 6.5 0 0 0 12.5 2Z"/>'
+  ),
+  'Huevos': createCategorySvg(
+    '#fffbeb',
+    '#fef3c7',
+    '#b45309',
+    'Huevos Seleccionados',
+    '<path d="M12 22c6.23-.05 7.87-5.57 7.5-10-.36-4.34-3.95-9.96-7.5-10-3.55.04-7.14 5.66-7.5 10-.37 4.43 1.27 9.95 7.5 10z"/>'
+  ),
+  'Panadería y repostería': createCategorySvg(
+    '#fff7ed',
+    '#ffedd5',
+    '#c2410c',
+    'Panadería y Repostería',
+    '<path d="m4.6 13.11 5.79-3.21c1.89-1.05 4.79 1.78 3.71 3.71l-3.22 5.81C8.8 23.16.79 15.23 4.6 13.11Z"/><path d="m10.5 9.5-1-2.29C9.2 6.48 8.8 6 8 6H4.5C2.79 6 2 6.5 2 8.5a7.71 7.71 0 0 0 2 4.83"/><path d="M8 6c0-1.55.24-4-2-4-2 0-2.5 2.17-2.5 4"/><path d="m14.5 13.5 2.29 1c.73.3 1.21.7 1.21 1.5v3.5c0 1.71-.5 2.5-2.5 2.5a7.71 7.71 0 0 1-4.83-2"/><path d="M18 16c1.55 0 4-.24 4 2 0 2.17-2.17 2.5-4 2.5"/>'
+  ),
+  'Granos y cereales': createCategorySvg(
+    '#fefce8',
+    '#fef08a',
+    '#a16207',
+    'Granos y Cereales',
+    '<path d="M2 22 16 8"/><path d="M17 2l5 5"/><path d="M14 4l6 6"/><path d="M7 10l7 7"/><path d="M4 13l7 7"/>'
+  ),
+  'Alimentos enlatados y conservas': createCategorySvg(
+    '#f8fafc',
+    '#e2e8f0',
+    '#334155',
+    'Enlatados y Conservas',
+    '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/>'
+  ),
+  'Bebidas': createCategorySvg(
+    '#f0fdfa',
+    '#ccfbf1',
+    '#0f766e',
+    'Bebidas y Jugos',
+    '<path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" x2="6" y1="2" y2="4"/><line x1="10" x2="10" y1="2" y2="4"/><line x1="14" x2="14" y1="2" y2="4"/>'
+  ),
+  'Snacks': createCategorySvg(
+    '#fdf4ff',
+    '#fae8ff',
+    '#86198f',
+    'Snacks y Pasabocas',
+    '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 8h16"/><path d="M4 16h16"/>'
+  ),
+  'Alimentos empacados': createCategorySvg(
+    '#f1f5f9',
+    '#e2e8f0',
+    '#0f172a',
+    'Alimentos Empacados',
+    '<path d="M16.5 9.4 7.55 4.24"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" x2="12" y1="22" y2="12"/>'
+  ),
+  'Otros alimentos': createCategorySvg(
+    '#f0fdf4',
+    '#dcfce7',
+    '#166534',
+    'Alimentos Solidarios',
+    '<path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/>'
+  ),
+};
+
+export interface PartnerOrganization {
+  id: string;
+  name: string;
+  type:
+    | 'Supermercado'
+    | 'Tienda'
+    | 'Restaurante'
+    | 'Panadería'
+    | 'Distribuidor'
+    | 'Fruver'
+    | 'Fundación'
+    | 'Comedor Comunitario'
+    | 'Hogar Comunitario'
+    | 'Empresa Solidaria';
+  roleCategory: 'empresa' | 'organizacion';
+  city: string;
+  address: string;
+  nit: string;
+  phone: string;
+  email: string;
+  verified: boolean;
+  description: string;
+  totalKgRescued: number;
+  activeListingsCount: number;
+  completedOperations: number;
+  joinedDate: string;
+  lat: number;
+  lng: number;
+  schedule?: string;
+}
+
+export const PARTNER_ORGANIZATIONS: PartnerOrganization[] = [
+  {
+    id: 'user-est-01',
+    name: 'Supermercado Los Andes',
+    type: 'Supermercado',
+    roleCategory: 'empresa',
+    city: 'Medellín',
+    address: 'Calle 10 # 43E-12, El Poblado',
+    nit: '900.842.119-4',
+    phone: '+57 312 456 7890',
+    email: 'contacto@superlosandes.com.co',
+    verified: true,
+    description: 'Cadena regional comprometida con la reducción del desperdicio de perecederos, frutas, verduras y lácteos mediante alianzas solidarias.',
+    totalKgRescued: 3850,
+    activeListingsCount: 3,
+    completedOperations: 42,
+    joinedDate: 'Enero 2025',
+    lat: 6.2088,
+    lng: -75.5658,
+    schedule: 'Lun - Sáb: 7:00 AM - 6:00 PM',
+  },
+  {
+    id: 'user-fnd-01',
+    name: 'Fundación Solidaria Saciar',
+    type: 'Fundación',
+    roleCategory: 'organizacion',
+    city: 'Medellín',
+    address: 'Carrera 50 # 65-18, Prado Centro',
+    nit: '890.901.442-1',
+    phone: '+57 310 987 6543',
+    email: 'direccion@fundacionsaciar.org',
+    verified: true,
+    description: 'Banco de alimentos y red de comedores comunitarios que atiende a más de 14.000 beneficiarios vulnerables en el Valle de Aburrá.',
+    totalKgRescued: 5420,
+    activeListingsCount: 0,
+    completedOperations: 68,
+    joinedDate: 'Enero 2025',
+    lat: 6.2612,
+    lng: -75.5636,
+    schedule: 'Lun - Vie: 7:30 AM - 5:00 PM',
+  },
+  {
+    id: 'org-est-02',
+    name: 'Fruver El Campirano',
+    type: 'Fruver',
+    roleCategory: 'empresa',
+    city: 'Medellín',
+    address: 'Central Mayorista de Antioquia, Bloque 14',
+    nit: '901.112.480-2',
+    phone: '+57 314 780 1122',
+    email: 'logistica@elcampirano.co',
+    verified: true,
+    description: 'Comercializadora directa de productores agrícolas de Oriente y Norte antioqueño con lotes diarios de cosecha fresca.',
+    totalKgRescued: 2920,
+    activeListingsCount: 2,
+    completedOperations: 35,
+    joinedDate: 'Febrero 2025',
+    lat: 6.1856,
+    lng: -75.5812,
+    schedule: 'Lun - Dom: 5:00 AM - 3:00 PM',
+  },
+  {
+    id: 'org-est-05',
+    name: 'Tienda Mercados La Villa',
+    type: 'Tienda',
+    roleCategory: 'empresa',
+    city: 'Medellín',
+    address: 'Circular 4 # 70-24, Laureles',
+    nit: '901.340.118-7',
+    phone: '+57 311 620 4490',
+    email: 'administracion@mercadoslavilla.co',
+    verified: true,
+    description: 'Tienda de barrio y minimercado familiar que canaliza excedentes diarios de abarrotes, lácteos y frutas hacia fundaciones locales.',
+    totalKgRescued: 1180,
+    activeListingsCount: 1,
+    completedOperations: 21,
+    joinedDate: 'Febrero 2025',
+    lat: 6.2452,
+    lng: -75.5914,
+    schedule: 'Lun - Sáb: 8:00 AM - 7:00 PM',
+  },
+  {
+    id: 'org-est-06',
+    name: 'Restaurante Bistró Cosecha Viva',
+    type: 'Restaurante',
+    roleCategory: 'empresa',
+    city: 'Medellín',
+    address: 'Carrera 43A # 1Sur-150, El Poblado',
+    nit: '901.509.882-3',
+    phone: '+57 304 512 8830',
+    email: 'cocina@cosechaviva.com.co',
+    verified: true,
+    description: 'Restaurante sostenible con protocolo certificado de empaque en frío para donación y venta solidaria de insumos frescos.',
+    totalKgRescued: 940,
+    activeListingsCount: 1,
+    completedOperations: 18,
+    joinedDate: 'Marzo 2025',
+    lat: 6.2015,
+    lng: -75.5721,
+    schedule: 'Lun - Sáb: 11:00 AM - 9:00 PM',
+  },
+  {
+    id: 'org-est-03',
+    name: 'Panadería y Pastelería El Trigal',
+    type: 'Panadería',
+    roleCategory: 'empresa',
+    city: 'Bogotá',
+    address: 'Av. Suba # 115-40, Usaquén',
+    nit: '901.234.567-8',
+    phone: '+57 315 332 9081',
+    email: 'produccion@panaderiaeltrigal.com',
+    verified: true,
+    description: 'Planta panificadora artesanal que canaliza sus excedentes horneados del día hacia hogares infantiles y comedores sociales.',
+    totalKgRescued: 1490,
+    activeListingsCount: 1,
+    completedOperations: 29,
+    joinedDate: 'Marzo 2025',
+    lat: 4.6989,
+    lng: -74.0598,
+    schedule: 'Lun - Sáb: 6:30 AM - 6:00 PM',
+  },
+  {
+    id: 'org-fnd-02',
+    name: 'Red de Comedores Nutrir Vida',
+    type: 'Comedor Comunitario',
+    roleCategory: 'organizacion',
+    city: 'Bogotá',
+    address: 'Calle 45 Sur # 24-15, Tunjuelito',
+    nit: '860.412.890-5',
+    phone: '+57 301 654 2210',
+    email: 'coordinacion@nutrirvida.org.co',
+    verified: true,
+    description: 'Red de comedores comunitarios dedicada a la nutrición escolar y atención alimentaria de adultos mayores en el sur de Bogotá.',
+    totalKgRescued: 3180,
+    activeListingsCount: 0,
+    completedOperations: 47,
+    joinedDate: 'Febrero 2025',
+    lat: 4.5762,
+    lng: -74.1356,
+    schedule: 'Lun - Sáb: 7:00 AM - 4:00 PM',
+  },
+  {
+    id: 'org-est-07',
+    name: 'Supermercados MercaSana Chapinero',
+    type: 'Supermercado',
+    roleCategory: 'empresa',
+    city: 'Bogotá',
+    address: 'Carrera 13 # 63-28, Chapinero',
+    nit: '900.612.334-9',
+    phone: '+57 316 890 2341',
+    email: 'sostenibilidad@mercasana.co',
+    verified: true,
+    description: 'Supermercado urbano con muelle de despacho solidario para entrega ágil de frutas, verduras, panadería y abarrotes.',
+    totalKgRescued: 2740,
+    activeListingsCount: 2,
+    completedOperations: 39,
+    joinedDate: 'Enero 2025',
+    lat: 4.6492,
+    lng: -74.0628,
+    schedule: 'Lun - Dom: 7:00 AM - 8:00 PM',
+  },
+  {
+    id: 'org-est-04',
+    name: 'Distribuidora Abastos del Valle',
+    type: 'Distribuidor',
+    roleCategory: 'empresa',
+    city: 'Cali',
+    address: 'Cavasa, Bodega 8, Vía Candelaria',
+    nit: '800.771.293-5',
+    phone: '+57 318 440 9912',
+    email: 'ventas@abastosdelvalle.com.co',
+    verified: true,
+    description: 'Distribuidor mayorista de abarrotes, granos, cereales y lácteos con programa permanente de rescate alimentario.',
+    totalKgRescued: 2410,
+    activeListingsCount: 2,
+    completedOperations: 31,
+    joinedDate: 'Marzo 2025',
+    lat: 3.4372,
+    lng: -76.4815,
+    schedule: 'Lun - Sáb: 6:00 AM - 4:30 PM',
+  },
+  {
+    id: 'org-fnd-03',
+    name: 'Fundación Banco Solidario del Pacífico',
+    type: 'Fundación',
+    roleCategory: 'organizacion',
+    city: 'Cali',
+    address: 'Calle 5 # 38-25, San Fernando',
+    nit: '890.315.770-6',
+    phone: '+57 317 554 1920',
+    email: 'alianzas@bancosolidariopacifico.org',
+    verified: true,
+    description: 'Organización humanitaria que coordina rutas de recuperación de excedentes agrícolas e industriales en el Valle del Cauca.',
+    totalKgRescued: 4190,
+    activeListingsCount: 0,
+    completedOperations: 53,
+    joinedDate: 'Enero 2025',
+    lat: 3.4285,
+    lng: -76.5442,
+    schedule: 'Lun - Vie: 8:00 AM - 5:30 PM',
+  },
+];
+
+export const getSampleProducts = (): FoodProduct[] => {
+  const now = Date.now();
+  const hour = 3600 * 1000;
+  const day = 24 * hour;
+
+  return [
+    {
+      id: 'prod-demo-101',
+      name: 'Tomate Chonto Seleccionado en Canastilla',
+      category: 'Verduras',
+      brand: 'Cosecha Oriente Antioqueño',
+      description: 'Lote de tomate chonto en maduración óptima para consumo inmediato, salsas o comedores comunitarios. Empacado en canastillas plásticas higienizadas.',
+      imageUrl: CATEGORY_ILLUSTRATIONS['Verduras'],
+      quantity: 85,
+      unit: 'kg',
+      condition: 'Maduración avanzada',
+      expirationDate: new Date(now + 3 * day).toISOString().split('T')[0],
+      recommendedConsumptionDate: new Date(now + 2 * day).toISOString().split('T')[0],
+      locationCity: 'Medellín',
+      locationAddress: 'Calle 10 # 43E-12, Muelle de descarga 2',
+      originalPrice: 4200,
+      requestedPrice: 1600,
+      minPurchaseQuantity: 15,
+      deliveryConditions: 'Retiro en sede entre 8:00 AM y 5:00 PM con orden de entrega.',
+      durationDays: 3,
+      commissionPaid: 2500,
+      publishedAt: new Date(now - 6 * hour).toISOString(),
+      expiresAt: new Date(now + 66 * hour).toISOString(),
+      status: 'activa',
+      sellerId: 'user-est-01',
+      sellerName: 'Supermercado Los Andes',
+      sellerType: 'Supermercado',
+      sellerVerified: true,
+      sellerPhone: '+57 312 456 7890',
+      offersCount: 2,
+      viewsCount: 34,
+    },
+    {
+      id: 'prod-demo-102',
+      name: 'Yogurt Entero Natural Bolsa x 1L',
+      category: 'Lácteos',
+      brand: 'Lácteos del Norte',
+      description: 'Excedente de inventario con cadena de frío garantizada (2°C - 4°C). Ideal para programas de desayunos infantiles.',
+      imageUrl: CATEGORY_ILLUSTRATIONS['Lácteos'],
+      quantity: 60,
+      unit: 'litros',
+      condition: 'Próximo a vencer',
+      expirationDate: new Date(now + 2 * day).toISOString().split('T')[0],
+      recommendedConsumptionDate: new Date(now + 2 * day).toISOString().split('T')[0],
+      locationCity: 'Medellín',
+      locationAddress: 'Calle 10 # 43E-12, Cuarto Frío Principal',
+      originalPrice: 5800,
+      requestedPrice: 2200,
+      minPurchaseQuantity: 10,
+      deliveryConditions: 'Requiere cava refrigerada o vehículo térmico para su retiro.',
+      durationDays: 2,
+      commissionPaid: 1800,
+      publishedAt: new Date(now - 28 * hour).toISOString(),
+      expiresAt: new Date(now + 18 * hour).toISOString(),
+      status: 'proxima_a_finalizar',
+      sellerId: 'user-est-01',
+      sellerName: 'Supermercado Los Andes',
+      sellerType: 'Supermercado',
+      sellerVerified: true,
+      sellerPhone: '+57 312 456 7890',
+      offersCount: 1,
+      viewsCount: 29,
+    },
+    {
+      id: 'prod-demo-103',
+      name: 'Banano Criollo Urabá Tipo Exportación',
+      category: 'Frutas',
+      brand: 'Fruver El Campirano',
+      description: 'Lote excedente por calibre comercial externo, pulpa en perfecto estado nutricional y dulzor ideal.',
+      imageUrl: CATEGORY_ILLUSTRATIONS['Frutas'],
+      quantity: 120,
+      unit: 'kg',
+      condition: 'Fuera de calibre comercial',
+      expirationDate: new Date(now + 4 * day).toISOString().split('T')[0],
+      recommendedConsumptionDate: new Date(now + 3 * day).toISOString().split('T')[0],
+      locationCity: 'Medellín',
+      locationAddress: 'Central Mayorista de Antioquia, Bloque 14',
+      originalPrice: 2900,
+      requestedPrice: 1100,
+      minPurchaseQuantity: 25,
+      deliveryConditions: 'Disponible para cargue inmediato en plataforma.',
+      durationDays: 3,
+      commissionPaid: 2500,
+      publishedAt: new Date(now - 4 * hour).toISOString(),
+      expiresAt: new Date(now + 68 * hour).toISOString(),
+      status: 'activa',
+      sellerId: 'org-est-02',
+      sellerName: 'Fruver El Campirano',
+      sellerType: 'Fruver',
+      sellerVerified: true,
+      sellerPhone: '+57 314 780 1122',
+      offersCount: 1,
+      viewsCount: 41,
+    },
+    {
+      id: 'prod-demo-104',
+      name: 'Pan Artesanal Integral y Mogolla x 12 und',
+      category: 'Panadería y repostería',
+      brand: 'Panadería El Trigal',
+      description: 'Horneado del día anterior en bolsas selladas. Textura suave y excelente aporte energético.',
+      imageUrl: CATEGORY_ILLUSTRATIONS['Panadería y repostería'],
+      quantity: 45,
+      unit: 'bandejas',
+      condition: 'Excedente de producción',
+      expirationDate: new Date(now + 2 * day).toISOString().split('T')[0],
+      recommendedConsumptionDate: new Date(now + 1 * day).toISOString().split('T')[0],
+      locationCity: 'Bogotá',
+      locationAddress: 'Av. Suba # 115-40, Punto de Despacho',
+      originalPrice: 9500,
+      requestedPrice: 3500,
+      minPurchaseQuantity: 5,
+      deliveryConditions: 'Retiro prioritario en horario de la tarde.',
+      durationDays: 1,
+      commissionPaid: 1000,
+      publishedAt: new Date(now - 19.5 * hour).toISOString(),
+      expiresAt: new Date(now + 4.5 * hour).toISOString(),
+      status: 'proxima_a_finalizar',
+      sellerId: 'org-est-03',
+      sellerName: 'Panadería y Pastelería El Trigal',
+      sellerType: 'Panadería',
+      sellerVerified: true,
+      sellerPhone: '+57 315 332 9081',
+      offersCount: 0,
+      viewsCount: 18,
+    },
+    {
+      id: 'prod-demo-105',
+      name: 'Arroz Blanco Seleccionado Bulto x 25kg',
+      category: 'Granos y cereales',
+      brand: 'Distribuidora Abastos del Valle',
+      description: 'Bultos con leve roce en el saco exterior, grano 100% íntegro, seco y sellado en bolsa interna.',
+      imageUrl: CATEGORY_ILLUSTRATIONS['Granos y cereales'],
+      quantity: 30,
+      unit: 'bultos',
+      condition: 'Empaque secundario dañado',
+      expirationDate: new Date(now + 90 * day).toISOString().split('T')[0],
+      recommendedConsumptionDate: new Date(now + 60 * day).toISOString().split('T')[0],
+      locationCity: 'Cali',
+      locationAddress: 'Cavasa, Bodega 8, Vía Candelaria',
+      originalPrice: 82000,
+      requestedPrice: 54000,
+      minPurchaseQuantity: 2,
+      deliveryConditions: 'Coordinación previa de transporte o retiro en bodega.',
+      durationDays: 14,
+      commissionPaid: 7000,
+      publishedAt: new Date(now - 2 * day).toISOString(),
+      expiresAt: new Date(now + 12 * day).toISOString(),
+      status: 'activa',
+      sellerId: 'org-est-04',
+      sellerName: 'Distribuidora Abastos del Valle',
+      sellerType: 'Distribuidor',
+      sellerVerified: true,
+      sellerPhone: '+57 318 440 9912',
+      offersCount: 1,
+      viewsCount: 52,
+    },
+  ];
+};
+
+export const getSampleOffers = (): ProductOffer[] => {
+  const now = Date.now();
+  const hour = 3600 * 1000;
+
+  return [
+    {
+      id: 'off-demo-201',
+      productId: 'prod-demo-101',
+      productName: 'Tomate Chonto Seleccionado en Canastilla',
+      productImageUrl: CATEGORY_ILLUSTRATIONS['Verduras'],
+      sellerId: 'user-est-01',
+      sellerName: 'Supermercado Los Andes',
+      buyerId: 'user-fnd-01',
+      buyerName: 'Elena Restrepo',
+      buyerOrganization: 'Fundación Solidaria Saciar',
+      buyerType: 'Fundación',
+      requestedQuantity: 50,
+      offeredPricePerUnit: 1500,
+      totalOfferedPrice: 75000,
+      unit: 'kg',
+      message: 'Hola equipo de Supermercado Los Andes, podemos retirar 50 kg hoy mismo en nuestro vehículo de la fundación.',
+      pickupMethod: 'Recogida en sede del vendedor',
+      proposedDate: new Date(now + 24 * hour).toISOString().split('T')[0],
+      status: 'pendiente',
+      createdAt: new Date(now - 3 * hour).toISOString(),
+      updatedAt: new Date(now - 1 * hour).toISOString(),
+      messages: [
+        {
+          id: 'msg-demo-1',
+          senderId: 'user-fnd-01',
+          senderName: 'Elena Restrepo (Fundación Solidaria Saciar)',
+          senderRole: 'buyer_foundation',
+          timestamp: '09:30 AM',
+          text: 'Hola equipo de Supermercado Los Andes, podemos retirar 50 kg hoy mismo en nuestro vehículo de la fundación.',
+          isOfferProposal: true,
+          proposedPrice: 1500,
+          proposedQuantity: 50,
+        },
+      ],
+    },
+    {
+      id: 'off-demo-202',
+      productId: 'prod-demo-102',
+      productName: 'Yogurt Entero Natural Bolsa x 1L',
+      productImageUrl: CATEGORY_ILLUSTRATIONS['Lácteos'],
+      sellerId: 'user-est-01',
+      sellerName: 'Supermercado Los Andes',
+      buyerId: 'user-fnd-01',
+      buyerName: 'Elena Restrepo',
+      buyerOrganization: 'Fundación Solidaria Saciar',
+      buyerType: 'Fundación',
+      requestedQuantity: 40,
+      offeredPricePerUnit: 2000,
+      totalOfferedPrice: 80000,
+      unit: 'litros',
+      message: 'Contamos con transporte refrigerado para recoger los 40 litros mañana a primera hora.',
+      pickupMethod: 'Transporte solidario contratado',
+      proposedDate: new Date(now + 18 * hour).toISOString().split('T')[0],
+      status: 'contraoferta',
+      createdAt: new Date(now - 8 * hour).toISOString(),
+      updatedAt: new Date(now - 2 * hour).toISOString(),
+      messages: [
+        {
+          id: 'msg-demo-2',
+          senderId: 'user-fnd-01',
+          senderName: 'Elena Restrepo (Fundación Solidaria Saciar)',
+          senderRole: 'buyer_foundation',
+          timestamp: '08:15 AM',
+          text: 'Contamos con transporte refrigerado para recoger los 40 litros mañana a primera hora.',
+          isOfferProposal: true,
+          proposedPrice: 1900,
+          proposedQuantity: 40,
+        },
+        {
+          id: 'msg-demo-3',
+          senderId: 'user-est-01',
+          senderName: 'Pedro Gómez (Supermercado Los Andes)',
+          senderRole: 'establishment',
+          timestamp: '10:05 AM',
+          text: 'Contraoferta formal: $2.000 por unidad para 40 litros e incluimos canastillas térmicas de préstamo.',
+          isOfferProposal: true,
+          proposedPrice: 2000,
+          proposedQuantity: 40,
+        },
+      ],
+    },
+    {
+      id: 'off-demo-203',
+      productId: 'prod-demo-103',
+      productName: 'Banano Criollo Urabá Tipo Exportación',
+      productImageUrl: CATEGORY_ILLUSTRATIONS['Frutas'],
+      sellerId: 'org-est-02',
+      sellerName: 'Fruver El Campirano',
+      buyerId: 'user-fnd-01',
+      buyerName: 'Elena Restrepo',
+      buyerOrganization: 'Fundación Solidaria Saciar',
+      buyerType: 'Fundación',
+      requestedQuantity: 80,
+      offeredPricePerUnit: 1100,
+      totalOfferedPrice: 88000,
+      unit: 'kg',
+      message: 'Propuesta por 80 kg para nuestros comedores infantiles en Medellín.',
+      pickupMethod: 'Recogida en sede del vendedor',
+      proposedDate: new Date(now + 12 * hour).toISOString().split('T')[0],
+      status: 'aceptada',
+      createdAt: new Date(now - 20 * hour).toISOString(),
+      updatedAt: new Date(now - 5 * hour).toISOString(),
+      messages: [
+        {
+          id: 'msg-demo-4',
+          senderId: 'user-fnd-01',
+          senderName: 'Elena Restrepo (Fundación Solidaria Saciar)',
+          senderRole: 'buyer_foundation',
+          timestamp: 'Ayer',
+          text: 'Propuesta por 80 kg para nuestros comedores infantiles en Medellín.',
+          isOfferProposal: true,
+          proposedPrice: 1100,
+          proposedQuantity: 80,
+        },
+        {
+          id: 'msg-demo-5',
+          senderId: 'org-est-02',
+          senderName: 'Fruver El Campirano',
+          senderRole: 'establishment',
+          timestamp: 'Hoy',
+          text: '¡Hemos aceptado tu oferta! Tu pedido ha sido reservado en el Bloque 14 para recogida.',
+        },
+      ],
+    },
+  ];
+};
+
+export const getSampleNotifications = (): NotificationItem[] => {
+  const now = Date.now();
+  const min = 60 * 1000;
+  const hour = 3600 * 1000;
+
+  return [
+    {
+      id: 'notif-demo-crit-1',
+      userId: 'org-est-03',
+      type: 'publicacion_menos_6h',
+      title: '¡Alerta urgente! Menos de 6 horas para vencer',
+      message: 'La publicación "Pan Artesanal Integral y Mogolla x 12 und" vence en menos de 5 horas. Revisa ofertas o extiende su vigencia.',
+      timestamp: 'Hace 10 min',
+      createdAt: new Date(now - 10 * min).toISOString(),
+      read: false,
+      relatedProductId: 'prod-demo-104',
+      recipientEmail: 'produccion@panaderiaeltrigal.com',
+      recipientName: 'Panadería y Pastelería El Trigal',
+      emailStatus: 'queued_local',
+      emailSubject: '[Urgente < 6h] Tu publicación "Pan Artesanal Integral y Mogolla x 12 und" está por finalizar',
+      dedupKey: 'critica_6h_prod-demo-104',
+    },
+    {
+      id: 'notif-demo-1',
+      userId: 'user-est-01',
+      type: 'nueva_oferta',
+      title: 'Nueva oferta recibida',
+      message: 'Fundación Solidaria Saciar ofreció $75.000 COP por 50 kg de Tomate Chonto Seleccionado en Canastilla.',
+      timestamp: 'Hace 25 min',
+      createdAt: new Date(now - 25 * min).toISOString(),
+      read: false,
+      relatedProductId: 'prod-demo-101',
+      relatedOfferId: 'off-demo-201',
+      recipientEmail: 'contacto@superlosandes.com.co',
+      recipientName: 'Pedro Gómez (Supermercado Los Andes)',
+      emailStatus: 'queued_local',
+      emailSubject: 'Nueva oferta solidaria por Tomate Chonto Seleccionado en Canastilla',
+    },
+    {
+      id: 'notif-demo-counter-1',
+      userId: 'user-fnd-01',
+      type: 'nueva_contraoferta',
+      title: 'Contraoferta recibida',
+      message: 'Supermercado Los Andes propuso $2.000 COP/unidad por 40 litros de Yogurt Entero Natural Bolsa x 1L (Total: $80.000 COP).',
+      timestamp: 'Hace 1 hora',
+      createdAt: new Date(now - 1 * hour).toISOString(),
+      read: false,
+      relatedProductId: 'prod-demo-102',
+      relatedOfferId: 'off-demo-202',
+      recipientEmail: 'direccion@fundacionsaciar.org',
+      recipientName: 'Elena Restrepo (Fundación Solidaria Saciar)',
+      emailStatus: 'queued_local',
+      emailSubject: 'Nueva contraoferta de Supermercado Los Andes en Publik Solidario',
+    },
+    {
+      id: 'notif-demo-2',
+      userId: 'user-est-01',
+      type: 'publicacion_proxima_finalizar',
+      title: 'Publicación próxima a vencer',
+      message: 'El lote "Yogurt Entero Natural Bolsa x 1L" finaliza en 18 horas (menos de 24 horas restantes).',
+      timestamp: 'Hace 2 horas',
+      createdAt: new Date(now - 2 * hour).toISOString(),
+      read: false,
+      relatedProductId: 'prod-demo-102',
+      recipientEmail: 'contacto@superlosandes.com.co',
+      recipientName: 'Pedro Gómez (Supermercado Los Andes)',
+      emailStatus: 'queued_local',
+      emailSubject: 'Aviso de vencimiento próximo: Yogurt Entero Natural Bolsa x 1L',
+      dedupKey: 'proxima_24h_prod-demo-102',
+    },
+    {
+      id: 'notif-demo-3',
+      userId: 'user-fnd-01',
+      type: 'oferta_aceptada',
+      title: 'Oferta aceptada por el comercio',
+      message: 'Fruver El Campirano aceptó tu oferta por 80 kg de Banano Criollo Urabá Tipo Exportación ($88.000 COP).',
+      timestamp: 'Hace 4 horas',
+      createdAt: new Date(now - 4 * hour).toISOString(),
+      read: true,
+      relatedProductId: 'prod-demo-103',
+      relatedOfferId: 'off-demo-203',
+      recipientEmail: 'direccion@fundacionsaciar.org',
+      recipientName: 'Elena Restrepo (Fundación Solidaria Saciar)',
+      emailStatus: 'queued_local',
+      emailSubject: '¡Oferta aceptada! Orden de retiro lista para Banano Criollo Urabá',
+    },
+  ];
+};

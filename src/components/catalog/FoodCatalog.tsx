@@ -1,21 +1,18 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { useI18n } from '../../i18n/I18nContext';
-import { FoodCategory, FoodCondition, FoodProduct, FOOD_CATEGORIES, FOOD_CONDITIONS } from '../../types';
+import { FoodProduct, FOOD_CATEGORIES, FOOD_CONDITIONS } from '../../types';
 import { ProductCard } from './ProductCard';
 import { ProductCardSkeleton } from './ProductCardSkeleton';
 import { ProductDetailModal } from './ProductDetailModal';
 import { MakeOfferModal } from './MakeOfferModal';
+import { EmptyState } from '../common/EmptyState';
 import {
   Search,
-  Filter,
-  SlidersHorizontal,
-  X,
   MapPin,
-  Clock,
-  Sparkles,
   ArrowUpDown,
   ShoppingBag,
+  Plus,
+  RotateCcw,
 } from 'lucide-react';
 
 export const FoodCatalog: React.FC = () => {
@@ -28,26 +25,34 @@ export const FoodCatalog: React.FC = () => {
     setAuthModalTab,
     setAuthModalMessage,
     showToast,
+    setCurrentView,
+    globalSearchQuery,
+    setGlobalSearchQuery,
+    loadDemoData,
   } = useApp();
-  const { t } = useI18n();
 
   // Loading skeleton state
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 300);
+    const timer = setTimeout(() => setIsLoading(false), 200);
     return () => clearTimeout(timer);
   }, []);
 
   // Search & Filter states
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(globalSearchQuery || '');
   const [selectedCategory, setSelectedCategory] = useState<string>('todas');
   const [selectedCity, setSelectedCity] = useState<string>('todas');
   const [selectedCondition, setSelectedCondition] = useState<string>('todas');
   const [sortBy, setSortBy] = useState<'urgency' | 'price_asc' | 'price_desc' | 'qty_desc' | 'recent'>('urgency');
-  const [maxPrice, setMaxPrice] = useState<number>(50000);
   const [urgencyFilter, setUrgencyFilter] = useState<'todas' | 'urgente' | 'moderada'>('todas');
-  
+
+  useEffect(() => {
+    if (globalSearchQuery !== undefined && globalSearchQuery !== searchTerm) {
+      setSearchTerm(globalSearchQuery);
+    }
+  }, [globalSearchQuery]);
+
   // Quick offer modal
   const [productForOffer, setProductForOffer] = useState<FoodProduct | null>(null);
 
@@ -72,10 +77,8 @@ export const FoodCatalog: React.FC = () => {
   const filteredProducts = useMemo(() => {
     return products
       .filter((p) => {
-        // Exclude completely expired or already sold products from general active catalog
-        if (p.status === 'vendida' || p.status === 'finalizada') return false;
+        if (p.status === 'vendida' || p.status === 'finalizada' || p.status === 'pausada') return false;
 
-        // Search match
         if (searchTerm.trim()) {
           const term = searchTerm.toLowerCase();
           const match =
@@ -83,31 +86,23 @@ export const FoodCatalog: React.FC = () => {
             p.category.toLowerCase().includes(term) ||
             p.brand.toLowerCase().includes(term) ||
             p.sellerName.toLowerCase().includes(term) ||
-            p.locationCity.toLowerCase().includes(term);
+            p.locationCity.toLowerCase().includes(term) ||
+            p.condition.toLowerCase().includes(term);
           if (!match) return false;
         }
 
-        // Category filter
         if (selectedCategory !== 'todas' && p.category !== selectedCategory) {
           return false;
         }
 
-        // City filter
         if (selectedCity !== 'todas' && p.locationCity !== selectedCity) {
           return false;
         }
 
-        // Condition filter
         if (selectedCondition !== 'todas' && p.condition !== selectedCondition) {
           return false;
         }
 
-        // Price filter
-        if (p.requestedPrice > maxPrice) {
-          return false;
-        }
-
-        // Urgency filter (🔴 < 24h, 🟡 1-3 días, 🟢 > 3 días)
         if (urgencyFilter !== 'todas') {
           const diffHours = Math.max(0, (new Date(p.expiresAt).getTime() - Date.now()) / (1000 * 3600));
           if (urgencyFilter === 'urgente' && diffHours > 24) return false;
@@ -129,117 +124,96 @@ export const FoodCatalog: React.FC = () => {
         if (sortBy === 'qty_desc') {
           return b.quantity - a.quantity;
         }
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
       });
-  }, [products, searchTerm, selectedCategory, selectedCity, selectedCondition, maxPrice, urgencyFilter, sortBy]);
+  }, [products, searchTerm, selectedCategory, selectedCity, selectedCondition, urgencyFilter, sortBy]);
 
   const resetFilters = () => {
     setSearchTerm('');
+    setGlobalSearchQuery('');
     setSelectedCategory('todas');
     setSelectedCity('todas');
     setSelectedCondition('todas');
-    setMaxPrice(50000);
     setUrgencyFilter('todas');
     setSortBy('urgency');
   };
 
+  const hasActiveFilters =
+    Boolean(searchTerm.trim()) ||
+    selectedCategory !== 'todas' ||
+    selectedCity !== 'todas' ||
+    selectedCondition !== 'todas' ||
+    urgencyFilter !== 'todas';
+
   return (
     <div className="space-y-6">
-      
-      {/* Search Header Banner */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-7 text-white relative overflow-hidden shadow-sm">
-        <div className="relative z-10 max-w-2xl space-y-3">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800 text-emerald-400 text-xs font-semibold border border-slate-700">
-            <span>🥗 {t('catalog.bannerTag')}</span>
-            <span>•</span>
-            <span className="text-slate-200">{t('catalog.rescuePrices')}</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
-            {t('catalog.title')}
+      {/* Encabezado de Sección */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
+            Explorar productos
           </h1>
-          <p className="text-slate-300 text-xs sm:text-sm leading-relaxed">
-            {t('catalog.subtitle')}
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+            Catálogo en tiempo real de lotes de alimentos disponibles para rescate y aprovechamiento solidario.
           </p>
+        </div>
 
-          {/* Large search input */}
-          <div className="pt-2 relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-4 top-4.5" />
+        <button
+          type="button"
+          onClick={() => setCurrentView('publish')}
+          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition-colors inline-flex items-center gap-2 whitespace-nowrap self-start sm:self-auto cursor-pointer"
+        >
+          <Plus className="w-4 h-4" />
+          <span>Publicar producto</span>
+        </button>
+      </div>
+
+      {/* Barra de Búsqueda y Filtros */}
+      <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+          {/* Buscador */}
+          <div className="md:col-span-5 relative">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               id="catalog-search-input"
-              placeholder={t('catalog.searchPlaceholder')}
+              placeholder="Buscar por producto, empresa, categoría o ciudad..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-11 pr-4 py-3 bg-slate-800/80 hover:bg-slate-800 focus:bg-slate-900 text-white placeholder:text-slate-400 border border-slate-700 rounded-xl text-xs sm:text-sm font-medium focus:outline-emerald-500 transition-all shadow-inner"
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setGlobalSearchQuery(e.target.value);
+              }}
+              className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:bg-white dark:focus:bg-slate-900 focus:outline-emerald-600 transition-colors"
             />
           </div>
-        </div>
 
-        {/* Subtle background glow */}
-        <div className="absolute right-0 bottom-0 w-80 h-80 bg-emerald-600/10 rounded-full blur-3xl pointer-events-none"></div>
-      </div>
-
-      {/* Category Pills Slider */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-        <button
-          onClick={() => setSelectedCategory('todas')}
-          className={`px-3.5 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
-            selectedCategory === 'todas'
-              ? 'bg-emerald-600 text-white shadow-xs'
-              : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'
-          }`}
-        >
-          {t('catalog.allCategories')} ({products.length})
-        </button>
-        {FOOD_CATEGORIES.map((cat) => {
-          const count = products.filter((p) => p.category === cat).length;
-          return (
-            <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
-                selectedCategory === cat
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'
-              }`}
-            >
-              {cat} ({count})
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Filters Bar & Sorting */}
-      <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs flex flex-wrap items-center justify-between gap-4">
-        
-        {/* Filters Group */}
-        <div className="flex flex-wrap items-center gap-3">
-          {/* City filter */}
-          <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs">
-            <MapPin className="w-3.5 h-3.5 text-slate-400" />
+          {/* Filtro Ubicación */}
+          <div className="md:col-span-2 flex items-center gap-2 bg-slate-50 dark:bg-slate-800/80 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-xs">
+            <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             <select
               value={selectedCity}
               onChange={(e) => setSelectedCity(e.target.value)}
-              className="bg-transparent font-semibold text-slate-800 dark:text-slate-200 focus:outline-hidden cursor-pointer"
+              aria-label="Filtrar por ciudad"
+              className="w-full bg-transparent font-medium text-slate-800 dark:text-slate-200 focus:outline-hidden cursor-pointer truncate"
             >
               {cities.map((c) => (
                 <option key={c} value={c} className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">
-                  {c === 'todas' ? t('catalog.allCities') : c}
+                  {c === 'todas' ? 'Todas las ciudades' : c}
                 </option>
               ))}
             </select>
           </div>
 
-          {/* Condition filter */}
-          <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs">
-            <span className="text-slate-400">{t('product.condition')}:</span>
+          {/* Filtro Estado del Producto */}
+          <div className="md:col-span-3 flex items-center gap-2 bg-slate-50 dark:bg-slate-800/80 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-xs">
             <select
               value={selectedCondition}
               onChange={(e) => setSelectedCondition(e.target.value)}
-              className="bg-transparent font-semibold text-slate-800 dark:text-slate-200 focus:outline-hidden cursor-pointer"
+              aria-label="Filtrar por estado del producto"
+              className="w-full bg-transparent font-medium text-slate-800 dark:text-slate-200 focus:outline-hidden cursor-pointer truncate"
             >
               <option value="todas" className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">
-                {t('catalog.allConditions')}
+                Todos los estados
               </option>
               {FOOD_CONDITIONS.map((cond) => (
                 <option key={cond} value={cond} className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">
@@ -249,104 +223,144 @@ export const FoodCatalog: React.FC = () => {
             </select>
           </div>
 
-          {/* Urgency Quick Toggle */}
-          <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-700 text-xs">
-            <button
-              onClick={() => setUrgencyFilter('todas')}
-              className={`px-2.5 py-1 rounded-md font-semibold transition-all cursor-pointer ${
-                urgencyFilter === 'todas'
-                  ? 'bg-white dark:bg-slate-700 shadow-xs text-slate-900 dark:text-white border border-slate-200/50 dark:border-slate-600'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-              }`}
+          {/* Ordenar por */}
+          <div className="md:col-span-2 flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/80 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-xs">
+            <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              aria-label="Ordenar productos"
+              className="w-full bg-transparent font-medium text-slate-800 dark:text-slate-200 focus:outline-hidden cursor-pointer truncate"
             >
-              {t('catalog.urgencyAll')}
-            </button>
-            <button
-              onClick={() => setUrgencyFilter('urgente')}
-              className={`px-2.5 py-1 rounded-md font-semibold transition-all flex items-center gap-1 cursor-pointer ${
-                urgencyFilter === 'urgente' ? 'bg-rose-500 text-white shadow-xs' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-              }`}
-            >
-              <span>{t('catalog.urgencyCritical')}</span>
-            </button>
-            <button
-              onClick={() => setUrgencyFilter('moderada')}
-              className={`px-2.5 py-1 rounded-md font-semibold transition-all flex items-center gap-1 cursor-pointer ${
-                urgencyFilter === 'moderada' ? 'bg-amber-500 text-white shadow-xs' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-              }`}
-            >
-              <span>{t('catalog.urgencyModerate')}</span>
-            </button>
+              <option value="urgency" className="bg-white dark:bg-slate-800">Menor tiempo restante</option>
+              <option value="recent" className="bg-white dark:bg-slate-800">Más recientes</option>
+              <option value="qty_desc" className="bg-white dark:bg-slate-800">Mayor cantidad</option>
+              <option value="price_asc" className="bg-white dark:bg-slate-800">Menor valor</option>
+              <option value="price_desc" className="bg-white dark:bg-slate-800">Mayor valor</option>
+            </select>
           </div>
         </div>
 
-        {/* Sorting Options */}
-        <div className="flex items-center gap-2 text-xs">
-          <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
-          <span className="text-slate-500 dark:text-slate-400 font-medium">{t('catalog.sortBy')}:</span>
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as any)}
-            className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-semibold text-slate-800 dark:text-slate-100 px-3 py-1.5 rounded-lg focus:outline-hidden cursor-pointer"
-          >
-            <option value="urgency" className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">{t('catalog.urgency')}</option>
-            <option value="recent" className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">{t('catalog.recent')}</option>
-            <option value="price_asc" className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">{t('catalog.priceLow')}</option>
-            <option value="price_desc" className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">{t('catalog.priceHigh')}</option>
-            <option value="qty_desc" className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">{t('catalog.quantityHigh')}</option>
-          </select>
-
-          {(searchTerm || selectedCategory !== 'todas' || selectedCity !== 'todas' || selectedCondition !== 'todas' || urgencyFilter !== 'todas') && (
+        {/* Categorías y Urgencia (controles interactivos segmentados) */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 custom-scroll">
             <button
-              onClick={resetFilters}
-              className="text-emerald-700 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 font-bold px-2 py-1 hover:underline ml-1 cursor-pointer"
+              type="button"
+              onClick={() => setSelectedCategory('todas')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors cursor-pointer ${
+                selectedCategory === 'todas'
+                  ? 'bg-slate-900 dark:bg-emerald-600 text-white'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+              }`}
             >
-              {t('catalog.clearFilters')}
+              Todas ({products.filter((p) => p.status === 'activa' || p.status === 'proxima_a_finalizar').length})
             </button>
-          )}
+            {FOOD_CATEGORIES.map((cat) => {
+              const count = products.filter(
+                (p) => (p.status === 'activa' || p.status === 'proxima_a_finalizar') && p.category === cat
+              ).length;
+              if (count === 0 && selectedCategory !== cat) return null;
+              return (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors cursor-pointer ${
+                    selectedCategory === cat
+                      ? 'bg-slate-900 dark:bg-emerald-600 text-white'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  {cat} ({count})
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg text-xs">
+              <button
+                type="button"
+                onClick={() => setUrgencyFilter('todas')}
+                className={`px-2.5 py-1 rounded-md font-medium transition-colors whitespace-nowrap cursor-pointer ${
+                  urgencyFilter === 'todas'
+                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-2xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                }`}
+              >
+                Todos
+              </button>
+              <button
+                type="button"
+                onClick={() => setUrgencyFilter('urgente')}
+                className={`px-2.5 py-1 rounded-md font-medium transition-colors whitespace-nowrap cursor-pointer ${
+                  urgencyFilter === 'urgente'
+                    ? 'bg-amber-600 text-white'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                }`}
+              >
+                Menos de 24h
+              </button>
+              <button
+                type="button"
+                onClick={() => setUrgencyFilter('moderada')}
+                className={`px-2.5 py-1 rounded-md font-medium transition-colors whitespace-nowrap cursor-pointer ${
+                  urgencyFilter === 'moderada'
+                    ? 'bg-emerald-600 text-white'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                }`}
+              >
+                1 a 3 días
+              </button>
+            </div>
+
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="px-2.5 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400 hover:underline inline-flex items-center gap-1 whitespace-nowrap cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Limpiar</span>
+              </button>
+            )}
+          </div>
         </div>
-
       </div>
 
-      {/* Results Header */}
-      <div className="flex items-center justify-between px-1 text-xs text-slate-500 dark:text-slate-400 font-medium">
+      {/* Contador de resultados */}
+      <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 px-1">
         <span>
-          <strong className="text-slate-900 dark:text-slate-100 font-bold">{filteredProducts.length}</strong> {t('catalog.available', 'disp.')}
+          Mostrando <strong className="text-slate-900 dark:text-slate-100 tabular-nums">{filteredProducts.length}</strong> lote(s) disponibles
         </span>
-        <span className="flex items-center gap-3 text-[11px]">
-          <span className="flex items-center gap-1">🟢 &gt; 3 d</span>
-          <span className="flex items-center gap-1">🟡 1-3 d</span>
-          <span className="flex items-center gap-1">🔴 &lt; 24h</span>
-        </span>
+        <span>Consulta cantidad, vencimiento y empresa en cada tarjeta</span>
       </div>
 
-      {/* Products Grid / Skeletons */}
+      {/* Grilla de Productos / Estados */}
       {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
           {Array.from({ length: 8 }).map((_, i) => (
             <ProductCardSkeleton key={`skeleton-${i}`} />
           ))}
         </div>
       ) : filteredProducts.length === 0 ? (
-        <div className="p-16 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4 shadow-xs">
-          <div className="w-14 h-14 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 mx-auto">
-            <ShoppingBag className="w-6 h-6" />
-          </div>
-          <h3 className="text-base font-bold text-slate-800 dark:text-slate-100 font-display">
-            {t('catalog.emptyTitle')}
-          </h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
-            {t('catalog.emptyDesc')}
-          </p>
-          <button
-            onClick={resetFilters}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs transition-colors shadow-sm cursor-pointer"
-          >
-            {t('catalog.clearFilters')}
-          </button>
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-8">
+          <EmptyState
+            icon={ShoppingBag}
+            title={hasActiveFilters ? 'No se encontraron productos con estos filtros' : 'No hay productos publicados actualmente'}
+            description={
+              hasActiveFilters
+                ? 'Prueba ajustando los criterios de búsqueda, ciudad o estado del producto para ver más lotes disponibles.'
+                : 'Publica un nuevo lote de alimentos excedentes o carga los datos de demostración para explorar el catálogo.'
+            }
+            actionLabel={hasActiveFilters ? 'Limpiar filtros' : '+ Publicar producto'}
+            onAction={hasActiveFilters ? resetFilters : () => setCurrentView('publish')}
+            secondaryLabel={products.length === 0 ? 'Cargar lotes de ejemplo' : undefined}
+            onSecondaryAction={products.length === 0 ? loadDemoData : undefined}
+          />
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
           {filteredProducts.map((product) => (
             <ProductCard
               key={product.id}
@@ -358,18 +372,17 @@ export const FoodCatalog: React.FC = () => {
         </div>
       )}
 
-      {/* Product Detail Modal */}
+      {/* Modal de Detalles del Producto */}
       <ProductDetailModal
         productId={selectedProductIdForDetail}
         onClose={() => setSelectedProductIdForDetail(null)}
       />
 
-      {/* Make Offer Modal */}
+      {/* Modal para Realizar Oferta */}
       <MakeOfferModal
         product={productForOffer}
         onClose={() => setProductForOffer(null)}
       />
-
     </div>
   );
 };

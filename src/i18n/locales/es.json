@@ -1,9 +1,9 @@
 {
   "app": {
-    "name": "FoodLink Solidario",
+    "name": "Publik Solidario",
     "tagline": "Menos desperdicio, más oportunidades",
     "description": "Plataforma colombiana de rescate, negociación y aprovechamiento de alimentos excedentes.",
-    "copyright": "© 2026 FoodLink Solidario SAS. Todos los derechos reservados. Colombia.",
+    "copyright": "© 2026 Publik Solidario SAS. Todos los derechos reservados. Colombia.",
     "madeWith": "Diseñado con tecnología y solidaridad para evitar el desperdicio alimentario."
   },
   "nav": {
@@ -109,7 +109,7 @@
       "co2AvoidedSub": "Mitigación directa de huella de carbono"
     },
     "howItWorksTag": "Ecosistema de Economía Circular",
-    "howItWorksTitle": "¿Cómo funciona FoodLink Solidario?",
+    "howItWorksTitle": "¿Cómo funciona Publik Solidario?",
     "howItWorksDesc": "Un flujo transparente y sin fricciones diseñado para el contexto logístico y comercial de Colombia.",
     "estTitle": "Para Establecimientos",
     "estSubtitle": "Supermercados, Fruvers y Panaderías",
@@ -141,7 +141,7 @@
     "publishWithRate": "Publicar con esta tarifa",
     "testimonialsTag": "Alianzas con Sentido",
     "testimonialsTitle": "Lo que dicen quienes ya aprovechan la plataforma",
-    "test1Quote": "«Antes botábamos hasta 400 kg semanales de frutas maduras en la central mayorista. Con FoodLink, en 3 días los comedores comunitarios recogen todo a precios solidarios y recuperamos costos operativos.»",
+    "test1Quote": "«Antes botábamos hasta 400 kg semanales de frutas maduras en la central mayorista. Con Publik Solidario, en 3 días los comedores comunitarios recogen todo a precios solidarios y recuperamos costos operativos.»",
     "test1Author": "Carlos Restrepo",
     "test1Role": "Gerente, Fruver El Campirano (Medellín)",
     "test2Quote": "«Como banco de alimentos, encontrar lotes de granos y lácteos con semanas de vigencia a precios de rescate nos permitió duplicar las raciones para más de 1.200 familias vulnerables en Bogotá.»",
@@ -212,10 +212,10 @@
     "favoriteRemove": "Quitar de favoritos",
     "makeOfferBtn": "Hacer oferta solidaria",
     "guarantees": "Garantías y Políticas",
-    "guaranteeText": "Publicación verificada por FoodLink Solidario. Alimento apto para consumo humano con trazabilidad de origen comercial."
+    "guaranteeText": "Publicación verificada por Publik Solidario. Alimento apto para consumo humano con trazabilidad de origen comercial."
   },
   "offer": {
-    "modalTag": "Negociación Solidaria FoodLink",
+    "modalTag": "Negociación Solidaria Publik",
     "modalTitle": "Enviar Oferta por Alimento",
     "requestedQty": "Cantidad solicitada",
     "offeredPrice": "Precio solidario ofrecido por unidad",
@@ -339,7 +339,7 @@
     "locationCityLabel": "Ciudad en Colombia",
     "locationAddressLabel": "Dirección o sede de recogida",
     "durationTitle": "Selecciona la duración de publicación en el catálogo",
-    "smartRecommendation": "Sugerencia Inteligente FoodLink:",
+    "smartRecommendation": "Sugerencia Inteligente Publik:",
     "nextBtn": "Continuar al Pago de Comisión",
     "backBtn": "Volver a editar",
     "commissionFee": "Tarifa de Comisión a Pagar:",
@@ -383,7 +383,7 @@
     "alliances": "Canales y Alianzas",
     "support": "Soporte a aliados comerciales y fundaciones:",
     "paymentMethods": "Medios de pago de comisión:",
-    "contact": "contacto@foodlinksolidario.co",
+    "contact": "contacto@publiksolidario.co",
     "phone": "+57 (604) 448-9120",
     "scanShare": "Escanear / Compartir",
     "scanShareDesc": "Accede o comparte desde tu celular",
@@ -391,7 +391,7 @@
   },
   "qr": {
     "title": "Escanear y Compartir Plataforma",
-    "instructions": "Apunta con la cámara de tu celular para acceder directamente a FoodLink Solidario o compartir la red con tus contactos.",
+    "instructions": "Apunta con la cámara de tu celular para acceder directamente a Publik Solidario o compartir la red con tus contactos.",
     "mobileReady": "Compatible con cualquier lector QR en iOS y Android",
     "copy": "Copiar Enlace",
     "copied": "¡Copiado!",

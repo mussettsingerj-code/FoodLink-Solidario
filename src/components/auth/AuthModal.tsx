@@ -22,7 +22,6 @@ import {
   Building2,
   User,
   ArrowRight,
-  Fingerprint,
   KeyRound,
   AlertCircle,
   CheckCircle2,
@@ -260,8 +259,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         demoOrg = 'Fundación Pan Compartido';
       } else if (trimmedEmail.includes('admin')) {
         demoRole = 'admin';
-        demoName = 'Administrador FoodLink';
-        demoOrg = 'FoodLink Central';
+        demoName = 'Administrador Publik';
+        demoOrg = 'Publik Solidario Central';
       }
 
       const userProfile: UserProfile = {
@@ -586,39 +585,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   };
 
-  // Passkey / WebAuthn Biometric Login
-  const handlePasskeyAuth = async () => {
-    setIsLoading(true);
-    try {
-      if (window.PublicKeyCredential && typeof window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === 'function') {
-        const available = await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-        if (available) {
-          // Hardware authenticator / Windows Hello / FaceID / TouchID simulated handshake
-          await new Promise((resolve) => setTimeout(resolve, 600));
-        }
-      } else {
-        await new Promise((resolve) => setTimeout(resolve, 500));
-      }
-
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ passkeyId: 'pk_' + Date.now(), email }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        login(data.user, data.token);
-        showToast('Identidad biométrica confirmada con Passkey (FaceID / Huella)', 'success');
-        handleClose();
-      }
-    } catch (err) {
-      showToast('Autenticación con Passkey completada', 'success');
-      handleClose();
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return (
     <div
       role="dialog"
@@ -633,7 +599,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <div className="bg-white rounded-xl p-1 shrink-0 shadow-2xs border border-slate-700">
               <img
                 src="/logo.png"
-                alt="FoodLink Solidario"
+                alt="Publik Solidario"
                 className="h-9 w-auto object-contain"
                 referrerPolicy="no-referrer"
               />
@@ -641,7 +607,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <div>
               <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-bold text-emerald-400">
                 <Sparkles className="w-3 h-3" />
-                <span>FoodLink Solidario</span>
+                <span>Publik Solidario</span>
               </div>
               <h3 id="auth-modal-title" className="text-base font-bold font-display text-white mt-0.5">
                 {activeTab === 'login' && t('auth.loginTitle')}
@@ -770,7 +736,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   <input
                     type="email"
                     required
-                    placeholder="contacto@superlosandes.com.co"
+                    placeholder="ejemplo@correo.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg pl-9 pr-3 py-2 text-slate-900 dark:text-slate-100 font-medium focus:outline-emerald-600 focus:bg-white dark:focus:bg-slate-800 transition-all"
@@ -867,15 +833,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     <span>Apple</span>
                   </button>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={handlePasskeyAuth}
-                  className="w-full mt-2 flex items-center justify-center gap-2 py-2 px-3 border border-emerald-300 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-800 dark:text-emerald-300 rounded-lg font-semibold hover:bg-emerald-100/50 dark:hover:bg-emerald-950/40 transition-colors cursor-pointer"
-                >
-                  <Fingerprint className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                  <span>{t('auth.passkey')}</span>
-                </button>
               </div>
             </form>
             </div>
@@ -899,7 +856,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     {registeredEmailSuccess}
                   </p>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400 pt-1">
-                    Por favor haz clic en el enlace del correo para verificar tu cuenta antes de iniciar sesión en FoodLink Solidario.
+                    Por favor haz clic en el enlace del correo para verificar tu cuenta antes de iniciar sesión en Publik Solidario.
                   </p>
                 </div>
 

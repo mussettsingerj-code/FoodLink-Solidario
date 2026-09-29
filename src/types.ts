@@ -149,25 +149,35 @@ export interface ProductOffer {
   messages: OfferMessage[];
 }
 
+export type NotificationType =
+  | 'nueva_oferta'
+  | 'oferta_aceptada'
+  | 'oferta_rechazada'
+  | 'nueva_contraoferta'
+  | 'mensaje_recibido'
+  | 'publicacion_proxima_finalizar'
+  | 'publicacion_menos_6h'
+  | 'publicacion_finalizada'
+  | 'pago_realizado'
+  | 'publicacion_activada';
+
 export interface NotificationItem {
   id: string;
   userId: string;
-  type:
-    | 'nueva_oferta'
-    | 'oferta_aceptada'
-    | 'oferta_rechazada'
-    | 'nueva_contraoferta'
-    | 'mensaje_recibido'
-    | 'publicacion_proxima_finalizar'
-    | 'publicacion_finalizada'
-    | 'pago_realizado'
-    | 'publicacion_activada';
+  type: NotificationType;
   title: string;
   message: string;
   timestamp: string;
+  createdAt?: string; // ISO 8601 date
   read: boolean;
   relatedProductId?: string;
   relatedOfferId?: string;
+  recipientEmail?: string;
+  recipientName?: string;
+  emailStatus?: 'sent' | 'queued_local' | 'disabled';
+  emailSubject?: string;
+  emailHtmlPreview?: string;
+  dedupKey?: string;
 }
 
 export interface CommissionRecord {

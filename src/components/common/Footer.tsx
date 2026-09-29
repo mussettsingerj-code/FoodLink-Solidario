@@ -40,15 +40,23 @@ export const Footer: React.FC = () => {
           <div className="space-y-4 lg:col-span-2">
             <div
               onClick={() => setCurrentView('landing')}
-              className="cursor-pointer inline-block group"
+              className="cursor-pointer inline-flex items-center gap-3 group"
             >
               <div className="inline-flex items-center justify-center bg-white rounded-xl p-1.5 shadow-2xs border border-slate-700">
                 <img
                   src="/logo.png"
-                  alt="FoodLink Solidario"
-                  className="h-10 sm:h-12 w-auto object-contain"
+                  alt="Publik Solidario"
+                  className="h-11 sm:h-12 w-11 sm:w-12 object-contain"
                   referrerPolicy="no-referrer"
                 />
+              </div>
+              <div>
+                <span className="font-display font-black text-lg tracking-tight text-white block leading-none">
+                  Publik <span className="text-emerald-400">Solidario</span>
+                </span>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 block mt-0.5">
+                  Red de Rescate Alimentario
+                </span>
               </div>
             </div>
             <p className="text-xs text-slate-400 leading-relaxed max-w-sm">
@@ -61,7 +69,7 @@ export const Footer: React.FC = () => {
 
             {/* Escanear / Compartir QR Section */}
             <div className="pt-2">
-              <div className="p-3.5 bg-slate-850 rounded-2xl border border-slate-750 flex items-center gap-3.5 max-w-sm shadow-xs">
+              <div className="p-3.5 bg-slate-800/80 rounded-2xl border border-slate-700 flex items-center gap-3.5 max-w-sm shadow-xs">
                 <div className="p-1 bg-white rounded-xl shadow-xs shrink-0">
                   <canvas ref={qrCanvasRef} className="rounded-lg w-20 h-20 block" />
                 </div>
@@ -124,6 +132,15 @@ export const Footer: React.FC = () => {
                   className="hover:text-emerald-400 transition-colors cursor-pointer"
                 >
                   {t('footer.publishFood')}
+                </button>
+              </li>
+              <li>
+                <button
+                  type="button"
+                  onClick={() => setCurrentView('organizations')}
+                  className="hover:text-emerald-400 transition-colors cursor-pointer"
+                >
+                  Empresas y Organizaciones
                 </button>
               </li>
               <li>

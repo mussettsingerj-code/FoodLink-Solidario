@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FoodProduct } from '../../types';
 import { useApp } from '../../context/AppContext';
 import { useI18n } from '../../i18n/I18nContext';
-import { X, Send, Sparkles, AlertCircle, Calendar, Truck } from 'lucide-react';
+import { ProductImage } from '../common/ProductImage';
+import { X, Send, Sparkles } from 'lucide-react';
 
 interface MakeOfferModalProps {
   product: FoodProduct | null;
@@ -12,21 +13,26 @@ interface MakeOfferModalProps {
 }
 
 export const MakeOfferModal: React.FC<MakeOfferModalProps> = ({ product, isOpen = true, onClose, onSuccess }) => {
-  const { currentUser, createOffer, setCurrentView, setSelectedOfferIdForNegotiation, showToast } = useApp();
+  const { currentUser, createOffer, setSelectedOfferIdForNegotiation, showToast } = useApp();
   const { t } = useI18n();
 
-  if (!isOpen || !product) return null;
-
-  const [requestedQuantity, setRequestedQuantity] = useState<number>(
-    Math.min(product.quantity, Math.max(product.minPurchaseQuantity, 20))
-  );
-  const [offeredPricePerUnit, setOfferedPricePerUnit] = useState<number>(product.requestedPrice);
+  const [requestedQuantity, setRequestedQuantity] = useState<number>(1);
+  const [offeredPricePerUnit, setOfferedPricePerUnit] = useState<number>(1000);
   const [message, setMessage] = useState<string>('');
   const [pickupMethod, setPickupMethod] = useState<'Recogida en sede del vendedor' | 'Transporte solidario contratado' | 'Envío acordado'>('Recogida en sede del vendedor');
-  
+
   // Default date tomorrow
   const tomorrow = new Date(Date.now() + 24 * 3600 * 1000).toISOString().split('T')[0];
   const [proposedDate, setProposedDate] = useState<string>(tomorrow);
+
+  useEffect(() => {
+    if (product) {
+      setRequestedQuantity(Math.min(product.quantity, Math.max(product.minPurchaseQuantity, 20)));
+      setOfferedPricePerUnit(product.requestedPrice);
+    }
+  }, [product]);
+
+  if (!isOpen || !product) return null;
 
   // Auto calculated total
   const totalOffered = requestedQuantity * offeredPricePerUnit;
@@ -96,10 +102,11 @@ export const MakeOfferModal: React.FC<MakeOfferModalProps> = ({ product, isOpen 
           
           {/* Target Product Summary */}
           <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 flex items-center gap-3">
-            <img
+            <ProductImage
               src={product.imageUrl}
               alt={product.name}
-              className="w-14 h-14 rounded-lg object-cover border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800"
+              category={product.category}
+              className="w-14 h-14 rounded-lg object-cover border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 shrink-0"
             />
             <div className="flex-1 min-w-0">
               <h4 className="font-bold text-slate-900 dark:text-slate-100 text-sm truncate">{product.name}</h4>
@@ -125,7 +132,7 @@ export const MakeOfferModal: React.FC<MakeOfferModalProps> = ({ product, isOpen 
                 max={product.quantity}
                 value={requestedQuantity}
                 onChange={(e) => setRequestedQuantity(Number(e.target.value))}
-                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-emerald-600 focus:bg-white dark:focus:bg-slate-850 font-semibold transition-all"
+                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-emerald-600 focus:bg-white dark:focus:bg-slate-900 font-semibold transition-all"
               />
             </div>
 
@@ -140,7 +147,7 @@ export const MakeOfferModal: React.FC<MakeOfferModalProps> = ({ product, isOpen 
                 min="100"
                 value={offeredPricePerUnit}
                 onChange={(e) => setOfferedPricePerUnit(Number(e.target.value))}
-                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-emerald-600 focus:bg-white dark:focus:bg-slate-850 font-semibold transition-all"
+                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-emerald-600 focus:bg-white dark:focus:bg-slate-900 font-semibold transition-all"
               />
             </div>
           </div>

@@ -1,9 +1,9 @@
 {
   "app": {
-    "name": "FoodLink Solidarity",
+    "name": "Publik Solidario",
     "tagline": "Less waste, more opportunities",
     "description": "Colombian platform for rescuing, negotiating, and utilizing surplus food.",
-    "copyright": "© 2026 FoodLink Solidario SAS. All rights reserved. Colombia.",
+    "copyright": "© 2026 Publik Solidario SAS. All rights reserved. Colombia.",
     "madeWith": "Designed with technology and solidarity to prevent food waste."
   },
   "nav": {
@@ -109,7 +109,7 @@
       "co2AvoidedSub": "Direct carbon footprint mitigation"
     },
     "howItWorksTag": "Circular Economy Ecosystem",
-    "howItWorksTitle": "How does FoodLink Solidarity work?",
+    "howItWorksTitle": "How does Publik Solidario work?",
     "howItWorksDesc": "A transparent, friction-free flow designed for Colombia's commercial and logistics landscape.",
     "estTitle": "For Establishments",
     "estSubtitle": "Supermarkets, Grocers & Bakeries",
@@ -141,7 +141,7 @@
     "publishWithRate": "Publish with this rate",
     "testimonialsTag": "Meaningful Partnerships",
     "testimonialsTitle": "What our active partners say",
-    "test1Quote": "«We used to discard up to 400 kg of ripe fruit weekly at the wholesale market. With FoodLink, community kitchens collect everything in 3 days at solidarity prices and we recover operating costs.»",
+    "test1Quote": "«We used to discard up to 400 kg of ripe fruit weekly at the wholesale market. With Publik Solidario, community kitchens collect everything in 3 days at solidarity prices and we recover operating costs.»",
     "test1Author": "Carlos Restrepo",
     "test1Role": "Manager, Fruver El Campirano (Medellín)",
     "test2Quote": "«As a food bank, finding batches of grains and dairy with weeks of validity at rescue prices allowed us to double rations for over 1,200 vulnerable families in Bogotá.»",
@@ -212,10 +212,10 @@
     "favoriteRemove": "Remove from favorites",
     "makeOfferBtn": "Make solidarity offer",
     "guarantees": "Guarantees & Policies",
-    "guaranteeText": "Verified listing by FoodLink Solidarity. Safe for human consumption with verified commercial origin traceability."
+    "guaranteeText": "Verified listing by Publik Solidario. Safe for human consumption with verified commercial origin traceability."
   },
   "offer": {
-    "modalTag": "FoodLink Solidarity Negotiation",
+    "modalTag": "Publik Solidario Negotiation",
     "modalTitle": "Submit Offer for Food Batch",
     "requestedQty": "Requested quantity",
     "offeredPrice": "Offered solidarity price per unit",
@@ -339,7 +339,7 @@
     "locationCityLabel": "City in Colombia",
     "locationAddressLabel": "Pickup address or facility",
     "durationTitle": "Select publication duration in the catalog",
-    "smartRecommendation": "FoodLink Smart Suggestion:",
+    "smartRecommendation": "Publik Smart Suggestion:",
     "nextBtn": "Continue to Commission Payment",
     "backBtn": "Back to edit",
     "commissionFee": "Commission Fee to Pay:",
@@ -383,7 +383,7 @@
     "alliances": "Channels & Alliances",
     "support": "Support for commercial allies & foundations:",
     "paymentMethods": "Commission payment methods:",
-    "contact": "contacto@foodlinksolidario.co",
+    "contact": "contacto@publiksolidario.co",
     "phone": "+57 (604) 448-9120",
     "scanShare": "Scan / Share",
     "scanShareDesc": "Access or share from your mobile phone",
@@ -391,7 +391,7 @@
   },
   "qr": {
     "title": "Scan & Share Platform",
-    "instructions": "Point your phone camera to access FoodLink Solidario directly or share with your community.",
+    "instructions": "Point your phone camera to access Publik Solidario directly or share with your community.",
     "mobileReady": "Compatible with any QR reader on iOS and Android",
     "copy": "Copy Link",
     "copied": "Copied!",

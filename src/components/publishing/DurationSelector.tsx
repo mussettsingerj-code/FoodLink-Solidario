@@ -76,7 +76,7 @@ export const DurationSelector: React.FC<DurationSelectorProps> = ({
             )}
             <div className="space-y-1">
               <div className="font-semibold flex items-center gap-2">
-                <span>💡 {t('publish.smartRecommendationTitle', 'Sistema Inteligente de Duración FoodLink')}:</span>
+                <span>💡 {t('publish.smartRecommendationTitle', 'Sistema Inteligente de Duración Publik')}:</span>
                 <span className="px-2 py-0.5 bg-white/80 dark:bg-slate-800 rounded-full font-bold border border-current text-xs">
                   {t('publish.suggestedBadge', 'Sugerido')}: {recommendation.recommendedDays} {recommendation.recommendedDays === 1 ? t('landing.dayUnit', 'día') : t('landing.daysUnit', 'días')}
                 </span>
@@ -132,7 +132,7 @@ export const DurationSelector: React.FC<DurationSelectorProps> = ({
       </div>
 
       {/* Dynamic Expiration & Commission Summary Banner */}
-      <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-750 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-sm">
+      <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-sm">
         <div className="flex items-center gap-2.5 text-slate-700 dark:text-slate-300">
           <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 flex items-center justify-center shrink-0">
             <Clock className="w-4 h-4" />

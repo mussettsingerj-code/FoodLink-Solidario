@@ -3,6 +3,7 @@ import { FoodProduct } from '../../types';
 import { useApp } from '../../context/AppContext';
 import { useI18n } from '../../i18n/I18nContext';
 import { MakeOfferModal } from './MakeOfferModal';
+import { ProductImage } from '../common/ProductImage';
 import {
   X,
   MapPin,
@@ -56,9 +57,10 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ productI
         
         {/* Modal Top Bar */}
         <div className="relative aspect-16/9 sm:aspect-21/9 w-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-          <img
+          <ProductImage
             src={product.imageUrl}
             alt={product.name}
+            category={product.category}
             className="w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-transparent to-slate-950/40"></div>

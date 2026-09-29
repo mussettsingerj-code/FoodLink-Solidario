@@ -17,10 +17,12 @@ import {
   ChevronRight,
   Truck,
   HelpCircle,
+  KeyRound,
+  Lock,
 } from 'lucide-react';
 
 export const LandingPage: React.FC = () => {
-  const { setCurrentView, setIsPublishModalOpen, commissionPricing } = useApp();
+  const { setCurrentView, setIsPublishModalOpen, commissionPricing, isAuthenticated } = useApp();
   const { t } = useI18n();
 
   return (
@@ -44,25 +46,52 @@ export const LandingPage: React.FC = () => {
 
           {/* Call to action buttons */}
           <div className="pt-4 flex flex-wrap items-center gap-4">
-            <button
-              type="button"
-              id="hero-btn-publish"
-              onClick={() => setIsPublishModalOpen(true)}
-              className="px-7 py-4 bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-black rounded-2xl shadow-xl hover:shadow-emerald-500/25 transition-all flex items-center gap-2.5 text-base cursor-pointer transform hover:-translate-y-0.5"
-            >
-              <span>{t('landing.heroBtnPublish')}</span>
-              <ArrowRight className="w-5 h-5" />
-            </button>
+            {!isAuthenticated ? (
+              <>
+                <button
+                  type="button"
+                  id="hero-btn-login"
+                  onClick={() => setCurrentView('login')}
+                  className="px-7 py-4 bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-black rounded-2xl shadow-xl hover:shadow-emerald-500/25 transition-all flex items-center gap-2.5 text-base cursor-pointer transform hover:-translate-y-0.5"
+                >
+                  <KeyRound className="w-5 h-5" />
+                  <span>Iniciar Sesión / Acceso</span>
+                  <ArrowRight className="w-5 h-5" />
+                </button>
 
-            <button
-              type="button"
-              id="hero-btn-catalog"
-              onClick={() => setCurrentView('catalog')}
-              className="px-7 py-4 bg-white/10 hover:bg-white/20 text-white font-bold rounded-2xl backdrop-blur-md border border-white/20 transition-all flex items-center gap-2.5 text-base cursor-pointer"
-            >
-              <ShoppingBag className="w-5 h-5 text-emerald-300" />
-              <span>{t('landing.heroBtnCatalog')}</span>
-            </button>
+                <button
+                  type="button"
+                  id="hero-btn-catalog"
+                  onClick={() => setCurrentView('catalog')}
+                  className="px-7 py-4 bg-white/10 hover:bg-white/20 text-white font-bold rounded-2xl backdrop-blur-md border border-white/20 transition-all flex items-center gap-2.5 text-base cursor-pointer"
+                >
+                  <ShoppingBag className="w-5 h-5 text-emerald-300" />
+                  <span>{t('landing.heroBtnCatalog')}</span>
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  id="hero-btn-publish"
+                  onClick={() => setIsPublishModalOpen(true)}
+                  className="px-7 py-4 bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-black rounded-2xl shadow-xl hover:shadow-emerald-500/25 transition-all flex items-center gap-2.5 text-base cursor-pointer transform hover:-translate-y-0.5"
+                >
+                  <span>{t('landing.heroBtnPublish')}</span>
+                  <ArrowRight className="w-5 h-5" />
+                </button>
+
+                <button
+                  type="button"
+                  id="hero-btn-catalog"
+                  onClick={() => setCurrentView('catalog')}
+                  className="px-7 py-4 bg-white/10 hover:bg-white/20 text-white font-bold rounded-2xl backdrop-blur-md border border-white/20 transition-all flex items-center gap-2.5 text-base cursor-pointer"
+                >
+                  <ShoppingBag className="w-5 h-5 text-emerald-300" />
+                  <span>{t('landing.heroBtnCatalog')}</span>
+                </button>
+              </>
+            )}
           </div>
 
           {/* Micro trust indicators */}

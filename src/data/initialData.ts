@@ -7,6 +7,15 @@ import {
   ProductOffer,
   UserProfile,
 } from '../types';
+import { getSampleNotifications, getSampleOffers, getSampleProducts } from './demoData';
+
+const createAvatarSvg = (initials: string, bg: string, fg: string) =>
+  `data:image/svg+xml;utf8,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+      <rect width="120" height="120" rx="60" fill="${bg}"/>
+      <text x="60" y="68" text-anchor="middle" font-family="Plus Jakarta Sans, system-ui, sans-serif" font-weight="700" font-size="42" fill="${fg}">${initials}</text>
+    </svg>`
+  )}`;
 
 export const DEFAULT_COMMISSION_PRICING: CommissionPricing = {
   1: 1000,
@@ -32,7 +41,7 @@ export const MOCK_USERS: Record<string, UserProfile> = {
     phone: '+57 312 456 7890',
     city: 'Medellín',
     verified: true,
-    avatarUrl: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&auto=format&fit=crop&q=80',
+    avatarUrl: createAvatarSvg('PG', '#065f46', '#ecfdf5'),
   },
   buyer_foundation: {
     id: 'user-fnd-01',
@@ -44,24 +53,24 @@ export const MOCK_USERS: Record<string, UserProfile> = {
     phone: '+57 310 987 6543',
     city: 'Medellín',
     verified: true,
-    avatarUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
+    avatarUrl: createAvatarSvg('ER', '#0f172a', '#f8fafc'),
   },
   admin: {
     id: 'user-adm-01',
     name: 'Carlos Mendoza',
-    email: 'admin@foodlinksolidario.com',
+    email: 'admin@publiksolidario.com',
     role: 'admin',
-    organizationName: 'FoodLink Solidario SAS',
+    organizationName: 'Publik Solidario SAS',
     nitOrId: '901.650.320-8',
     phone: '+57 300 123 4567',
     city: 'Bogotá',
     verified: true,
-    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+    avatarUrl: createAvatarSvg('CM', '#1e293b', '#34d399'),
   },
   public: {
     id: 'user-pub-01',
     name: 'Visitante Solidario',
-    email: 'invitado@foodlink.co',
+    email: 'invitado@publiksolidario.com',
     role: 'public',
     organizationName: 'Invitado',
     nitOrId: '',
@@ -71,11 +80,31 @@ export const MOCK_USERS: Record<string, UserProfile> = {
   },
 };
 
-// Clean initial platform state: 0 inflated figures, 0 fake sales, 0 test records
-export const INITIAL_PRODUCTS: FoodProduct[] = [];
-export const INITIAL_OFFERS: ProductOffer[] = [];
-export const INITIAL_NOTIFICATIONS: NotificationItem[] = [];
-export const INITIAL_COMMISSION_RECORDS: CommissionRecord[] = [];
+export const INITIAL_PRODUCTS: FoodProduct[] = getSampleProducts();
+export const INITIAL_OFFERS: ProductOffer[] = getSampleOffers();
+export const INITIAL_NOTIFICATIONS: NotificationItem[] = getSampleNotifications();
+export const INITIAL_COMMISSION_RECORDS: CommissionRecord[] = [
+  {
+    id: 'com-demo-01',
+    productName: 'Tomate Chonto Seleccionado en Canastilla',
+    durationDays: 3,
+    commission: 2500,
+    date: new Date().toISOString().split('T')[0],
+    status: 'Activa',
+    paymentMethod: 'PSE Empresarial',
+    transactionRef: 'TRX-849201',
+  },
+  {
+    id: 'com-demo-02',
+    productName: 'Yogurt Entero Natural Bolsa x 1L',
+    durationDays: 2,
+    commission: 1800,
+    date: new Date(Date.now() - 86400000).toISOString().split('T')[0],
+    status: 'Activa',
+    paymentMethod: 'Nequi Negocios',
+    transactionRef: 'TRX-738194',
+  },
+];
 
 export const SMART_RECOMMENDATIONS: Record<string, { recommendedDays: DurationDays; reason: string; alertType: 'warning' | 'info' | 'success' }> = {
   'Frutas': {

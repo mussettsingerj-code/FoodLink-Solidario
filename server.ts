@@ -53,18 +53,82 @@ const USERS_DB: Map<string, RegisteredUser> = new Map([
     },
   ],
   [
-    'admin@foodlinksolidario.com',
+    'admin@publiksolidario.com',
     {
       id: 'user-adm-01',
-      email: 'admin@foodlinksolidario.com',
+      email: 'admin@publiksolidario.com',
       name: 'Carlos Mendoza',
       role: 'admin',
-      organizationName: 'FoodLink Solidario SAS',
+      organizationName: 'Publik Solidario SAS',
       city: 'Bogotá',
       nitOrId: '901.650.320-8',
       phone: '+57 300 123 4567',
       provider: 'email',
       twoFactorEnabled: true,
+      createdAt: new Date().toISOString(),
+    },
+  ],
+  [
+    'logistica@elcampirano.co',
+    {
+      id: 'org-est-02',
+      email: 'logistica@elcampirano.co',
+      name: 'Fruver El Campirano',
+      role: 'establishment',
+      organizationName: 'Fruver El Campirano',
+      city: 'Medellín',
+      nitOrId: '901.112.480-2',
+      phone: '+57 314 780 1122',
+      provider: 'email',
+      twoFactorEnabled: false,
+      createdAt: new Date().toISOString(),
+    },
+  ],
+  [
+    'produccion@panaderiaeltrigal.com',
+    {
+      id: 'org-est-03',
+      email: 'produccion@panaderiaeltrigal.com',
+      name: 'Panadería y Pastelería El Trigal',
+      role: 'establishment',
+      organizationName: 'Panadería y Pastelería El Trigal',
+      city: 'Bogotá',
+      nitOrId: '901.234.567-8',
+      phone: '+57 315 332 9081',
+      provider: 'email',
+      twoFactorEnabled: false,
+      createdAt: new Date().toISOString(),
+    },
+  ],
+  [
+    'coordinacion@nutrirvida.org.co',
+    {
+      id: 'org-fnd-02',
+      email: 'coordinacion@nutrirvida.org.co',
+      name: 'Red de Comedores Nutrir Vida',
+      role: 'buyer_foundation',
+      organizationName: 'Red de Comedores Nutrir Vida',
+      city: 'Bogotá',
+      nitOrId: '860.412.890-5',
+      phone: '+57 301 654 2210',
+      provider: 'email',
+      twoFactorEnabled: false,
+      createdAt: new Date().toISOString(),
+    },
+  ],
+  [
+    'ventas@abastosdelvalle.com.co',
+    {
+      id: 'org-est-04',
+      email: 'ventas@abastosdelvalle.com.co',
+      name: 'Distribuidora Abastos del Valle',
+      role: 'establishment',
+      organizationName: 'Distribuidora Abastos del Valle',
+      city: 'Cali',
+      nitOrId: '800.771.293-5',
+      phone: '+57 318 440 9912',
+      provider: 'email',
+      twoFactorEnabled: false,
       createdAt: new Date().toISOString(),
     },
   ],
@@ -114,6 +178,73 @@ const RESET_TOKENS: Map<string, ResetTokenRecord> = new Map();
 
 // Active server sessions
 const ACTIVE_SESSIONS: Set<string> = new Set();
+
+// Transactional Email Outbox (stores generated emails and dispatch status)
+interface EmailOutboxRecord {
+  id: string;
+  notificationId?: string;
+  to: string;
+  recipientName: string;
+  from: string;
+  subject: string;
+  eventType: string;
+  title: string;
+  message: string;
+  actionLabel: string;
+  htmlBody: string;
+  status: 'sent' | 'queued_local';
+  provider: 'resend' | 'smtp' | 'local_outbox';
+  sentAt: string;
+}
+
+const EMAIL_OUTBOX: EmailOutboxRecord[] = [];
+
+function buildNotificationEmailHtml(params: {
+  recipientName: string;
+  eventType: string;
+  title: string;
+  message: string;
+  actionLabel: string;
+  appUrl: string;
+}): string {
+  const badgeColor =
+    params.eventType === 'publicacion_menos_6h' || params.eventType === 'oferta_rechazada'
+      ? '#e11d48'
+      : params.eventType === 'publicacion_proxima_finalizar' || params.eventType === 'nueva_contraoferta'
+      ? '#d97706'
+      : '#059669';
+
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>${params.title}</title>
+</head>
+<body style="margin:0;padding:24px;background-color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#0f172a;">
+  <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+    <div style="background:#0f172a;padding:20px 24px;color:#ffffff;">
+      <span style="display:inline-block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#34d399;">Publik Solidario · Alerta Transaccional</span>
+      <h1 style="margin:6px 0 0;font-size:18px;font-weight:700;color:#ffffff;">${params.title}</h1>
+    </div>
+    <div style="padding:24px;">
+      <p style="margin:0 0 12px;font-size:14px;color:#334155;">Hola <strong>${params.recipientName}</strong>,</p>
+      <div style="padding:16px;background:#f8fafc;border-left:4px solid ${badgeColor};border-radius:6px;margin:16px 0;">
+        <p style="margin:0;font-size:14px;line-height:1.6;color:#0f172a;">${params.message}</p>
+      </div>
+      <p style="margin:16px 0 24px;font-size:13px;color:#64748b;">
+        Ingresa a tu panel de Publik Solidario para gestionar esta operación de rescate alimentario a tiempo.
+      </p>
+      <a href="${params.appUrl}" style="display:inline-block;background:#059669;color:#ffffff;text-decoration:none;font-size:13px;font-weight:600;padding:10px 20px;border-radius:8px;">
+        ${params.actionLabel}
+      </a>
+    </div>
+    <div style="padding:16px 24px;background:#f1f5f9;border-top:1px solid #e2e8f0;font-size:11px;color:#64748b;">
+      Este es un mensaje automático del sistema de alertas de Publik Solidario.
+    </div>
+  </div>
+</body>
+</html>`;
+}
 
 async function startServer() {
   const app = express();
@@ -457,6 +588,121 @@ async function startServer() {
       });
     }
     return res.status(404).json({ error: 'Usuario no encontrado' });
+  });
+
+  // Helper to resolve user by ID or email
+  const findUserByIdOrEmail = (userId?: string, email?: string): RegisteredUser | undefined => {
+    if (email) {
+      const byEmail = USERS_DB.get(email.trim().toLowerCase());
+      if (byEmail) return byEmail;
+    }
+    if (userId) {
+      for (const u of USERS_DB.values()) {
+        if (u.id === userId) return u;
+      }
+    }
+    return undefined;
+  };
+
+  // Send transactional email notification
+  app.post('/api/notifications/send-email', async (req, res) => {
+    const {
+      notificationId,
+      userId,
+      to,
+      recipientName,
+      subject,
+      eventType,
+      title,
+      message,
+      actionLabel,
+    } = req.body;
+
+    const matchedUser = findUserByIdOrEmail(userId, to);
+    const resolvedEmail = (to || matchedUser?.email || 'notificaciones@publiksolidario.com').trim();
+    const resolvedName = recipientName || matchedUser?.organizationName || matchedUser?.name || 'Usuario Solidario';
+    const fromEmail = process.env.EMAIL_FROM || 'Publik Solidario <notificaciones@publiksolidario.com>';
+    const appUrl = process.env.APP_URL || 'http://localhost:3000';
+
+    const emailSubject = subject || `[Publik Solidario] ${title || 'Nueva notificación'}`;
+    const htmlBody = buildNotificationEmailHtml({
+      recipientName: resolvedName,
+      eventType: eventType || 'notificacion',
+      title: title || 'Notificación de Publik Solidario',
+      message: message || '',
+      actionLabel: actionLabel || 'Ver en Publik Solidario',
+      appUrl,
+    });
+
+    const resendApiKey = process.env.RESEND_API_KEY?.trim();
+    let status: 'sent' | 'queued_local' = 'queued_local';
+    let provider: 'resend' | 'smtp' | 'local_outbox' = 'local_outbox';
+
+    if (resendApiKey && resendApiKey !== 'MY_RESEND_API_KEY') {
+      try {
+        const response = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${resendApiKey}`,
+          },
+          body: JSON.stringify({
+            from: fromEmail,
+            to: [resolvedEmail],
+            subject: emailSubject,
+            html: htmlBody,
+          }),
+        });
+        if (response.ok) {
+          status = 'sent';
+          provider = 'resend';
+        }
+      } catch (err) {
+        console.warn('Error enviando correo vía Resend, almacenado en bandeja local:', err);
+      }
+    }
+
+    const record: EmailOutboxRecord = {
+      id: 'email-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6),
+      notificationId,
+      to: resolvedEmail,
+      recipientName: resolvedName,
+      from: fromEmail,
+      subject: emailSubject,
+      eventType: eventType || 'notificacion',
+      title: title || 'Notificación',
+      message: message || '',
+      actionLabel: actionLabel || 'Ver operación',
+      htmlBody,
+      status,
+      provider,
+      sentAt: new Date().toISOString(),
+    };
+
+    EMAIL_OUTBOX.unshift(record);
+    if (EMAIL_OUTBOX.length > 100) {
+      EMAIL_OUTBOX.pop();
+    }
+
+    return res.json({
+      success: true,
+      providerConfigured: Boolean(resendApiKey || process.env.SMTP_HOST),
+      emailRecord: record,
+    });
+  });
+
+  // Consult transactional email outbox & external provider status
+  app.get('/api/notifications/email-outbox', (_req, res) => {
+    const providerConfigured = Boolean(
+      (process.env.RESEND_API_KEY && process.env.RESEND_API_KEY.trim() !== '') ||
+        (process.env.SMTP_HOST && process.env.SMTP_HOST.trim() !== '')
+    );
+
+    return res.json({
+      providerConfigured,
+      requiredEnvVars: ['RESEND_API_KEY', 'EMAIL_FROM', 'SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS'],
+      outbox: EMAIL_OUTBOX,
+    });
   });
 
   // Vite middleware for development

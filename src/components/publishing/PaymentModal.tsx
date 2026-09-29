@@ -76,7 +76,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         <div className="p-5 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
           <div>
             <span className="text-[10px] uppercase tracking-wider font-bold text-emerald-400">
-              FoodLink Solidario • {t('payment.gatewayTitle', 'Pasarela de Comisión')}
+              Publik Solidario • {t('payment.gatewayTitle', 'Pasarela de Comisión')}
             </span>
             <h3 className="text-lg font-bold font-display text-white">
               {isSuccess
@@ -104,7 +104,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
           {!isSuccess ? (
             <div className="space-y-5">
               {/* Resumen de Publicación */}
-              <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-750 space-y-2.5">
+              <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-2.5">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
                   {t('payment.orderSummary', 'Resumen de la orden')}
                 </h4>
@@ -211,7 +211,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               </div>
 
               {/* Dynamic Inputs depending on payment method */}
-              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-750 text-xs space-y-2">
+              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs space-y-2">
                 {selectedMethod === 'nequi' && (
                   <div>
                     <label className="text-slate-700 dark:text-slate-300 font-semibold block mb-1">
@@ -340,7 +340,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               </div>
 
               {/* Detalle de Confirmación */}
-              <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-750 text-left text-xs space-y-2">
+              <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-left text-xs space-y-2">
                 <div className="flex justify-between py-1 border-b border-slate-200 dark:border-slate-700">
                   <span className="text-slate-500 dark:text-slate-400">{t('publish.nameLabel')}:</span>
                   <span className="font-semibold text-slate-900 dark:text-slate-100">{productName}</span>
