@@ -28,7 +28,7 @@ export const BuyerDashboard: React.FC = () => {
   const { t } = useI18n();
 
   const userId = currentUser?.id || '';
-  const isAdmin = currentUser?.role === 'admin';
+  const isAdmin = false;
 
   // Filter offers made by this foundation / buyer
   const myOffers = offers.filter(

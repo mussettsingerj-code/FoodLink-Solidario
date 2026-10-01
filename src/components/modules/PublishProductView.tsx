@@ -1,770 +1,799 @@
 import React, { useState } from 'react';
-import { useApp } from '../../context/AppContext';
 import {
-  DurationDays,
-  FoodCategory,
-  FOOD_CATEGORIES,
-  FOOD_CONDITIONS,
-  ProductCondition,
-} from '../../types';
-import { CATEGORY_ILLUSTRATIONS } from '../../data/demoData';
-import { DurationSelector } from '../publishing/DurationSelector';
-import { PaymentModal } from '../publishing/PaymentModal';
-import { ProductImage } from '../common/ProductImage';
-import {
-  ArrowLeft,
-  ArrowRight,
+  Tag,
+  Calendar,
+  MapPin,
+  DollarSign,
+  Clock,
+  CreditCard,
+  ShieldCheck,
   CheckCircle2,
   AlertCircle,
-  Upload,
-  Info,
   Sparkles,
+  Store,
+  Image as ImageIcon,
+  ArrowRight,
+  Info,
 } from 'lucide-react';
+import { useApp } from '../../context/AppContext';
+import {
+  FOOD_CATEGORIES,
+  FOOD_CONDITIONS,
+  FoodCategory,
+  ProductCondition,
+  DurationDays,
+} from '../../types';
+import { COMMISSION_PRICING } from '../../data/initialData';
 
-interface PublishProductViewProps {
-  onSuccessClose?: () => void;
-  isModal?: boolean;
-}
+const DURATION_OPTIONS: DurationDays[] = [1, 2, 3, 4, 5, 6, 7, 14, 21, 30];
 
-const STEP_TITLES = [
-  { number: 1, title: 'Información del producto', subtitle: 'Nombre, categoría, marca y ubicación' },
-  { number: 2, title: 'Cantidad y estado', subtitle: 'Volumen disponible, estado y valor de rescate' },
-  { number: 3, title: 'Fecha de vencimiento', subtitle: 'Caducidad y condiciones de retiro' },
-  { number: 4, title: 'Fotografías', subtitle: 'Imagen de referencia del lote' },
-  { number: 5, title: 'Tiempo de publicación', subtitle: 'Duración en catálogo y micro-comisión' },
-  { number: 6, title: 'Confirmación', subtitle: 'Revisión final y activación' },
-];
+const SAMPLE_IMAGES: Record<string, string> = {
+  Frutas: 'https://images.unsplash.com/photo-1610832958506-aa56368176cf?auto=format&fit=crop&w=900&q=80',
+  Verduras: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=900&q=80',
+  Lácteos: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?auto=format&fit=crop&w=900&q=80',
+  'Carnes y proteínas': 'https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?auto=format&fit=crop&w=900&q=80',
+  Huevos: 'https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?auto=format&fit=crop&w=900&q=80',
+  'Panadería y repostería': 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=900&q=80',
+  'Granos y cereales': 'https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=900&q=80',
+  'Alimentos enlatados y conservas': 'https://images.unsplash.com/photo-1584263347416-85a696b4eda7?auto=format&fit=crop&w=900&q=80',
+  Bebidas: 'https://images.unsplash.com/photo-1544145945-f90425340c7e?auto=format&fit=crop&w=900&q=80',
+  Snacks: 'https://images.unsplash.com/photo-1599490659213-e2b9527bd087?auto=format&fit=crop&w=900&q=80',
+  'Alimentos empacados': 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=900&q=80',
+  'Otros alimentos': 'https://images.unsplash.com/photo-1506617420156-8e4536971650?auto=format&fit=crop&w=900&q=80',
+};
 
-export const PublishProductView: React.FC<PublishProductViewProps> = ({
-  onSuccessClose,
-  isModal = false,
-}) => {
-  const { currentUser, addProduct, getCommissionForDays, setCurrentView, showToast } = useApp();
+export const PublishProductView: React.FC = () => {
+  const { addProduct, formatCOP, setActiveTab, userProfile, isAuthenticated } = useApp();
 
-  const [step, setStep] = useState<number>(1);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+  const [step, setStep] = useState<'form' | 'payment' | 'success'>('form');
 
-  // Paso 1: Información del producto
+  // Form state
   const [name, setName] = useState('');
-  const [category, setCategory] = useState<FoodCategory>('Verduras');
-  const [brand, setBrand] = useState(currentUser?.organizationName || '');
+  const [category, setCategory] = useState<FoodCategory>('Frutas');
+  const [brand, setBrand] = useState('');
   const [description, setDescription] = useState('');
-  const [locationCity, setLocationCity] = useState(currentUser?.city || 'Medellín');
-  const [locationAddress, setLocationAddress] = useState('Calle 10 # 43E-12, Punto Principal');
-
-  // Paso 2: Cantidad, estado y precios
-  const [quantity, setQuantity] = useState<number>(50);
+  const [imageUrl, setImageUrl] = useState('');
+  const [quantity, setQuantity] = useState<number>(25);
   const [unit, setUnit] = useState<'kg' | 'cajas' | 'unidades' | 'litros' | 'bultos' | 'bandejas'>('kg');
-  const [condition, setCondition] = useState<ProductCondition>('Maduración avanzada');
-  const [originalPrice, setOriginalPrice] = useState<number>(4000);
-  const [requestedPrice, setRequestedPrice] = useState<number>(1600);
-  const [minPurchaseQuantity, setMinPurchaseQuantity] = useState<number>(10);
-
-  // Paso 3: Fecha de vencimiento y entrega
-  const defaultExp = new Date(Date.now() + 3 * 24 * 3600 * 1000).toISOString().split('T')[0];
-  const [expirationDate, setExpirationDate] = useState(defaultExp);
-  const [recommendedConsumptionDate, setRecommendedConsumptionDate] = useState(defaultExp);
+  const [condition, setCondition] = useState<ProductCondition>('Próximo a vencer');
+  const [expirationDate, setExpirationDate] = useState('2026-10-15');
+  const [recommendedDate, setRecommendedDate] = useState('2026-10-13');
+  const [locationCity, setLocationCity] = useState(userProfile.city || 'Bogotá D.C.');
+  const [locationAddress, setLocationAddress] = useState('');
+  const [originalPrice, setOriginalPrice] = useState<number>(8500);
+  const [requestedPrice, setRequestedPrice] = useState<number>(3200);
+  const [minPurchaseQuantity, setMinPurchaseQuantity] = useState<number>(5);
   const [deliveryConditions, setDeliveryConditions] = useState(
-    'Retiro en sede del establecimiento en horario acordado.'
+    'Recogida en bodega principal con cita previa. Traer canastillas limpias.'
   );
+  const [sellerName, setSellerName] = useState(userProfile.organizationName || userProfile.name);
+  const [sellerType, setSellerType] = useState<
+    'Supermercado' | 'Restaurante' | 'Panadería' | 'Distribuidor' | 'Fruver' | 'Tienda'
+  >('Supermercado');
 
-  // Paso 4: Fotografías
-  const [imageUrl, setImageUrl] = useState<string>(CATEGORY_ILLUSTRATIONS['Verduras']);
-
-  // Paso 5: Tiempo de publicación
   const [durationDays, setDurationDays] = useState<DurationDays>(3);
+  const [paymentMethod, setPaymentMethod] = useState<'pse' | 'card' | 'nequi'>('pse');
+  const [selectedBank, setSelectedBank] = useState('Bancolombia');
 
-  const discountPercentage =
-    originalPrice > 0 && requestedPrice < originalPrice
-      ? Math.round(((originalPrice - requestedPrice) / originalPrice) * 100)
+  // Security guard: Only authenticated sellers can access this view (Requirement 9)
+  if (!isAuthenticated || userProfile.role !== 'seller') {
+    return null;
+  }
+
+  const commissionToPay = COMMISSION_PRICING[durationDays];
+  const discountPercent =
+    originalPrice > 0
+      ? Math.max(0, Math.round(((originalPrice - requestedPrice) / originalPrice) * 100))
       : 0;
+  const totalLotValue = requestedPrice * quantity;
 
-  const commission = getCommissionForDays(durationDays);
-  const progressPercentage = Math.round((step / 6) * 100);
-
-  const handleCategoryChange = (newCat: FoodCategory) => {
-    setCategory(newCat);
-    if (imageUrl.startsWith('data:image/svg+xml')) {
-      setImageUrl(CATEGORY_ILLUSTRATIONS[newCat]);
-    }
+  const handleContinueToPayment = (e: React.FormEvent) => {
+    e.preventDefault();
+    setStep('payment');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        setImageUrl(reader.result);
-        showToast('Fotografía cargada correctamente', 'success');
-      }
-    };
-    reader.readAsDataURL(file);
+  const handleConfirmPaymentAndPublish = () => {
+    const finalImage = imageUrl.trim() || SAMPLE_IMAGES[category] || SAMPLE_IMAGES['Frutas'];
+
+    addProduct({
+      name,
+      category,
+      brand: brand || 'Marca Propia / Lote Directo',
+      description,
+      imageUrl: finalImage,
+      quantity,
+      unit,
+      condition,
+      expirationDate,
+      recommendedConsumptionDate: recommendedDate,
+      locationCity,
+      locationAddress: locationAddress || `${locationCity} - Bodega Principal`,
+      originalPrice,
+      requestedPrice,
+      minPurchaseQuantity,
+      deliveryConditions,
+      durationDays,
+      sellerId: userProfile.id,
+      sellerName: sellerName || userProfile.organizationName || userProfile.name,
+      sellerType,
+      sellerVerified: userProfile.verified,
+    });
+
+    setStep('success');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const validateCurrentStep = (): boolean => {
-    setErrorMsg(null);
-    if (step === 1) {
-      if (!name.trim() || name.trim().length < 3) {
-        setErrorMsg('Por favor ingresa un nombre descriptivo para el producto (mínimo 3 caracteres).');
-        return false;
-      }
-      if (!locationAddress.trim()) {
-        setErrorMsg('Indica la dirección o punto de retiro del alimento.');
-        return false;
-      }
-    }
-    if (step === 2) {
-      if (quantity <= 0) {
-        setErrorMsg('La cantidad disponible debe ser mayor a 0.');
-        return false;
-      }
-      if (requestedPrice <= 0) {
-        setErrorMsg('El precio de rescate por unidad debe ser mayor a $0 COP.');
-        return false;
-      }
-      if (minPurchaseQuantity > quantity) {
-        setErrorMsg('La cantidad mínima de compra no puede superar la cantidad total disponible.');
-        return false;
-      }
-    }
-    if (step === 3) {
-      if (!expirationDate) {
-        setErrorMsg('Selecciona la fecha límite o de vencimiento del lote.');
-        return false;
-      }
-    }
-    return true;
-  };
+  if (step === 'success') {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-12">
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-8 text-center shadow-lg">
+          <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto mb-5">
+            <CheckCircle2 className="w-9 h-9 stroke-[2.2]" />
+          </div>
+          <span className="inline-block text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 mb-3">
+            Transacción PSE Aprobada • Publicación Activa
+          </span>
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
+            ¡Tu lote de alimento ya está publicado!
+          </h2>
+          <p className="text-sm text-slate-600 dark:text-slate-400 max-w-lg mx-auto mb-6">
+            El lote <strong>"{name}"</strong> estará visible en el catálogo durante{' '}
+            <strong>{durationDays} día(s)</strong>. Recibirás notificaciones inmediatas cuando un
+            comprador realice una oferta.
+          </p>
 
-  const handleNext = () => {
-    if (!validateCurrentStep()) return;
-    setStep((prev) => Math.min(6, prev + 1));
-  };
+          <div className="bg-slate-50 dark:bg-slate-800/70 rounded-2xl p-5 border border-slate-200/80 dark:border-slate-700 text-left mb-6 space-y-2 text-xs">
+            <div className="flex justify-between">
+              <span className="text-slate-500">Producto publicado:</span>
+              <span className="font-bold text-slate-900 dark:text-white">
+                {name} ({quantity} {unit})
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-500">Valor solicitado por unidad:</span>
+              <span className="font-bold text-emerald-800 dark:text-emerald-400">
+                {formatCOP(requestedPrice)} / {unit}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-500">Tiempo de exposición contratado:</span>
+              <span className="font-bold text-slate-900 dark:text-white">
+                {durationDays} día(s) calendario
+              </span>
+            </div>
+            <div className="flex justify-between pt-2 border-t border-slate-200 dark:border-slate-700">
+              <span className="text-slate-500">Comisión de publicación pagada:</span>
+              <span className="font-extrabold text-emerald-800 dark:text-emerald-400">
+                {formatCOP(commissionToPay)} COP
+              </span>
+            </div>
+          </div>
 
-  const handleBack = () => {
-    setErrorMsg(null);
-    setStep((prev) => Math.max(1, prev - 1));
-  };
-
-  const handlePaymentSuccess = (paymentMethod: string) => {
-    addProduct(
-      {
-        name: name.trim(),
-        category,
-        brand: brand.trim() || currentUser?.organizationName || 'Establecimiento Aliado',
-        description:
-          description.trim() ||
-          `Lote de ${name.trim()} en estado ${condition.toLowerCase()}, verificado para rescate solidario.`,
-        imageUrl,
-        quantity,
-        unit,
-        condition,
-        expirationDate,
-        recommendedConsumptionDate,
-        locationCity,
-        locationAddress,
-        originalPrice,
-        requestedPrice,
-        minPurchaseQuantity,
-        deliveryConditions,
-        durationDays,
-        commissionPaid: commission,
-        status: 'activa',
-        sellerId: currentUser ? currentUser.id : 'user-est-01',
-        sellerName: currentUser ? currentUser.organizationName : 'Establecimiento Aliado',
-        sellerType: 'Supermercado',
-        sellerVerified: true,
-        sellerPhone: currentUser ? currentUser.phone : '+57 300 000 0000',
-      },
-      paymentMethod
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <button
+              onClick={() => setActiveTab('my-publications')}
+              className="bg-[#1B4332] hover:bg-emerald-900 text-white font-bold px-6 py-3 rounded-xl text-sm transition-colors cursor-pointer"
+            >
+              Ir a Mis Publicaciones
+            </button>
+            <button
+              onClick={() => {
+                setName('');
+                setDescription('');
+                setStep('form');
+              }}
+              className="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-800 dark:text-slate-200 font-semibold px-6 py-3 rounded-xl text-sm transition-colors cursor-pointer"
+            >
+              Publicar otro lote
+            </button>
+          </div>
+        </div>
+      </div>
     );
-
-    setTimeout(() => {
-      setIsPaymentOpen(false);
-      if (onSuccessClose) {
-        onSuccessClose();
-      }
-      setCurrentView('my_publications');
-    }, 1200);
-  };
-
-  const activeStepMeta = STEP_TITLES[step - 1];
+  }
 
   return (
-    <div className={isModal ? 'space-y-5' : 'max-w-3xl mx-auto space-y-6'}>
-      {!isModal && (
+    <div className="max-w-5xl mx-auto px-4 sm:px-8 py-6 sm:py-8">
+      {/* Step Header */}
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
-            Publicar producto
-          </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Completa los 6 pasos para publicar un lote de alimentos en el catálogo solidario.
+          <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-400 mb-1">
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Módulo de Publicación Comercial y Solidaria</span>
+          </div>
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
+            {step === 'form'
+              ? 'Publicar Nuevo Lote de Alimentos'
+              : 'Confirmación y Pago de Tarifa por Exposición'}
+          </h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Completa la ficha técnica del alimento y selecciona cuántos días deseas mantener activa
+            la oferta.
           </p>
         </div>
-      )}
 
-      {/* Barra de Progreso y Pasos */}
-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 space-y-4">
-        <div className="flex items-center justify-between text-xs">
-          <div>
-            <span className="font-semibold text-emerald-700 dark:text-emerald-400">
-              Paso {step} de 6
-            </span>
-            <span className="mx-2 text-slate-300 dark:text-slate-700">·</span>
-            <span className="font-semibold text-slate-900 dark:text-slate-100">
-              {activeStepMeta.title}
-            </span>
-          </div>
-          <span className="font-mono tabular-nums font-semibold text-slate-600 dark:text-slate-400">
-            {progressPercentage}%
+        <div className="flex items-center gap-2 text-xs font-bold">
+          <span
+            className={`px-3 py-1.5 rounded-xl border ${
+              step === 'form'
+                ? 'bg-[#1B4332] text-white border-[#1B4332]'
+                : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+            }`}
+          >
+            1. Ficha y Duración
           </span>
-        </div>
-
-        {/* Barra de progreso continua */}
-        <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-          <div
-            style={{ width: `${progressPercentage}%` }}
-            className="h-full bg-emerald-600 transition-all duration-200 rounded-full"
-          />
-        </div>
-
-        {/* Indicadores de los 6 pasos */}
-        <div className="grid grid-cols-6 gap-1.5 pt-1">
-          {STEP_TITLES.map((s) => {
-            const isDone = step > s.number;
-            const isCurrent = step === s.number;
-            return (
-              <button
-                key={s.number}
-                type="button"
-                onClick={() => {
-                  if (s.number < step || validateCurrentStep()) {
-                    setStep(s.number);
-                  }
-                }}
-                className={`text-left p-2 rounded-lg border transition-colors cursor-pointer ${
-                  isCurrent
-                    ? 'border-emerald-600 bg-emerald-50/50 dark:bg-emerald-950/30'
-                    : isDone
-                    ? 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50'
-                    : 'border-transparent bg-transparent opacity-60'
-                }`}
-              >
-                <div className="flex items-center gap-1 text-[11px] font-bold">
-                  <span
-                    className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-mono tabular-nums ${
-                      isCurrent
-                        ? 'bg-emerald-600 text-white'
-                        : isDone
-                        ? 'bg-slate-900 dark:bg-emerald-700 text-white'
-                        : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
-                    }`}
-                  >
-                    {s.number}
-                  </span>
-                  <span className="hidden sm:inline truncate text-slate-700 dark:text-slate-200">
-                    {s.title.split(' ')[0]}
-                  </span>
-                </div>
-              </button>
-            );
-          })}
+          <ArrowRight className="w-4 h-4 text-slate-400" />
+          <span
+            className={`px-3 py-1.5 rounded-xl border ${
+              step === 'payment'
+                ? 'bg-[#1B4332] text-white border-[#1B4332]'
+                : 'bg-slate-100 text-slate-500 border-slate-200'
+            }`}
+          >
+            2. Pago de Comisión
+          </span>
         </div>
       </div>
 
-      {/* Mensaje de validación de error si existe */}
-      {errorMsg && (
-        <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 flex items-center gap-2.5 text-xs text-rose-800 dark:text-rose-200 font-medium">
-          <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-          <span>{errorMsg}</span>
-        </div>
-      )}
-
-      {/* Cuerpo del Paso Activo */}
-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 space-y-6">
-        <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
-          <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">
-            {activeStepMeta.number}. {activeStepMeta.title}
-          </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            {activeStepMeta.subtitle}
-          </p>
-        </div>
-
-        {/* PASO 1: Información del producto */}
-        {step === 1 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="sm:col-span-2">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">
-                Nombre del producto o lote *
-              </label>
-              <input
-                type="text"
-                required
-                placeholder="Ej: Tomate Chonto maduro en canastilla x 25kg"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3.5 py-2.5 text-sm text-slate-900 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-900 focus:outline-emerald-600"
-              />
-              <span className="text-[11px] text-slate-400 mt-1 block">
-                Incluye el tipo de alimento y presentación para facilitar su búsqueda.
-              </span>
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">
-                Categoría *
-              </label>
-              <select
-                value={category}
-                onChange={(e) => handleCategoryChange(e.target.value as FoodCategory)}
-                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3.5 py-2.5 text-sm text-slate-900 dark:text-slate-100 focus:outline-emerald-600"
-              >
-                {FOOD_CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">
-                Marca / Productor
-              </label>
-              <input
-                type="text"
-                placeholder="Ej: Cosecha Local / Marca propia"
-                value={brand}
-                onChange={(e) => setBrand(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3.5 py-2.5 text-sm text-slate-900 dark:text-slate-100 focus:outline-emerald-600"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">
-                Ciudad de ubicación *
-              </label>
-              <select
-                value={locationCity}
-                onChange={(e) => setLocationCity(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3.5 py-2.5 text-sm text-slate-900 dark:text-slate-100 focus:outline-emerald-600"
-              >
-                <option value="Medellín">Medellín</option>
-                <option value="Bogotá">Bogotá</option>
-                <option value="Cali">Cali</option>
-                <option value="Barranquilla">Barranquilla</option>
-                <option value="Bucaramanga">Bucaramanga</option>
-                <option value="Pereira">Pereira</option>
-                <option value="Cartagena">Cartagena</option>
-                <option value="Manizales">Manizales</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">
-                Dirección o muelle de retiro *
-              </label>
-              <input
-                type="text"
-                required
-                placeholder="Ej: Calle 10 # 43E-12, Bodega 2"
-                value={locationAddress}
-                onChange={(e) => setLocationAddress(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3.5 py-2.5 text-sm text-slate-900 dark:text-slate-100 focus:outline-emerald-600"
-              />
-            </div>
-
-            <div className="sm:col-span-2">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">
-                Descripción y observaciones de calidad
-              </label>
-              <textarea
-                rows={3}
-                placeholder="Describe el estado de conservación, empaque o características relevantes del lote..."
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-emerald-600"
-              />
-            </div>
-          </div>
-        )}
-
-        {/* PASO 2: Cantidad y estado */}
-        {step === 2 && (
-          <div className="space-y-5">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">
-                  Cantidad total disponible *
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  required
-                  value={quantity}
-                  onChange={(e) => setQuantity(Number(e.target.value))}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3.5 py-2.5 text-sm font-mono tabular-nums text-slate-900 dark:text-slate-100 focus:outline-emerald-600"
-                />
+      {step === 'form' ? (
+        <form
+          onSubmit={handleContinueToPayment}
+          className="grid grid-cols-1 lg:grid-cols-3 gap-8"
+        >
+          {/* Left 2 Columns: Product Details */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Section 1: Basic Info */}
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-xs space-y-4">
+              <div className="flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-slate-800">
+                <Tag className="w-4 h-4 text-emerald-700" />
+                <h3 className="font-bold text-slate-900 dark:text-white text-base">
+                  1. Identificación del Alimento
+                </h3>
               </div>
 
-              <div>
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">
-                  Unidad de medida *
-                </label>
-                <select
-                  value={unit}
-                  onChange={(e) => setUnit(e.target.value as any)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3.5 py-2.5 text-sm text-slate-900 dark:text-slate-100 focus:outline-emerald-600"
-                >
-                  <option value="kg">Kilogramos (kg)</option>
-                  <option value="cajas">Cajas</option>
-                  <option value="unidades">Unidades</option>
-                  <option value="litros">Litros</option>
-                  <option value="bultos">Bultos</option>
-                  <option value="bandejas">Bandejas</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">
-                  Pedido mínimo ({unit})
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  max={quantity}
-                  value={minPurchaseQuantity}
-                  onChange={(e) => setMinPurchaseQuantity(Number(e.target.value))}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3.5 py-2.5 text-sm font-mono tabular-nums text-slate-900 dark:text-slate-100 focus:outline-emerald-600"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">
-                Estado del producto *
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {FOOD_CONDITIONS.map((cond) => (
-                  <button
-                    key={cond}
-                    type="button"
-                    onClick={() => setCondition(cond)}
-                    className={`p-3 rounded-lg border text-left text-xs font-medium transition-colors cursor-pointer flex items-center justify-between ${
-                      condition === cond
-                        ? 'border-emerald-600 bg-emerald-50/60 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 font-semibold'
-                        : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 text-slate-700 dark:text-slate-300 hover:border-slate-300'
-                    }`}
-                  >
-                    <span>{cond}</span>
-                    {condition === cond && <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-3 border-t border-slate-100 dark:border-slate-800">
-              <div>
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">
-                  Precio comercial original / {unit} (COP)
-                </label>
-                <input
-                  type="number"
-                  min="100"
-                  value={originalPrice}
-                  onChange={(e) => setOriginalPrice(Number(e.target.value))}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3.5 py-2.5 text-sm font-mono tabular-nums text-slate-900 dark:text-slate-100 focus:outline-emerald-600"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">
-                  Precio solidario solicitado / {unit} (COP) *
-                </label>
-                <input
-                  type="number"
-                  min="100"
-                  required
-                  value={requestedPrice}
-                  onChange={(e) => setRequestedPrice(Number(e.target.value))}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3.5 py-2.5 text-sm font-mono tabular-nums text-slate-900 dark:text-slate-100 focus:outline-emerald-600"
-                />
-              </div>
-
-              <div>
-                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">
-                  Ahorro estimado para fundaciones
-                </span>
-                <div className="h-[42px] px-3.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex items-center justify-between text-xs">
-                  <span className="text-slate-600 dark:text-slate-300">Descuento:</span>
-                  <span className="font-mono tabular-nums font-bold text-emerald-700 dark:text-emerald-400 text-sm">
-                    -{discountPercentage}%
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* PASO 3: Fecha de vencimiento */}
-        {step === 3 && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">
-                  Fecha de vencimiento o caducidad *
-                </label>
-                <input
-                  type="date"
-                  required
-                  value={expirationDate}
-                  onChange={(e) => setExpirationDate(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3.5 py-2.5 text-sm font-mono tabular-nums text-slate-900 dark:text-slate-100 focus:outline-emerald-600"
-                />
-                <span className="text-[11px] text-slate-400 mt-1 block">
-                  Fecha impresa en el empaque o límite sanitario estimado.
-                </span>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">
-                  Fecha recomendada de consumo prioritario
-                </label>
-                <input
-                  type="date"
-                  value={recommendedConsumptionDate}
-                  onChange={(e) => setRecommendedConsumptionDate(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3.5 py-2.5 text-sm font-mono tabular-nums text-slate-900 dark:text-slate-100 focus:outline-emerald-600"
-                />
-                <span className="text-[11px] text-slate-400 mt-1 block">
-                  Fecha óptima para mantener frescura y calidad nutricional.
-                </span>
-              </div>
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">
-                Condiciones logísticas de retiro o entrega
-              </label>
-              <input
-                type="text"
-                value={deliveryConditions}
-                onChange={(e) => setDeliveryConditions(e.target.value)}
-                placeholder="Ej: Retiro con canastillas propias entre 8:00 AM y 4:00 PM"
-                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3.5 py-2.5 text-sm text-slate-900 dark:text-slate-100 focus:outline-emerald-600"
-              />
-            </div>
-
-            <div className="p-3.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-start gap-2.5 text-xs text-slate-600 dark:text-slate-300">
-              <Info className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-              <span>
-                Recuerda que todos los alimentos publicados deben ser aptos para consumo humano según la normativa sanitaria vigente en Colombia.
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* PASO 4: Fotografías */}
-        {step === 4 && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-12 gap-5 items-center">
-              <div className="sm:col-span-5 aspect-4/3 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800">
-                <ProductImage
-                  src={imageUrl}
-                  alt={name || category}
-                  category={category}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-
-              <div className="sm:col-span-7 space-y-4">
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">
-                    Subir fotografía desde tu dispositivo
-                  </label>
-                  <label className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-slate-900 dark:bg-slate-800 text-white text-xs font-semibold hover:bg-slate-800 transition-colors cursor-pointer">
-                    <Upload className="w-4 h-4" />
-                    <span>Seleccionar archivo de imagen</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleFileUpload}
-                      className="hidden"
-                    />
-                  </label>
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">
-                    O ingresa URL de imagen personalizada
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Nombre del Producto / Lote *
                   </label>
                   <input
                     type="text"
-                    value={imageUrl.startsWith('data:image/svg+xml') ? '' : imageUrl}
-                    onChange={(e) =>
-                      setImageUrl(e.target.value.trim() || CATEGORY_ILLUSTRATIONS[category])
-                    }
-                    placeholder="https://ejemplo.com/foto-lote.jpg"
-                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3.5 py-2 text-xs text-slate-900 dark:text-slate-100"
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Ej: Banano Criollo Tipo Exportación (Maduración 85%)"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-600"
                   />
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setImageUrl(CATEGORY_ILLUSTRATIONS[category])}
-                  className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 hover:underline cursor-pointer"
-                >
-                  Restablecer ilustración verificada de la categoría ({category})
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* PASO 5: Tiempo de publicación */}
-        {step === 5 && (
-          <DurationSelector
-            selectedDays={durationDays}
-            onChange={setDurationDays}
-            category={category}
-            startDate={new Date()}
-            idPrefix="publish-wizard"
-          />
-        )}
-
-        {/* PASO 6: Confirmación */}
-        {step === 6 && (
-          <div className="space-y-5">
-            <div className="p-4 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/70 flex items-start gap-3">
-              <Sparkles className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-              <div className="text-xs">
-                <span className="font-bold text-slate-900 dark:text-slate-100 block">
-                  Revisión final antes de publicar
-                </span>
-                <span className="text-slate-600 dark:text-slate-300 mt-0.5 block">
-                  Verifica que los datos del lote sean correctos. Al confirmar la micro-comisión, el producto aparecerá de inmediato en el catálogo activo.
-                </span>
-              </div>
-            </div>
-
-            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-              <div className="w-20 h-20 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 shrink-0">
-                <ProductImage src={imageUrl} alt={name} category={category} />
-              </div>
-              <div className="flex-1 min-w-0 space-y-1">
-                <div className="text-xs text-slate-500 dark:text-slate-400">
-                  <span className="font-semibold text-emerald-700 dark:text-emerald-400">{category}</span>
-                  <span className="mx-1.5">·</span>
-                  <span>{condition}</span>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Categoría Alimentaria *
+                  </label>
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value as FoodCategory)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:bg-white focus:outline-none focus:border-emerald-600"
+                  >
+                    {FOOD_CATEGORIES.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 truncate">
-                  {name}
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Marca o Productor
+                  </label>
+                  <input
+                    type="text"
+                    value={brand}
+                    onChange={(e) => setBrand(e.target.value)}
+                    placeholder="Ej: Urabá Fresh / Colanta / Propia"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:bg-white focus:outline-none focus:border-emerald-600"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Descripción Detallada y Estado de Inocuidad *
+                  </label>
+                  <textarea
+                    required
+                    rows={3}
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Describe el estado organoléptico, motivo del excedente, condiciones de cadena de frío y recomendaciones de uso..."
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:bg-white focus:outline-none focus:border-emerald-600"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
+                    <ImageIcon className="w-3.5 h-3.5 text-slate-400" />
+                    URL de Fotografía del Lote (Opcional - se asigna imagen por categoría si se deja
+                    vacío)
+                  </label>
+                  <input
+                    type="url"
+                    value={imageUrl}
+                    onChange={(e) => setImageUrl(e.target.value)}
+                    placeholder="https://images.unsplash.com/..."
+                    className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:bg-white focus:outline-none focus:border-emerald-600"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Section 2: Condition, Expiration & Quantity */}
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-xs space-y-4">
+              <div className="flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-slate-800">
+                <Calendar className="w-4 h-4 text-emerald-700" />
+                <h3 className="font-bold text-slate-900 dark:text-white text-base">
+                  2. Condición, Cantidades y Fechas Límite
                 </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  {locationCity} — {locationAddress}
-                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Estado / Motivo de Comercialización Solidaria *
+                  </label>
+                  <select
+                    value={condition}
+                    onChange={(e) => setCondition(e.target.value as ProductCondition)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:bg-white focus:outline-none focus:border-emerald-600"
+                  >
+                    {FOOD_CONDITIONS.map((cond) => (
+                      <option key={cond} value={cond}>
+                        {cond}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Unidad de Medida *
+                  </label>
+                  <select
+                    value={unit}
+                    onChange={(e) => setUnit(e.target.value as typeof unit)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:bg-white focus:outline-none focus:border-emerald-600"
+                  >
+                    <option value="kg">Kilogramos (kg)</option>
+                    <option value="unidades">Unidades</option>
+                    <option value="cajas">Cajas</option>
+                    <option value="litros">Litros</option>
+                    <option value="bultos">Bultos</option>
+                    <option value="bandejas">Bandejas</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Cantidad Total Disponible *
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    required
+                    value={quantity}
+                    onChange={(e) => setQuantity(Number(e.target.value))}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:bg-white focus:outline-none focus:border-emerald-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Compra Mínima Permitida *
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={quantity}
+                    required
+                    value={minPurchaseQuantity}
+                    onChange={(e) => setMinPurchaseQuantity(Number(e.target.value))}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:bg-white focus:outline-none focus:border-emerald-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Fecha de Vencimiento *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={expirationDate}
+                    onChange={(e) => setExpirationDate(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:bg-white focus:outline-none focus:border-emerald-600"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Fecha Recomendada de Consumo Preferente
+                  </label>
+                  <input
+                    type="date"
+                    value={recommendedDate}
+                    onChange={(e) => setRecommendedDate(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:bg-white focus:outline-none focus:border-emerald-600"
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-              <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-800">
-                <span className="text-slate-400 block">Cantidad</span>
-                <span className="font-mono tabular-nums font-bold text-slate-900 dark:text-slate-100 text-sm mt-0.5 block">
-                  {quantity} {unit}
-                </span>
+            {/* Section 3: Pricing & Logistics */}
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-xs space-y-4">
+              <div className="flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-slate-800">
+                <DollarSign className="w-4 h-4 text-emerald-700" />
+                <h3 className="font-bold text-slate-900 dark:text-white text-base">
+                  3. Precio Solidario y Condiciones de Entrega
+                </h3>
               </div>
-              <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-800">
-                <span className="text-slate-400 block">Valor unitario</span>
-                <span className="font-mono tabular-nums font-bold text-emerald-700 dark:text-emerald-400 text-sm mt-0.5 block">
-                  ${requestedPrice.toLocaleString('es-CO')} / {unit}
-                </span>
-              </div>
-              <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-800">
-                <span className="text-slate-400 block">Vencimiento</span>
-                <span className="font-mono tabular-nums font-bold text-slate-900 dark:text-slate-100 text-sm mt-0.5 block">
-                  {expirationDate}
-                </span>
-              </div>
-              <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-800">
-                <span className="text-slate-400 block">Vigencia elegida</span>
-                <span className="font-mono tabular-nums font-bold text-slate-900 dark:text-slate-100 text-sm mt-0.5 block">
-                  {durationDays} {durationDays === 1 ? 'día' : 'días'}
-                </span>
-              </div>
-            </div>
 
-            <div className="p-4 rounded-xl bg-slate-900 text-white flex items-center justify-between">
-              <div>
-                <span className="text-xs text-slate-400 block">Micro-comisión de publicación</span>
-                <span className="text-xs text-slate-300">
-                  Cubre visibilidad en catálogo y alertas a fundaciones por {durationDays} día(s)
-                </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Precio Comercial Original por {unit} (COP) *
+                  </label>
+                  <input
+                    type="number"
+                    min={100}
+                    required
+                    value={originalPrice}
+                    onChange={(e) => setOriginalPrice(Number(e.target.value))}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:bg-white focus:outline-none focus:border-emerald-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Valor Solicitado en FoodLink por {unit} (COP) *
+                  </label>
+                  <input
+                    type="number"
+                    min={100}
+                    required
+                    value={requestedPrice}
+                    onChange={(e) => setRequestedPrice(Number(e.target.value))}
+                    className="w-full px-3.5 py-2.5 bg-emerald-50/50 dark:bg-emerald-950/30 border border-emerald-300 dark:border-emerald-700 rounded-xl text-sm font-bold text-emerald-950 dark:text-emerald-200 focus:bg-white focus:outline-none focus:border-emerald-600"
+                  />
+                </div>
+
+                <div className="sm:col-span-2 bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800/60 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <span className="text-emerald-900 dark:text-emerald-200 font-medium">
+                    Ahorro solidario ofrecido: <strong>{discountPercent}% de descuento</strong>
+                  </span>
+                  <span className="text-emerald-950 dark:text-emerald-300 font-bold">
+                    Valor total estimado del lote: {formatCOP(totalLotValue)}
+                  </span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1">
+                    <Store className="w-3.5 h-3.5 text-slate-400" /> Establecimiento Publicador
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={sellerName}
+                    onChange={(e) => setSellerName(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:bg-white focus:outline-none focus:border-emerald-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1">
+                    <MapPin className="w-3.5 h-3.5 text-slate-400" /> Ciudad y Sede de Recogida *
+                  </label>
+                  <div className="flex gap-2">
+                    <select
+                      value={locationCity}
+                      onChange={(e) => setLocationCity(e.target.value)}
+                      className="w-1/2 px-2.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white"
+                    >
+                      <option value="Bogotá D.C.">Bogotá D.C.</option>
+                      <option value="Medellín">Medellín</option>
+                      <option value="Cali">Cali</option>
+                      <option value="Barranquilla">Barranquilla</option>
+                      <option value="Bucaramanga">Bucaramanga</option>
+                    </select>
+                    <input
+                      type="text"
+                      required
+                      value={locationAddress}
+                      onChange={(e) => setLocationAddress(e.target.value)}
+                      placeholder="Dirección o Zona"
+                      className="w-1/2 px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Tipo de Establecimiento
+                  </label>
+                  <select
+                    value={sellerType}
+                    onChange={(e) => setSellerType(e.target.value as typeof sellerType)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white"
+                  >
+                    <option value="Supermercado">Supermercado</option>
+                    <option value="Restaurante">Restaurante</option>
+                    <option value="Panadería">Panadería</option>
+                    <option value="Distribuidor">Distribuidor</option>
+                    <option value="Fruver">Fruver</option>
+                    <option value="Tienda">Tienda</option>
+                  </select>
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Condiciones Logísticas de Entrega / Recogida *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={deliveryConditions}
+                    onChange={(e) => setDeliveryConditions(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white"
+                  />
+                </div>
               </div>
-              <span className="text-xl font-bold font-mono tabular-nums text-emerald-400">
-                ${commission.toLocaleString('es-CO')} COP
-              </span>
             </div>
           </div>
-        )}
 
-        {/* Controles de Navegación entre Pasos */}
-        <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
-          {step > 1 ? (
-            <button
-              type="button"
-              onClick={handleBack}
-              className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 inline-flex items-center gap-1.5 cursor-pointer"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Paso anterior</span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => (onSuccessClose ? onSuccessClose() : setCurrentView('dashboard'))}
-              className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
-            >
-              Cancelar
-            </button>
+          {/* Right Column: Publication Duration & Commission Calculator */}
+          <div className="space-y-6">
+            <div className="bg-[#0F291E] text-white rounded-3xl p-6 shadow-xl sticky top-24">
+              <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold uppercase tracking-wider mb-2">
+                <Clock className="w-4 h-4" />
+                <span>Modelo de Exposición por Tiempo</span>
+              </div>
+              <h3 className="text-lg font-bold mb-1">Duración de la Publicación</h3>
+              <p className="text-xs text-emerald-100/75 leading-relaxed mb-5">
+                Selecciona cuántos días estará activo tu producto en la plataforma. La comisión se
+                calcula automáticamente según la vigencia elegida.
+              </p>
+
+              {/* Duration Selector Grid */}
+              <div className="grid grid-cols-2 gap-2 mb-6">
+                {DURATION_OPTIONS.map((days) => {
+                  const price = COMMISSION_PRICING[days];
+                  const isSelected = durationDays === days;
+                  return (
+                    <button
+                      type="button"
+                      key={days}
+                      onClick={() => setDurationDays(days)}
+                      className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                        isSelected
+                          ? 'bg-emerald-400 text-slate-950 border-emerald-300 font-bold shadow-md'
+                          : 'bg-emerald-950/60 text-emerald-100 border-emerald-800/70 hover:bg-emerald-900/60'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-extrabold">
+                          {days} {days === 1 ? 'Día' : 'Días'}
+                        </span>
+                        {days === 3 && (
+                          <span
+                            className={`text-[9px] px-1.5 py-0.5 rounded uppercase font-bold ${
+                              isSelected
+                                ? 'bg-slate-950 text-emerald-300'
+                                : 'bg-amber-500/20 text-amber-300'
+                            }`}
+                          >
+                            Popular
+                          </span>
+                        )}
+                      </div>
+                      <p
+                        className={`text-xs mt-1 ${
+                          isSelected ? 'text-slate-900 font-bold' : 'text-emerald-300/80'
+                        }`}
+                      >
+                        {formatCOP(price)}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Summary Breakdown */}
+              <div className="bg-emerald-950/80 rounded-2xl p-4 border border-emerald-800/70 space-y-2.5 text-xs mb-6">
+                <div className="flex justify-between text-emerald-200/80">
+                  <span>Duración seleccionada:</span>
+                  <span className="font-bold text-white">{durationDays} día(s) calendario</span>
+                </div>
+                <div className="flex justify-between text-emerald-200/80">
+                  <span>Visibilidad prioritaria B2B:</span>
+                  <span className="font-bold text-emerald-400">Incluida</span>
+                </div>
+                <div className="flex justify-between text-emerald-200/80">
+                  <span>Chat de negociación y alertas:</span>
+                  <span className="font-bold text-emerald-400">Ilimitado</span>
+                </div>
+                <div className="pt-2.5 border-t border-emerald-800 flex items-center justify-between">
+                  <span className="text-sm font-bold text-white">Comisión a Pagar:</span>
+                  <span className="text-xl font-extrabold text-amber-400">
+                    {formatCOP(commissionToPay)}
+                  </span>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-extrabold py-3.5 rounded-xl text-sm shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <span>Continuar al Pago de Publicación</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+
+              <div className="mt-4 flex items-start gap-2 text-[11px] text-emerald-200/70">
+                <Info className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                <span>
+                  Si la publicación finaliza sin venta, podrás renovarla seleccionando un nuevo
+                  periodo de exposición.
+                </span>
+              </div>
+            </div>
+          </div>
+        </form>
+      ) : (
+        /* Step 2: Payment Confirmation */
+        <div className="max-w-3xl mx-auto bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 shadow-md space-y-6">
+          <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
+            <div>
+              <span className="text-xs font-bold uppercase tracking-wider text-emerald-700">
+                Pasarela Empresarial Segura
+              </span>
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white">
+                Pago de Comisión por Tiempo de Publicación
+              </h3>
+            </div>
+            <ShieldCheck className="w-8 h-8 text-emerald-600" />
+          </div>
+
+          <div className="bg-slate-50 dark:bg-slate-800/70 rounded-2xl p-5 border border-slate-200/80 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <p className="text-xs text-slate-500 font-medium">Lote a activar en plataforma:</p>
+              <h4 className="font-bold text-slate-900 dark:text-white text-base">
+                {name} ({quantity} {unit})
+              </h4>
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+                Exposición activa por <strong>{durationDays} día(s)</strong> • Valor lote:{' '}
+                {formatCOP(totalLotValue)}
+              </p>
+            </div>
+            <div className="text-left sm:text-right shrink-0">
+              <p className="text-xs text-slate-500">Total Comisión FoodLink</p>
+              <p className="text-2xl font-extrabold text-emerald-800 dark:text-emerald-400">
+                {formatCOP(commissionToPay)}
+              </p>
+            </div>
+          </div>
+
+          {/* Payment Methods */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-3">
+              Selecciona el Método de Pago Corporativo
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <button
+                type="button"
+                onClick={() => setPaymentMethod('pse')}
+                className={`p-4 rounded-2xl border text-left transition-all cursor-pointer ${
+                  paymentMethod === 'pse'
+                    ? 'border-emerald-600 bg-emerald-50/50 dark:bg-emerald-950/40 ring-2 ring-emerald-600/20'
+                    : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <p className="font-bold text-slate-900 dark:text-white text-sm">
+                  PSE / Transferencia
+                </p>
+                <p className="text-xs text-slate-500 mt-0.5">Débito bancario inmediato</p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPaymentMethod('card')}
+                className={`p-4 rounded-2xl border text-left transition-all cursor-pointer ${
+                  paymentMethod === 'card'
+                    ? 'border-emerald-600 bg-emerald-50/50 dark:bg-emerald-950/40 ring-2 ring-emerald-600/20'
+                    : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <p className="font-bold text-slate-900 dark:text-white text-sm">
+                  Tarjeta Corporativa
+                </p>
+                <p className="text-xs text-slate-500 mt-0.5">Visa / Mastercard Empresarial</p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPaymentMethod('nequi')}
+                className={`p-4 rounded-2xl border text-left transition-all cursor-pointer ${
+                  paymentMethod === 'nequi'
+                    ? 'border-emerald-600 bg-emerald-50/50 dark:bg-emerald-950/40 ring-2 ring-emerald-600/20'
+                    : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <p className="font-bold text-slate-900 dark:text-white text-sm">
+                  Billetera Digital
+                </p>
+                <p className="text-xs text-slate-500 mt-0.5">Nequi / Daviplata Negocios</p>
+              </button>
+            </div>
+          </div>
+
+          {paymentMethod === 'pse' && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Entidad Financiera
+                </label>
+                <select
+                  value={selectedBank}
+                  onChange={(e) => setSelectedBank(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white"
+                >
+                  <option value="Bancolombia">Bancolombia Empresarial</option>
+                  <option value="Banco de Bogotá">Banco de Bogotá</option>
+                  <option value="Davivienda">Banco Davivienda</option>
+                  <option value="BBVA Colombia">BBVA Colombia</option>
+                  <option value="Banco de Occidente">Banco de Occidente</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  NIT del Establecimiento Pagador
+                </label>
+                <input
+                  type="text"
+                  defaultValue={userProfile.nitOrId}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white"
+                />
+              </div>
+            </div>
           )}
 
-          {step < 6 ? (
+          <div className="bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex items-start gap-3 text-xs text-amber-900 dark:text-amber-200">
+            <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            <span>
+              Al confirmar el pago de <strong>{formatCOP(commissionToPay)}</strong>, la publicación
+              se activará inmediatamente por <strong>{durationDays} día(s)</strong> y se emitirá el
+              soporte electrónico correspondiente.
+            </span>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
             <button
               type="button"
-              id="btn-wizard-next"
-              onClick={handleNext}
-              className="px-5 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold inline-flex items-center gap-2 cursor-pointer"
+              onClick={() => setStep('form')}
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-sm hover:bg-slate-50 cursor-pointer"
             >
-              <span>Continuar al paso {step + 1}</span>
-              <ArrowRight className="w-3.5 h-3.5" />
+              Volver y editar datos
             </button>
-          ) : (
+
             <button
               type="button"
-              id="btn-continue-to-payment"
-              onClick={() => setIsPaymentOpen(true)}
-              className="px-6 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold inline-flex items-center gap-2 cursor-pointer"
+              onClick={handleConfirmPaymentAndPublish}
+              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-[#1B4332] hover:bg-emerald-900 text-white font-bold px-7 py-3 rounded-xl text-sm shadow-lg transition-all cursor-pointer"
             >
-              <span>Confirmar y activar publicación</span>
-              <ArrowRight className="w-3.5 h-3.5" />
+              <CreditCard className="w-4 h-4" />
+              <span>Pagar {formatCOP(commissionToPay)} y Activar Publicación</span>
             </button>
-          )}
+          </div>
         </div>
-      </div>
-
-      {/* Pasarela de Pago de Micro-Comisión */}
-      <PaymentModal
-        isOpen={isPaymentOpen}
-        onClose={() => setIsPaymentOpen(false)}
-        productName={name}
-        quantityText={`${quantity} ${unit}`}
-        durationDays={durationDays}
-        commissionCOP={commission}
-        onPaymentSuccess={handlePaymentSuccess}
-      />
+      )}
     </div>
   );
 };

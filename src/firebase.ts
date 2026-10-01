@@ -1,51 +1,93 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth } from 'firebase/auth';
-
-const rawApiKey = (import.meta.env.VITE_FIREBASE_API_KEY || '').trim();
-const rawProjectId = (import.meta.env.VITE_FIREBASE_PROJECT_ID || '').trim();
-
-/**
- * Valida si se dispone de una clave y configuración real de Firebase
- * para evitar llamadas a la API de Google Identity con claves de prueba inválidas
- * o errores no capturados cuando no se proporcionan credenciales.
- */
-export const isFirebaseConfigured = Boolean(
-  rawApiKey &&
-  rawApiKey !== 'AIzaSyDummyKeyReplaceWithYourOwnValue' &&
-  !rawApiKey.toLowerCase().includes('dummy') &&
-  !rawApiKey.toLowerCase().includes('replacewith') &&
-  rawApiKey.length >= 25 &&
-  rawProjectId &&
-  rawProjectId !== 'foodlink-solidario'
-);
+import {
+  getFirestore,
+  Firestore,
+  doc,
+  getDocFromServer,
+} from 'firebase/firestore';
+import firebaseAppletConfig from '../firebase-applet-config.json';
 
 const firebaseConfig = {
-  apiKey: rawApiKey || '',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '',
-  projectId: rawProjectId || '',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || '',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || '',
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || ''
+  apiKey: firebaseAppletConfig.apiKey || import.meta.env.VITE_FIREBASE_API_KEY || '',
+  authDomain: firebaseAppletConfig.authDomain || import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '',
+  projectId: firebaseAppletConfig.projectId || import.meta.env.VITE_FIREBASE_PROJECT_ID || '',
+  storageBucket: firebaseAppletConfig.storageBucket || import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || '',
+  messagingSenderId: firebaseAppletConfig.messagingSenderId || import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
+  appId: firebaseAppletConfig.appId || import.meta.env.VITE_FIREBASE_APP_ID || '',
+  measurementId: firebaseAppletConfig.measurementId || import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || '',
 };
 
-// Initialize Firebase App safely (singleton pattern, only when valid configuration exists)
-let initializedApp: FirebaseApp | null = null;
-let initializedAuth: Auth | null = null;
+export const isFirebaseConfigured = Boolean(
+  firebaseConfig.apiKey &&
+  firebaseConfig.projectId
+);
 
-if (isFirebaseConfigured) {
-  try {
-    initializedApp = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-    initializedAuth = getAuth(initializedApp);
-  } catch (error) {
-    console.warn('Firebase no pudo inicializarse con la configuración actual. Continuando en modo local:', error);
-    initializedApp = null;
-    initializedAuth = null;
-  }
+export const app: FirebaseApp = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+export const db: Firestore = getFirestore(app, firebaseAppletConfig.firestoreDatabaseId);
+export const auth: Auth = getAuth(app);
+
+export enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
 }
 
-export const app: FirebaseApp | null = initializedApp;
-export const auth: Auth | null = initializedAuth;
+export interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId: string | undefined;
+    email: string | null | undefined;
+    emailVerified: boolean | undefined;
+    isAnonymous: boolean | undefined;
+    tenantId: string | null | undefined;
+    providerInfo: {
+      providerId: string;
+      displayName: string | null;
+      email: string | null;
+      photoUrl: string | null;
+    }[];
+  };
+}
+
+export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null): never {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData.map(provider => ({
+        providerId: provider.providerId,
+        displayName: provider.displayName,
+        email: provider.email,
+        photoUrl: provider.photoURL
+      })) || []
+    },
+    operationType,
+    path
+  };
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
+
+async function testConnection() {
+  try {
+    await getDocFromServer(doc(db, 'test', 'connection'));
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('the client is offline')) {
+      console.error('Please check your Firebase configuration.');
+    }
+  }
+}
+testConnection();
 
 /**
  * Detecta si un error proviene de una API Key no válida o no configurada.
@@ -58,10 +100,8 @@ export function isFirebaseApiKeyError(err: unknown): boolean {
     code.includes('api-key-not-valid') ||
     code.includes('invalid-api-key') ||
     code.includes('auth/invalid-api-key') ||
-    code.includes('auth/invalid-credential') ||
     msg.includes('api-key-not-valid') ||
     msg.includes('invalid-api-key') ||
-    msg.includes('API key') ||
     msg.includes('API_KEY_INVALID')
   );
 }
@@ -74,17 +114,17 @@ export function getFirebaseAuthErrorMessage(errorCode: string): string {
     case 'auth/api-key-not-valid.-please-pass-a-valid-api-key.':
     case 'auth/invalid-api-key':
     case 'auth/api-key-not-valid':
-      return 'La API Key de Firebase no es válida o no está configurada. Operando en modo local.';
+      return 'La API Key de Firebase no es válida o no está configurada.';
     case 'auth/user-not-found':
-      return 'No existe ninguna cuenta registrada con este correo electrónico.';
+      return 'Esta cuenta no está registrada. Debes registrarte primero o crear una cuenta.';
     case 'auth/wrong-password':
       return 'La contraseña ingresada es incorrecta. Inténtalo de nuevo o solicita recuperación.';
     case 'auth/invalid-credential':
-      return 'Credenciales inválidas. Por favor verifica tu correo y contraseña.';
+      return 'Credenciales inválidas. Verifica tu correo y contraseña.';
     case 'auth/email-already-in-use':
       return 'Este correo electrónico ya se encuentra registrado. Inicia sesión o recupera tu contraseña.';
     case 'auth/weak-password':
-      return 'La contraseña es muy débil. Debe tener al menos 6 caracteres.';
+      return 'La contraseña es muy débil. Debe tener al menos 8 caracteres.';
     case 'auth/invalid-email':
       return 'El formato del correo electrónico no es válido.';
     case 'auth/user-disabled':

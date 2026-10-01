@@ -1,4 +1,4 @@
-export type UserRole = 'establishment' | 'buyer' | 'buyer_foundation' | 'admin' | 'public';
+export type UserRole = 'buyer' | 'seller';
 export type RoleType = UserRole;
 
 export type FoodCategory =
@@ -113,7 +113,7 @@ export interface OfferMessage {
   id: string;
   senderId: string;
   senderName: string;
-  senderRole: 'establishment' | 'buyer_foundation';
+  senderRole: UserRole;
   timestamp: string;
   text: string;
   isOfferProposal?: boolean;
@@ -182,6 +182,7 @@ export interface NotificationItem {
 
 export interface CommissionRecord {
   id: string;
+  sellerId?: string;
   productName: string;
   durationDays: DurationDays;
   commission: number;
@@ -196,24 +197,28 @@ export type SupportedLanguage = 'es' | 'en';
 
 export interface UserProfile {
   id: string;
+  uid?: string;
   name: string;
   email: string;
-  role: RoleType;
+  role: UserRole;
+  photoURL?: string;
+  avatarUrl?: string;
   organizationName: string;
   nitOrId: string;
   phone: string;
   city: string;
   verified: boolean;
-  avatarUrl?: string;
   twoFactorEnabled?: boolean;
   preferredLanguage?: SupportedLanguage;
   preferredTheme?: ThemeMode;
-  authProvider?: 'email' | 'google' | 'apple' | 'passkey';
+  authProvider?: 'email' | 'google';
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface EmailCheckResult {
   exists: boolean;
-  provider?: 'email' | 'google' | 'apple' | 'passkey';
+  provider?: 'email' | 'google';
   message?: string;
 }
 
@@ -225,4 +230,3 @@ export interface PasswordStrength {
   hasSymbol: boolean;
   hasMixedCase: boolean;
 }
-

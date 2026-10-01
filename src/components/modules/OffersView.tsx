@@ -158,11 +158,9 @@ export const OffersView: React.FC = () => {
           <EmptyState
             icon={FileSpreadsheet}
             title="No se encontraron ofertas en este estado."
-            description="Explora el catálogo de productos disponibles para realizar una oferta solidaria o carga datos de demostración."
+            description="Explora el catálogo de productos disponibles para realizar una oferta solidaria."
             actionLabel="Explorar productos"
             onAction={() => setCurrentView('catalog')}
-            secondaryLabel={offers.length === 0 ? 'Cargar ofertas de ejemplo' : undefined}
-            onSecondaryAction={offers.length === 0 ? loadDemoData : undefined}
           />
         </div>
       ) : (

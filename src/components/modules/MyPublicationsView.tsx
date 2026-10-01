@@ -1,484 +1,396 @@
 import React, { useState } from 'react';
-import { useApp } from '../../context/AppContext';
-import { FoodProduct, FOOD_CONDITIONS, ProductCondition } from '../../types';
-import { ProductImage } from '../common/ProductImage';
-import { ProductDetailModal } from '../catalog/ProductDetailModal';
-import { EmptyState } from '../common/EmptyState';
-import { RenewalModal } from '../publishing/RenewalModal';
 import {
-  Plus,
-  Edit3,
+  Package,
+  Clock,
   PauseCircle,
   PlayCircle,
-  CheckSquare,
-  FileSpreadsheet,
-  BarChart3,
+  CheckCircle2,
   RefreshCw,
-  Clock,
-  Package,
-  X,
-  Save,
+  PlusCircle,
+  Eye,
+  Inbox,
+  Calendar,
+  CreditCard,
 } from 'lucide-react';
+import { useApp } from '../../context/AppContext';
+import { DurationDays, ProductStatus } from '../../types';
+import { COMMISSION_PRICING } from '../../data/initialData';
 
 export const MyPublicationsView: React.FC = () => {
   const {
     products,
-    currentUser,
-    currentRole,
-    updateProduct,
-    changeProductStatus,
-    setCurrentView,
-    selectedProductIdForDetail,
-    setSelectedProductIdForDetail,
-    simulateExpirationForProduct,
-    simulateCritical6hForProduct,
-    loadDemoData,
+    updateProductStatus,
+    republishProduct,
+    setActiveTab,
+    setSelectedProduct,
+    formatCOP,
+    commissions,
+    userProfile,
+    isAuthenticated,
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'todas' | 'activas' | 'proximas' | 'finalizadas'>('todas');
-  const [editingProduct, setEditingProduct] = useState<FoodProduct | null>(null);
-  const [productToRenew, setProductToRenew] = useState<FoodProduct | null>(null);
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [renewModalProductId, setRenewModalProductId] = useState<string | null>(null);
+  const [renewDays, setRenewDays] = useState<DurationDays>(3);
 
-  // Edit form states
-  const [editName, setEditName] = useState('');
-  const [editQuantity, setEditQuantity] = useState(0);
-  const [editPrice, setEditPrice] = useState(0);
-  const [editCondition, setEditCondition] = useState<ProductCondition>('Maduración avanzada');
-  const [editAddress, setEditAddress] = useState('');
+  // Security guard: Only authenticated sellers can view/manage publications (Requirement 9)
+  if (!isAuthenticated || userProfile.role !== 'seller') {
+    return null;
+  }
 
-  const userId = currentUser?.id || '';
-  const isAdmin = currentRole === 'admin';
-
-  // Si el usuario está en rol fundación, mostramos sus publicaciones o todas las de prueba para evaluación
-  const myProducts = products.filter(
-    (p) => p.sellerId === userId || isAdmin || currentRole === 'buyer_foundation' || currentRole === 'buyer'
-  );
+  // Strictly show only the authenticated seller's own publications (Requirement 8)
+  const myProducts = products.filter((p) => p.sellerId === userProfile.id);
 
   const filteredProducts = myProducts.filter((p) => {
-    const diffHours = Math.max(0, (new Date(p.expiresAt).getTime() - Date.now()) / (1000 * 3600));
-    const isEndingSoon = p.status === 'proxima_a_finalizar' || (p.status === 'activa' && diffHours > 0 && diffHours <= 24);
-    const isFinished = p.status === 'finalizada' || p.status === 'vendida' || p.status === 'pausada' || diffHours <= 0;
-
-    if (activeTab === 'activas') return p.status === 'activa' && diffHours > 24;
-    if (activeTab === 'proximas') return isEndingSoon;
-    if (activeTab === 'finalizadas') return isFinished;
-    return true;
+    if (filterStatus === 'all') return true;
+    return p.status === filterStatus;
   });
 
-  const handleOpenEdit = (prod: FoodProduct) => {
-    setEditingProduct(prod);
-    setEditName(prod.name);
-    setEditQuantity(prod.quantity);
-    setEditPrice(prod.requestedPrice);
-    setEditCondition(prod.condition);
-    setEditAddress(prod.locationAddress);
+  const getStatusBadge = (status: ProductStatus) => {
+    switch (status) {
+      case 'activa':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" /> Activa
+          </span>
+        );
+      case 'proxima_a_finalizar':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800">
+            <Clock className="w-3 h-3" /> Próxima a finalizar
+          </span>
+        );
+      case 'finalizada':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800">
+            Finalizada / Vencida
+          </span>
+        );
+      case 'pausada':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-slate-200 text-slate-700">
+            Pausada
+          </span>
+        );
+      case 'vendida':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800">
+            <CheckCircle2 className="w-3 h-3" /> Vendida / Rescatada
+          </span>
+        );
+    }
   };
 
-  const handleSaveEdit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingProduct) return;
-    updateProduct(editingProduct.id, {
-      name: editName.trim() || editingProduct.name,
-      quantity: Math.max(1, editQuantity),
-      requestedPrice: Math.max(100, editPrice),
-      condition: editCondition,
-      locationAddress: editAddress.trim() || editingProduct.locationAddress,
-    });
-    setEditingProduct(null);
+  const handleConfirmRenew = () => {
+    if (!renewModalProductId) return;
+    republishProduct(renewModalProductId, renewDays);
+    setRenewModalProductId(null);
   };
 
   return (
-    <div className="space-y-6">
-      {/* Cabecera */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+    <div className="max-w-7xl mx-auto px-4 sm:px-8 py-6 sm:py-8 space-y-8">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
-            Mis publicaciones
-          </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Administra el estado, vigencia, ofertas recibidas y métricas de tus lotes publicados.
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
+            Mis Publicaciones y Tarifas de Exposición
+          </h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Administra el estado de tus lotes, pausa publicaciones, márcalas como vendidas o renueva
+            su vigencia.
           </p>
         </div>
-
         <button
-          type="button"
-          onClick={() => setCurrentView('publish')}
-          className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition-colors inline-flex items-center gap-2 whitespace-nowrap self-start sm:self-auto cursor-pointer"
+          onClick={() => setActiveTab('publish')}
+          className="flex items-center gap-2 bg-[#1B4332] hover:bg-emerald-900 text-white font-bold px-5 py-2.5 rounded-xl text-sm shadow-sm transition-colors cursor-pointer shrink-0"
         >
-          <Plus className="w-4 h-4" />
-          <span>+ Publicar producto</span>
+          <PlusCircle className="w-4 h-4" />
+          <span>Publicar Nuevo Lote</span>
         </button>
       </div>
 
-      {/* Pestañas de Estado */}
-      <div className="bg-white dark:bg-slate-900 p-2 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-1">
-          {[
-            { id: 'todas', label: 'Todas', count: myProducts.length },
-            {
-              id: 'activas',
-              label: 'Activas',
-              count: myProducts.filter(
-                (p) =>
-                  p.status === 'activa' &&
-                  (new Date(p.expiresAt).getTime() - Date.now()) / (1000 * 3600) > 24
-              ).length,
-            },
-            {
-              id: 'proximas',
-              label: 'Próximas a vencer',
-              count: myProducts.filter((p) => {
-                const diffH = (new Date(p.expiresAt).getTime() - Date.now()) / (1000 * 3600);
-                return p.status === 'proxima_a_finalizar' || (p.status === 'activa' && diffH > 0 && diffH <= 24);
-              }).length,
-            },
-            {
-              id: 'finalizadas',
-              label: 'Finalizadas / Pausadas',
-              count: myProducts.filter(
-                (p) =>
-                  p.status === 'finalizada' ||
-                  p.status === 'vendida' ||
-                  p.status === 'pausada' ||
-                  new Date(p.expiresAt).getTime() <= Date.now()
-              ).length,
-            },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`px-3.5 py-2 rounded-lg text-xs font-semibold transition-colors inline-flex items-center gap-2 cursor-pointer ${
-                activeTab === tab.id
-                  ? 'bg-slate-900 dark:bg-emerald-600 text-white'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
-              }`}
-            >
-              <span>{tab.label}</span>
-              <span
-                className={`font-mono tabular-nums text-[11px] px-1.5 py-0.5 rounded ${
-                  activeTab === tab.id
-                    ? 'bg-white/20 text-white'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
-                }`}
-              >
-                {tab.count}
-              </span>
-            </button>
-          ))}
-        </div>
+      {/* Status Filters */}
+      <div className="flex flex-wrap items-center gap-2">
+        {[
+          { id: 'all', label: 'Todas las publicaciones' },
+          { id: 'activa', label: 'Activas' },
+          { id: 'proxima_a_finalizar', label: 'Próximas a finalizar' },
+          { id: 'finalizada', label: 'Finalizadas (Para renovar)' },
+          { id: 'pausada', label: 'Pausadas' },
+          { id: 'vendida', label: 'Vendidas' },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setFilterStatus(tab.id)}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              filterStatus === tab.id
+                ? 'bg-[#1B4332] text-white shadow-xs'
+                : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
-      {/* Lista de Publicaciones o Estado Vacío */}
-      {filteredProducts.length === 0 ? (
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-8">
-          <EmptyState
-            icon={Package}
-            title="No tienes publicaciones todavía."
-            description="Publica un lote de alimentos disponibles para que fundaciones y organizaciones aliadas puedan realizar ofertas."
-            actionLabel="+ Publicar producto"
-            onAction={() => setCurrentView('publish')}
-            secondaryLabel={products.length === 0 ? 'Cargar lotes de demostración' : undefined}
-            onSecondaryAction={products.length === 0 ? loadDemoData : undefined}
-          />
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {filteredProducts.map((prod) => {
-            const now = Date.now();
-            const expires = new Date(prod.expiresAt).getTime();
-            const diffHours = Math.max(0, Math.round((expires - now) / (1000 * 3600)));
-            const diffDays = Math.floor(diffHours / 24);
-            const remainingHours = diffHours % 24;
-            const isFinished = prod.status === 'finalizada' || diffHours <= 0;
-            const isPaused = prod.status === 'pausada';
-
-            let statusText = 'Activa';
-            let statusColor = 'text-emerald-700 dark:text-emerald-400';
-
-            if (isFinished) {
-              statusText = 'Finalizada';
-              statusColor = 'text-rose-600 dark:text-rose-400';
-            } else if (isPaused) {
-              statusText = 'Pausada';
-              statusColor = 'text-slate-500 dark:text-slate-400';
-            } else if (diffHours <= 6) {
-              statusText = 'Urgente (< 6h para vencer)';
-              statusColor = 'text-rose-600 dark:text-rose-400';
-            } else if (diffHours <= 24 || prod.status === 'proxima_a_finalizar') {
-              statusText = 'Próxima a vencer';
-              statusColor = 'text-amber-600 dark:text-amber-400';
-            }
-
-            return (
-              <div
-                key={prod.id}
-                id={`my-pub-${prod.id}`}
-                className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-5 hover:border-slate-300 dark:hover:border-slate-700 transition-colors"
-              >
-                {/* Información principal del lote */}
-                <div
-                  onClick={() => setSelectedProductIdForDetail(prod.id)}
-                  className="flex items-start sm:items-center gap-4 min-w-0 cursor-pointer group"
-                >
-                  <div className="w-20 h-20 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-800 shrink-0 bg-slate-100 dark:bg-slate-800">
-                    <ProductImage
-                      src={prod.imageUrl}
-                      alt={prod.name}
-                      category={prod.category}
-                    />
+      {/* Publications List */}
+      <div className="space-y-4">
+        {filteredProducts.length === 0 ? (
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-12 text-center shadow-xs">
+            <Package className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
+            <h3 className="text-base font-bold text-slate-800 dark:text-slate-200">
+              No tienes publicaciones registradas en este estado
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 mb-5 max-w-md mx-auto">
+              Publica tu primer lote de alimentos para conectarlo con compradores e instituciones en
+              la plataforma.
+            </p>
+            <button
+              onClick={() => setActiveTab('publish')}
+              className="inline-flex items-center gap-2 bg-[#1B4332] hover:bg-emerald-900 text-white font-bold px-5 py-2.5 rounded-xl text-xs transition-colors cursor-pointer"
+            >
+              <PlusCircle className="w-4 h-4" />
+              <span>Publicar mi primer producto</span>
+            </button>
+          </div>
+        ) : (
+          filteredProducts.map((product) => (
+            <div
+              key={product.id}
+              className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 shadow-xs hover:border-slate-300 transition-all flex flex-col lg:flex-row lg:items-center justify-between gap-5"
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4 flex-1">
+                <img
+                  src={product.imageUrl}
+                  alt={product.name}
+                  className="w-full sm:w-24 h-36 sm:h-24 rounded-xl object-cover shrink-0 border border-slate-100"
+                />
+                <div className="space-y-1.5 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {getStatusBadge(product.status)}
+                    <span className="text-xs font-semibold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 rounded-full">
+                      {product.category}
+                    </span>
+                    <span className="text-xs text-slate-400">• {product.condition}</span>
                   </div>
 
-                  <div className="space-y-1.5 min-w-0">
-                    <div className="flex items-center gap-2 text-xs flex-wrap">
-                      <span className={`font-semibold ${statusColor}`}>{statusText}</span>
-                      <span aria-hidden="true" className="text-slate-300 dark:text-slate-700">·</span>
-                      <span className="text-slate-500 dark:text-slate-400">{prod.category}</span>
-                      <span aria-hidden="true" className="text-slate-300 dark:text-slate-700">·</span>
-                      <span className="text-slate-500 dark:text-slate-400">{prod.condition}</span>
-                    </div>
+                  <h3 className="font-bold text-slate-900 dark:text-white text-base">
+                    {product.name}
+                  </h3>
 
-                    <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 truncate group-hover:text-emerald-600 transition-colors">
-                      {prod.name}
-                    </h3>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600 dark:text-slate-400">
+                    <span>
+                      Disponible:{' '}
+                      <strong>
+                        {product.quantity} {product.unit}
+                      </strong>
+                    </span>
+                    <span>
+                      Precio solicitado:{' '}
+                      <strong className="text-emerald-800 dark:text-emerald-400">
+                        {formatCOP(product.requestedPrice)}/{product.unit}
+                      </strong>
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <Calendar className="w-3.5 h-3.5 text-slate-400" /> Vence:{' '}
+                      {product.expirationDate}
+                    </span>
+                  </div>
 
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600 dark:text-slate-300">
-                      <span className="font-mono tabular-nums font-semibold">
-                        {prod.quantity} {prod.unit}
-                      </span>
-                      <span aria-hidden="true" className="text-slate-300 dark:text-slate-700">·</span>
-                      <span className="font-mono tabular-nums text-emerald-700 dark:text-emerald-400 font-semibold">
-                        ${prod.requestedPrice.toLocaleString('es-CO')} / {prod.unit}
-                      </span>
-                      <span aria-hidden="true" className="text-slate-300 dark:text-slate-700">·</span>
-                      <span className="inline-flex items-center gap-1 font-mono tabular-nums text-slate-500">
-                        <Clock className="w-3.5 h-3.5" />
-                        {isFinished ? '0h restantes' : `${diffDays}d ${remainingHours}h restantes`}
-                      </span>
-                      <span aria-hidden="true" className="text-slate-300 dark:text-slate-700">·</span>
-                      <span>Vence: {prod.expirationDate}</span>
-                    </div>
+                  <div className="flex flex-wrap items-center gap-4 pt-1 text-xs text-slate-500">
+                    <span className="inline-flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5 text-emerald-700" />
+                      Exposición contratada: <strong>{product.durationDays} días</strong> (
+                      {formatCOP(product.commissionPaid)})
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <Inbox className="w-3.5 h-3.5 text-blue-600" />
+                      <strong>{product.offersCount}</strong> ofertas recibidas
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <Eye className="w-3.5 h-3.5 text-slate-400" />
+                      {product.viewsCount} vistas
+                    </span>
                   </div>
                 </div>
+              </div>
 
-                {/* Acciones del módulo Mis Publicaciones */}
-                <div className="flex flex-wrap items-center gap-2 pt-3 lg:pt-0 border-t lg:border-t-0 border-slate-100 dark:border-slate-800 shrink-0">
-                  {/* 1. Editar */}
-                  <button
-                    type="button"
-                    onClick={() => handleOpenEdit(prod)}
-                    className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 inline-flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <Edit3 className="w-3.5 h-3.5" />
-                    <span>Editar</span>
-                  </button>
+              {/* Action Buttons */}
+              <div className="flex flex-wrap items-center gap-2 pt-3 lg:pt-0 border-t lg:border-t-0 border-slate-100 shrink-0">
+                <button
+                  onClick={() => setSelectedProduct(product)}
+                  className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  Ver Ficha
+                </button>
 
-                  {/* 2. Pausar / Reanudar */}
-                  {!isFinished && (
+                {(product.status === 'activa' || product.status === 'proxima_a_finalizar') && (
+                  <>
                     <button
-                      type="button"
-                      onClick={() =>
-                        changeProductStatus(prod.id, isPaused ? 'activa' : 'pausada')
-                      }
-                      className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 inline-flex items-center gap-1.5 cursor-pointer"
+                      onClick={() => updateProductStatus(product.id, 'pausada')}
+                      className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-amber-200 bg-amber-50 text-amber-800 text-xs font-bold hover:bg-amber-100 transition-colors cursor-pointer"
                     >
-                      {isPaused ? (
-                        <>
-                          <PlayCircle className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>Activar</span>
-                        </>
-                      ) : (
-                        <>
-                          <PauseCircle className="w-3.5 h-3.5 text-amber-600" />
-                          <span>Pausar</span>
-                        </>
-                      )}
+                      <PauseCircle className="w-3.5 h-3.5" /> Pausar
                     </button>
-                  )}
+                    <button
+                      onClick={() => updateProductStatus(product.id, 'vendida')}
+                      className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-800 text-xs font-bold hover:bg-emerald-100 transition-colors cursor-pointer"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Marcar Vendida
+                    </button>
+                  </>
+                )}
 
-                  {/* 3. Finalizar o Simular < 6h */}
-                  {!isFinished && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => simulateCritical6hForProduct(prod.id)}
-                        className="px-3 py-1.5 rounded-lg border border-amber-200 dark:border-amber-800/70 text-xs font-semibold text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 inline-flex items-center gap-1.5 cursor-pointer"
-                        title="Simular que faltan menos de 6 horas para vencer y enviar alerta por correo"
-                      >
-                        <Clock className="w-3.5 h-3.5" />
-                        <span>Alerta &lt; 6h</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => simulateExpirationForProduct(prod.id)}
-                        className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-600 inline-flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <CheckSquare className="w-3.5 h-3.5" />
-                        <span>Finalizar</span>
-                      </button>
-                    </>
-                  )}
-
-                  {/* 4. Ver ofertas */}
+                {product.status === 'pausada' && (
                   <button
-                    type="button"
-                    onClick={() => setCurrentView('offers')}
-                    className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-semibold text-slate-800 dark:text-slate-200 inline-flex items-center gap-1.5 cursor-pointer"
+                    onClick={() => updateProductStatus(product.id, 'activa')}
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-colors cursor-pointer"
                   >
-                    <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>Ver ofertas ({prod.offersCount})</span>
+                    <PlayCircle className="w-3.5 h-3.5" /> Reactivar
                   </button>
+                )}
 
-                  {/* 5. Ver estadísticas */}
+                {(product.status === 'finalizada' ||
+                  product.status === 'proxima_a_finalizar') && (
                   <button
-                    type="button"
-                    onClick={() => setCurrentView('statistics')}
-                    className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-semibold text-slate-800 dark:text-slate-200 inline-flex items-center gap-1.5 cursor-pointer"
+                    onClick={() => setRenewModalProductId(product.id)}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#1B4332] text-white text-xs font-bold hover:bg-emerald-900 shadow-xs transition-colors cursor-pointer"
                   >
-                    <BarChart3 className="w-3.5 h-3.5" />
-                    <span>Estadísticas</span>
+                    <RefreshCw className="w-3.5 h-3.5" /> Renovar Publicación
                   </button>
-
-                  {/* Renovar vigencia */}
-                  <button
-                    type="button"
-                    id={`btn-renew-${prod.id}`}
-                    onClick={() => setProductToRenew(prod)}
-                    className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                    <span>Renovar</span>
-                  </button>
-                </div>
+                )}
               </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Modal de Edición Rápida de Publicación */}
-      {editingProduct && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 max-w-lg w-full overflow-hidden shadow-xl">
-            <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
-                Editar publicación
-              </h3>
-              <button
-                type="button"
-                onClick={() => setEditingProduct(null)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
             </div>
+          ))
+        )}
+      </div>
 
-            <form onSubmit={handleSaveEdit} className="p-5 space-y-4 text-xs">
-              <div>
-                <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                  Nombre del producto
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-slate-100"
-                />
-              </div>
+      {/* Commission Billing History Table */}
+      {commissions.length > 0 && (
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-xs">
+          <div className="flex items-center gap-2 mb-4">
+            <CreditCard className="w-5 h-5 text-emerald-700" />
+            <div>
+              <h3 className="font-bold text-slate-900 dark:text-white text-base">
+                Historial de Comisiones por Tiempo de Exposición
+              </h3>
+              <p className="text-xs text-slate-500">
+                Registro de pagos realizados por publicación y renovación de lotes
+              </p>
+            </div>
+          </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                    Cantidad ({editingProduct.unit})
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    required
-                    value={editQuantity}
-                    onChange={(e) => setEditQuantity(Number(e.target.value))}
-                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm font-mono tabular-nums text-slate-900 dark:text-slate-100"
-                  />
-                </div>
-                <div>
-                  <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                    Precio unitario (COP)
-                  </label>
-                  <input
-                    type="number"
-                    min="100"
-                    required
-                    value={editPrice}
-                    onChange={(e) => setEditPrice(Number(e.target.value))}
-                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm font-mono tabular-nums text-slate-900 dark:text-slate-100"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                  Estado del lote
-                </label>
-                <select
-                  value={editCondition}
-                  onChange={(e) => setEditCondition(e.target.value as ProductCondition)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-slate-100"
-                >
-                  {FOOD_CONDITIONS.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                  Dirección de retiro
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={editAddress}
-                  onChange={(e) => setEditAddress(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-slate-100"
-                />
-              </div>
-
-              <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setEditingProduct(null)}
-                  className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 font-semibold text-slate-600 dark:text-slate-300 cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold inline-flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Save className="w-3.5 h-3.5" />
-                  <span>Guardar cambios</span>
-                </button>
-              </div>
-            </form>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 uppercase">
+                  <th className="py-3 px-3">Referencia</th>
+                  <th className="py-3 px-3">Lote / Producto</th>
+                  <th className="py-3 px-3">Duración</th>
+                  <th className="py-3 px-3">Fecha</th>
+                  <th className="py-3 px-3">Método</th>
+                  <th className="py-3 px-3">Estado</th>
+                  <th className="py-3 px-3 text-right">Comisión Pagada</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
+                {commissions.map((rec) => (
+                  <tr key={rec.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
+                    <td className="py-3 px-3 font-mono font-semibold text-slate-500">
+                      {rec.transactionRef}
+                    </td>
+                    <td className="py-3 px-3 font-bold text-slate-900 dark:text-white">
+                      {rec.productName}
+                    </td>
+                    <td className="py-3 px-3">{rec.durationDays} días</td>
+                    <td className="py-3 px-3">{rec.date}</td>
+                    <td className="py-3 px-3">{rec.paymentMethod}</td>
+                    <td className="py-3 px-3">
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          rec.status === 'Activa'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : rec.status === 'Renovada'
+                            ? 'bg-blue-100 text-blue-800'
+                            : 'bg-slate-100 text-slate-600'
+                        }`}
+                      >
+                        {rec.status}
+                      </span>
+                    </td>
+                    <td className="py-3 px-3 text-right font-extrabold text-emerald-800 dark:text-emerald-400">
+                      {formatCOP(rec.commission)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
 
-      {/* Modal de Renovación */}
-      <RenewalModal
-        product={productToRenew}
-        onClose={() => setProductToRenew(null)}
-      />
+      {/* Renew Modal */}
+      {renewModalProductId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-5">
+            <div>
+              <span className="text-xs font-bold uppercase tracking-wider text-emerald-700">
+                Renovación de Vigencia
+              </span>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white mt-1">
+                Volver a publicar lote en el catálogo
+              </h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Selecciona los días adicionales que deseas mantener activa esta publicación.
+              </p>
+            </div>
 
-      {/* Modal de Detalle de Producto */}
-      <ProductDetailModal
-        productId={selectedProductIdForDetail}
-        onClose={() => setSelectedProductIdForDetail(null)}
-      />
+            <div className="grid grid-cols-2 gap-2">
+              {([1, 2, 3, 5, 7, 14] as DurationDays[]).map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => setRenewDays(d)}
+                  className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                    renewDays === d
+                      ? 'border-emerald-600 bg-emerald-50 font-bold text-emerald-950'
+                      : 'border-slate-200 text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <p className="text-xs font-bold">{d} día(s)</p>
+                  <p className="text-xs text-emerald-700 font-semibold">
+                    {formatCOP(COMMISSION_PRICING[d])}
+                  </p>
+                </button>
+              ))}
+            </div>
+
+            <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-3.5 flex justify-between items-center text-xs">
+              <span className="text-slate-600 dark:text-slate-400">
+                Comisión por renovación ({renewDays} días):
+              </span>
+              <span className="text-base font-extrabold text-emerald-800 dark:text-emerald-400">
+                {formatCOP(COMMISSION_PRICING[renewDays])}
+              </span>
+            </div>
+
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setRenewModalProductId(null)}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmRenew}
+                className="px-5 py-2.5 rounded-xl bg-[#1B4332] hover:bg-emerald-900 text-white text-xs font-bold cursor-pointer"
+              >
+                Pagar y Reactivar Lote
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

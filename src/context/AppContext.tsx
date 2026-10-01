@@ -1,383 +1,734 @@
-import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
-import { onAuthStateChanged, signOut, User as FirebaseUser } from 'firebase/auth';
-import { auth, isFirebaseConfigured } from '../firebase';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import {
-  DEFAULT_COMMISSION_PRICING,
-  INITIAL_COMMISSION_RECORDS,
-  INITIAL_NOTIFICATIONS,
-  INITIAL_OFFERS,
-  INITIAL_PRODUCTS,
-  MOCK_USERS,
-} from '../data/initialData';
-import { PARTNER_ORGANIZATIONS } from '../data/demoData';
-import {
-  CommissionPricing,
-  CommissionRecord,
-  DurationDays,
+  UserRole,
   FoodProduct,
+  ProductOffer,
   NotificationItem,
   NotificationType,
-  ProductOffer,
+  DurationDays,
   ProductStatus,
-  RoleType,
-  SupportedLanguage,
-  ThemeMode,
+  CommissionRecord,
   UserProfile,
+  ThemeMode,
+  SupportedLanguage,
+  EmailCheckResult,
+  PasswordStrength,
 } from '../types';
+import {
+  COMMISSION_PRICING,
+  INITIAL_PRODUCTS,
+  INITIAL_OFFERS,
+  INITIAL_NOTIFICATIONS,
+  INITIAL_COMMISSIONS,
+} from '../data/initialData';
+import {
+  auth,
+  db,
+  getFirebaseAuthErrorMessage,
+  handleFirestoreError,
+  OperationType,
+} from '../firebase';
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
+  sendPasswordResetEmail,
+  sendEmailVerification,
+  GoogleAuthProvider,
+  signInWithPopup,
+  onAuthStateChanged,
+  updateProfile as updateFirebaseProfile,
+  fetchSignInMethodsForEmail,
+  User as FirebaseUser,
+} from 'firebase/auth';
+import {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  serverTimestamp,
+} from 'firebase/firestore';
+import { useI18n } from '../i18n/I18nContext';
 
-export interface ToastItem {
-  id: string;
-  type: 'success' | 'info' | 'warning' | 'error';
+export const SELLER_ONLY_TABS = new Set(['publish', 'my-publications', 'statistics']);
+
+export interface RegisterPayload {
+  name: string;
+  email: string;
+  password: string;
+  role: UserRole;
+  organizationName?: string;
+  nitOrId?: string;
+  phone?: string;
+  city?: string;
+}
+
+export interface AuthActionResponse {
+  success: boolean;
   message: string;
+  code?: string;
+  requiresEmailVerification?: boolean;
+}
+
+export interface ToastMessage {
+  id: string;
+  message: string;
+  type: 'success' | 'error' | 'info' | 'warning';
 }
 
 interface AppContextType {
-  // User & Auth
-  currentUser: UserProfile | null;
-  setCurrentUser: React.Dispatch<React.SetStateAction<UserProfile | null>>;
-  currentRole: RoleType;
-  switchRole: (role: RoleType) => void;
-  setRole: (role: RoleType) => void;
-  updateCurrentUser: (updates: Partial<UserProfile>) => void;
+  // Navigation & Auth State
+  showLanding: boolean;
+  setShowLanding: (show: boolean) => void;
   isAuthenticated: boolean;
-  logout: () => Promise<void>;
-  login: (user: UserProfile, token?: string) => void;
-  toggle2FA: (enabled: boolean) => Promise<void>;
+  isAuthReady: boolean;
+  currentRole: UserRole;
+  setCurrentRole: (role: UserRole) => void;
+  userProfile: UserProfile;
+  currentUser: UserProfile | null;
+  updateUserProfile: (updates: Partial<UserProfile>) => Promise<void>;
+  upgradeToSeller: () => Promise<AuthActionResponse>;
+  activeTab: string;
+  setActiveTab: (tab: string) => void;
+  currentView: string;
+  setCurrentView: (view: string) => void;
+  navigateWithGuard: (view: string) => void;
 
-  // Route Guards & Redirect
-  redirectTo: string | null;
-  setRedirectTo: (target: string | null) => void;
-  navigateWithGuard: (targetView: string, requiredRole?: RoleType) => boolean;
+  // Email verification state
+  emailVerificationPending: boolean;
+  pendingVerificationEmail: string;
+  resendVerificationEmail: () => Promise<AuthActionResponse>;
+  checkEmailVerificationStatus: () => Promise<{ verified: boolean; message: string }>;
+  clearEmailVerificationPending: () => Promise<void>;
 
-  // Auth Modal Controls
+  // Auth Actions
   isAuthModalOpen: boolean;
   setIsAuthModalOpen: (open: boolean) => void;
-  authModalTab: 'login' | 'register' | 'forgot' | 'reset';
-  setAuthModalTab: (tab: 'login' | 'register' | 'forgot' | 'reset') => void;
+  authModalInitialMode: 'login' | 'register';
+  setAuthModalTab: (tab: 'login' | 'register') => void;
   authModalMessage: string | null;
   setAuthModalMessage: (msg: string | null) => void;
+  openAuthModal: (mode?: 'login' | 'register', preselectedRole?: UserRole) => void;
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<AuthActionResponse>;
+  registerUser: (data: RegisterPayload) => Promise<AuthActionResponse>;
+  loginWithSocial: (provider: 'google', preferredRole?: UserRole) => Promise<AuthActionResponse>;
+  requestPasswordReset: (email: string) => Promise<{ success: boolean; message: string }>;
+  checkEmailExists: (email: string) => Promise<EmailCheckResult>;
+  evaluatePasswordStrength: (password: string) => PasswordStrength;
+  toggle2FA: (enabled?: boolean) => void;
+  logout: () => void;
 
-  // Theme
-  theme: ThemeMode;
-  setTheme: (theme: ThemeMode) => void;
-  
-  // Commission Pricing (Admin controlled)
-  commissionPricing: CommissionPricing;
-  updateCommissionPricing: (newPricing: CommissionPricing) => void;
-  resetCommissionPricing: () => void;
-  getCommissionForDays: (days: DurationDays) => number;
-  
-  // Products
-  products: FoodProduct[];
-  addProduct: (product: Omit<FoodProduct, 'id' | 'publishedAt' | 'expiresAt' | 'offersCount' | 'viewsCount'>, paymentMethod: string) => FoodProduct;
-  updateProduct: (id: string, updates: Partial<FoodProduct>) => void;
-  renewProduct: (id: string, additionalDays: DurationDays, paymentMethod: string) => void;
-  changeProductStatus: (id: string, newStatus: ProductStatus) => void;
-  deleteProduct: (id: string) => void;
-  
-  // Offers & Negotiations
-  offers: ProductOffer[];
-  createOffer: (offerData: Omit<ProductOffer, 'id' | 'createdAt' | 'updatedAt' | 'messages' | 'status'>) => ProductOffer;
-  respondToOffer: (offerId: string, action: 'aceptada' | 'rechazada' | 'contraoferta', counterPrice?: number, counterQuantity?: number, message?: string) => void;
-  sendMessageToOffer: (offerId: string, text: string) => void;
-  
-  // Favorites
+  // Preferences (Dark Mode & Language)
+  themeMode: ThemeMode;
+  setThemeMode: (mode: ThemeMode) => void;
+  isDarkMode: boolean;
+  language: SupportedLanguage;
+  setLanguage: (lang: SupportedLanguage) => void;
+  t: (key: string) => string;
+
+  // Search & Favorites & Toasts
+  globalSearchQuery: string;
+  setGlobalSearchQuery: (q: string) => void;
   favorites: string[];
   toggleFavorite: (productId: string) => void;
   isFavorite: (productId: string) => boolean;
-  
-  // Notifications
-  notifications: NotificationItem[];
-  markNotificationAsRead: (id: string) => void;
-  toggleNotificationRead: (id: string) => void;
-  markAllNotificationsAsRead: () => void;
-  unreadNotificationsCount: number;
-  checkProductExpirations: (manual?: boolean) => number;
-  simulateCritical6hForProduct: (id: string) => void;
-  
-  // Commission Records
-  commissionRecords: CommissionRecord[];
-  
-  // Navigation & UI State
-  currentView: string;
-  setCurrentView: (view: string) => void;
-  selectedProductIdForDetail: string | null;
-  setSelectedProductIdForDetail: (id: string | null) => void;
-  selectedOfferIdForNegotiation: string | null;
-  setSelectedOfferIdForNegotiation: (id: string | null) => void;
-  productForRenewal: FoodProduct | null;
-  setProductForRenewal: (product: FoodProduct | null) => void;
-  isPublishModalOpen: boolean;
-  setIsPublishModalOpen: (open: boolean) => void;
-  
-  // Toasts
-  toasts: ToastItem[];
-  showToast: (message: string, type?: 'success' | 'info' | 'warning' | 'error') => void;
+  toasts: ToastMessage[];
+  showToast: (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
+  addToast: (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
   removeToast: (id: string) => void;
 
-  // Simulator helper: simulate expiry for demo
-  simulateExpirationForProduct: (id: string) => void;
-
-  // Global search & demo seed
-  globalSearchQuery: string;
-  setGlobalSearchQuery: (query: string) => void;
+  // Data
+  products: FoodProduct[];
+  offers: ProductOffer[];
+  notifications: NotificationItem[];
+  commissions: CommissionRecord[];
+  commissionRecords: CommissionRecord[];
+  commissionPricing: typeof COMMISSION_PRICING;
+  updateCommissionPricing: (pricing: typeof COMMISSION_PRICING) => void;
+  resetCommissionPricing: () => void;
+  unreadNotificationsCount: number;
   loadDemoData: () => void;
+
+  // Modals & Selection
+  selectedProduct: FoodProduct | null;
+  setSelectedProduct: (product: FoodProduct | null) => void;
+  selectedProductIdForDetail: string | null;
+  setSelectedProductIdForDetail: (id: string | null) => void;
+  makingOfferProduct: FoodProduct | null;
+  setMakingOfferProduct: (product: FoodProduct | null) => void;
+  activeNegotiationOffer: ProductOffer | null;
+  setActiveNegotiationOffer: (offer: ProductOffer | null) => void;
+  selectedOfferIdForNegotiation: string | null;
+  setSelectedOfferIdForNegotiation: (id: string | null) => void;
+  deliveryActOffer: ProductOffer | null;
+  setDeliveryActOffer: (offer: ProductOffer | null) => void;
+  isPublishModalOpen: boolean;
+  setIsPublishModalOpen: (open: boolean) => void;
+
+  // Actions
+  addProduct: (
+    productData: Omit<
+      FoodProduct,
+      'id' | 'publishedAt' | 'expiresAt' | 'status' | 'commissionPaid' | 'offersCount' | 'viewsCount'
+    >
+  ) => void;
+  updateProductStatus: (productId: string, status: ProductStatus) => void;
+  changeProductStatus: (productId: string, status: ProductStatus) => void;
+  simulateExpirationForProduct: (productId: string) => void;
+  republishProduct: (productId: string, durationDays: DurationDays, paymentMethod?: string) => void;
+  renewProduct: (productId: string, durationDays: DurationDays, paymentMethod?: string) => void;
+  createOffer: (
+    offerData: Omit<
+      ProductOffer,
+      'id' | 'status' | 'createdAt' | 'updatedAt' | 'messages'
+    >
+  ) => ProductOffer;
+  updateOfferStatus: (
+    offerId: string,
+    status: 'aceptada' | 'rechazada' | 'contraoferta',
+    counterPrice?: number,
+    counterQuantity?: number,
+    counterMessage?: string
+  ) => void;
+  respondToOffer: (
+    offerId: string,
+    status: 'aceptada' | 'rechazada' | 'contraoferta',
+    counterPrice?: number,
+    counterQuantity?: number,
+    counterMessage?: string
+  ) => void;
+  sendOfferMessage: (
+    offerId: string,
+    text: string,
+    isProposal?: boolean,
+    proposedPrice?: number,
+    proposedQuantity?: number
+  ) => void;
+  sendMessageToOffer: (
+    offerId: string,
+    text: string,
+    isProposal?: boolean,
+    proposedPrice?: number,
+    proposedQuantity?: number
+  ) => void;
+  markNotificationAsRead: (notificationId: string) => void;
+  toggleNotificationRead: (notificationId: string) => void;
+  markAllNotificationsAsRead: () => void;
+  runExpirationAlertsCheck: (force?: boolean) => void;
+  checkProductExpirations: (force?: boolean) => void;
+  getCommissionForDuration: (days: DurationDays) => number;
+  getCommissionForDays: (days: DurationDays) => number;
+  formatCOP: (amount: number) => string;
+}
+
+const EMPTY_USER_PROFILE: UserProfile = {
+  id: '',
+  uid: '',
+  name: '',
+  email: '',
+  role: 'buyer',
+  photoURL: '',
+  avatarUrl: '',
+  organizationName: '',
+  nitOrId: '',
+  phone: '',
+  city: 'Bogotá D.C.',
+  verified: false,
+  twoFactorEnabled: false,
+  preferredLanguage: 'es',
+  preferredTheme: 'light',
+};
+
+const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
+  es: {
+    'nav.home': 'Inicio / Resumen',
+    'nav.explore': 'Explorar Productos',
+    'nav.map': 'Mapa Solidario',
+    'nav.publish': 'Publicar Producto',
+    'nav.myPublications': 'Mis Publicaciones',
+    'nav.offers': 'Ofertas Recibidas',
+    'nav.myOffers': 'Mis Ofertas Enviadas',
+    'nav.negotiations': 'Negociaciones',
+    'nav.notifications': 'Notificaciones',
+    'nav.statistics': 'Estadísticas',
+    'nav.profile': 'Configuración de Perfil',
+    'auth.login': 'Iniciar Sesión',
+    'auth.register': 'Crear Cuenta',
+    'auth.logout': 'Cerrar Sesión',
+    'auth.welcome': 'Bienvenido de nuevo',
+    'role.seller': 'Vendedor',
+    'role.buyer': 'Comprador',
+  },
+  en: {
+    'nav.home': 'Home / Overview',
+    'nav.explore': 'Explore Products',
+    'nav.map': 'Solidarity Map',
+    'nav.publish': 'Publish Product',
+    'nav.myPublications': 'My Publications',
+    'nav.offers': 'Received Offers',
+    'nav.myOffers': 'My Sent Offers',
+    'nav.negotiations': 'Negotiations',
+    'nav.notifications': 'Notifications',
+    'nav.statistics': 'Analytics & Impact',
+    'nav.profile': 'Profile Settings',
+    'auth.login': 'Sign In',
+    'auth.register': 'Create Account',
+    'auth.logout': 'Sign Out',
+    'auth.welcome': 'Welcome back',
+    'role.seller': 'Seller',
+    'role.buyer': 'Buyer',
+  },
+};
+
+function normalizeRole(rawRole: unknown): UserRole {
+  if (rawRole === 'seller' || rawRole === 'establishment') {
+    return 'seller';
+  }
+  return 'buyer';
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Role & User - Restore saved session if present
-  const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
-    try {
-      const savedUser = localStorage.getItem('foodlink_user');
-      if (savedUser) {
-        return JSON.parse(savedUser);
-      }
-    } catch {
-      // ignore JSON parse error
-    }
-    return null;
+  const [showLanding, setShowLanding] = useState<boolean>(() => {
+    const savedAuth = localStorage.getItem('foodlink_is_auth_v3');
+    return savedAuth !== 'true';
   });
 
-  const [currentRole, setCurrentRole] = useState<RoleType>(() => {
-    try {
-      const savedUser = localStorage.getItem('foodlink_user');
-      if (savedUser) {
-        const parsed = JSON.parse(savedUser);
-        if (parsed.role) return parsed.role as RoleType;
-      }
-      const savedRole = localStorage.getItem('foodlink_role');
-      if (savedRole) return savedRole as RoleType;
-    } catch {
-      // ignore
-    }
-    return 'public';
-  });
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [isAuthReady, setIsAuthReady] = useState<boolean>(false);
+  const [emailVerificationPending, setEmailVerificationPending] = useState<boolean>(false);
+  const [pendingVerificationEmail, setPendingVerificationEmail] = useState<string>('');
 
-  const isAuthenticated = useMemo(() => {
-    return currentUser !== null && currentUser.role !== 'public';
-  }, [currentUser]);
+  const [userProfile, setUserProfile] = useState<UserProfile>(EMPTY_USER_PROFILE);
+  const [currentRole, setCurrentRoleState] = useState<UserRole>('buyer');
 
-  // Subscribe to Firebase Authentication in real-time if configured
-  useEffect(() => {
-    if (!isFirebaseConfigured || !auth) {
-      // En modo local / desarrollo no sobrescribimos el usuario con null de Firebase
-      return;
-    }
+  const [activeTab, setActiveTabState] = useState<string>('home');
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [authModalInitialMode, setAuthModalInitialMode] = useState<'login' | 'register'>('login');
+  const [authModalMessage, setAuthModalMessage] = useState<string | null>(null);
+  const [globalSearchQuery, setGlobalSearchQuery] = useState<string>('');
+  const [favorites, setFavorites] = useState<string[]>([]);
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [commissionPricing, setCommissionPricing] = useState<typeof COMMISSION_PRICING>(COMMISSION_PRICING);
 
-    const unsubscribe = onAuthStateChanged(
-      auth,
-      (firebaseUser: FirebaseUser | null) => {
-        // Only set user when Firebase confirms an active, email-verified session
-        if (firebaseUser && firebaseUser.emailVerified) {
-          const storedRole = (localStorage.getItem(`foodlink_role_${firebaseUser.uid}`) as RoleType) ||
-            (localStorage.getItem('foodlink_role') as RoleType) ||
-            'establishment';
-          const storedOrg = localStorage.getItem(`foodlink_org_${firebaseUser.uid}`) || 'Organización Solidaria';
-          const storedCity = localStorage.getItem(`foodlink_city_${firebaseUser.uid}`) || 'Medellín';
-          const storedNit = localStorage.getItem(`foodlink_nit_${firebaseUser.uid}`) || '900.123.456-7';
-          const storedPhone = localStorage.getItem(`foodlink_phone_${firebaseUser.uid}`) || '+57 300 123 4567';
-
-          const userProfile: UserProfile = {
-            id: firebaseUser.uid,
-            name: firebaseUser.displayName || localStorage.getItem(`foodlink_name_${firebaseUser.uid}`) || firebaseUser.email?.split('@')[0] || 'Usuario Solidario',
-            email: firebaseUser.email || '',
-            role: storedRole,
-            organizationName: storedOrg,
-            nitOrId: storedNit,
-            phone: firebaseUser.phoneNumber || storedPhone,
-            city: storedCity,
-            verified: true,
-            avatarUrl: firebaseUser.photoURL || undefined,
-          };
-
-          setCurrentUser(userProfile);
-          setCurrentRole(userProfile.role);
-          localStorage.setItem('foodlink_user', JSON.stringify(userProfile));
-        } else {
-          // If not verified or signed out, ensure public restricted state
-          setCurrentUser(null);
-          setCurrentRole('public');
-          localStorage.removeItem('foodlink_user');
-        }
-      },
-      (error) => {
-        console.warn('Observador de Firebase Auth en espera o con error:', error);
-      }
-    );
-
-    return () => unsubscribe();
+  const removeToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((item) => item.id !== id));
   }, []);
 
-  // Theme Management (Light, Dark, System)
-  const [theme, setThemeState] = useState<ThemeMode>(() => {
-    const saved = localStorage.getItem('foodlink_theme') as ThemeMode;
-    return saved || 'system';
+  const showToast = useCallback(
+    (message: string, type: 'success' | 'error' | 'info' | 'warning' = 'info') => {
+      const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      setToasts((prev) => [...prev, { id, message, type }]);
+      setTimeout(() => {
+        removeToast(id);
+      }, 4000);
+    },
+    [removeToast]
+  );
+
+  const toggleFavorite = useCallback((productId: string) => {
+    setFavorites((prev) =>
+      prev.includes(productId) ? prev.filter((id) => id !== productId) : [...prev, productId]
+    );
+  }, []);
+
+  const isFavorite = useCallback(
+    (productId: string) => favorites.includes(productId),
+    [favorites]
+  );
+
+  const updateCommissionPricing = useCallback((pricing: typeof COMMISSION_PRICING) => {
+    setCommissionPricing(pricing);
+  }, []);
+
+  const resetCommissionPricing = useCallback(() => {
+    setCommissionPricing(COMMISSION_PRICING);
+  }, []);
+
+  // Lock map to avoid duplicate Firestore user profile creations on concurrent auth events
+  const userDocLocksRef = useRef<Map<string, Promise<UserProfile>>>(new Map());
+
+  // Preferences: Theme & Language
+  const [themeMode, setThemeModeState] = useState<ThemeMode>(() => {
+    const saved = localStorage.getItem('foodlink_theme_mode') as ThemeMode | null;
+    return saved || 'light';
   });
 
-  const applyTheme = (mode: ThemeMode) => {
-    const root = document.documentElement;
-    const isDark =
-      mode === 'dark' ||
-      (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-    
-    if (isDark) {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
-  };
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
 
-  const setTheme = (mode: ThemeMode) => {
-    setThemeState(mode);
-    localStorage.setItem('foodlink_theme', mode);
-    applyTheme(mode);
-  };
+  const { language: i18nLang, setLanguage: setI18nLanguage } = useI18n();
+
+  const [language, setLanguageState] = useState<SupportedLanguage>(() => {
+    const saved = localStorage.getItem('foodlink_language') as SupportedLanguage | null;
+    return saved || i18nLang || 'es';
+  });
 
   useEffect(() => {
-    applyTheme(theme);
+    if (i18nLang && i18nLang !== language) {
+      setLanguageState(i18nLang);
+    }
+  }, [i18nLang, language]);
+
+  useEffect(() => {
+    localStorage.setItem('foodlink_theme_mode', themeMode);
+    const applyTheme = () => {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const shouldBeDark = themeMode === 'dark' || (themeMode === 'system' && prefersDark);
+      setIsDarkMode(shouldBeDark);
+      if (shouldBeDark) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    };
+    applyTheme();
 
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleChange = () => {
-      if (theme === 'system') {
-        applyTheme('system');
+    const listener = () => {
+      if (themeMode === 'system') applyTheme();
+    };
+    mediaQuery.addEventListener('change', listener);
+    return () => mediaQuery.removeEventListener('change', listener);
+  }, [themeMode]);
+
+  const setThemeMode = (mode: ThemeMode) => {
+    setThemeModeState(mode);
+  };
+
+  const setLanguage = (lang: SupportedLanguage) => {
+    setLanguageState(lang);
+    setI18nLanguage(lang);
+    localStorage.setItem('foodlink_language', lang);
+  };
+
+  const t = useCallback(
+    (key: string): string => {
+      return TRANSLATIONS[language]?.[key] || TRANSLATIONS['es'][key] || key;
+    },
+    [language]
+  );
+
+  /**
+   * Syncs user metadata with backend `/api/auth/sync-user` for accurate email existence checks.
+   */
+  const syncUserWithBackend = useCallback(async (profile: UserProfile) => {
+    try {
+      await fetch('/api/auth/sync-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          uid: profile.id,
+          name: profile.name,
+          email: profile.email,
+          role: profile.role,
+          organizationName: profile.organizationName,
+          nitOrId: profile.nitOrId,
+          phone: profile.phone,
+          city: profile.city,
+          verified: profile.verified,
+          provider: profile.authProvider || 'email',
+        }),
+      });
+    } catch {
+      // Non-blocking sync
+    }
+  }, []);
+
+  /**
+   * Ensures a Firestore document `users/{uid}` exists for the authenticated Firebase user,
+   * preventing duplicate documents and normalizing the profile structure.
+   */
+  const ensureUserProfileInFirestore = useCallback(
+    async (
+      firebaseUser: FirebaseUser,
+      preferredRole?: UserRole,
+      registrationDetails?: Partial<RegisterPayload>
+    ): Promise<UserProfile> => {
+      const uid = firebaseUser.uid;
+      const existingPromise = userDocLocksRef.current.get(uid);
+      if (existingPromise) {
+        return existingPromise;
+      }
+
+      const task = (async (): Promise<UserProfile> => {
+        const userDocRef = doc(db, 'users', uid);
+        let snapshot;
+        try {
+          snapshot = await getDoc(userDocRef);
+        } catch (error) {
+          handleFirestoreError(error, OperationType.GET, `users/${uid}`);
+        }
+
+        const isGoogleProvider = firebaseUser.providerData.some(p => p.providerId === 'google.com');
+        const providerType: 'email' | 'google' = isGoogleProvider ? 'google' : 'email';
+
+        if (snapshot && snapshot.exists()) {
+          const data = snapshot.data();
+          const role = normalizeRole(data.role);
+          const loadedProfile: UserProfile = {
+            id: uid,
+            uid,
+            name: String(data.name || firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Usuario'),
+            email: String(data.email || firebaseUser.email || '').toLowerCase(),
+            role,
+            photoURL: String(data.photoURL || firebaseUser.photoURL || ''),
+            avatarUrl: String(data.photoURL || firebaseUser.photoURL || ''),
+            organizationName: String(data.organizationName || data.name || 'Usuario Independiente'),
+            nitOrId: String(data.nitOrId || 'Pendiente'),
+            phone: String(data.phone || 'Pendiente'),
+            city: String(data.city || 'Bogotá D.C.'),
+            verified: Boolean(firebaseUser.emailVerified || isGoogleProvider || data.verified),
+            twoFactorEnabled: Boolean(data.twoFactorEnabled),
+            preferredLanguage: (data.preferredLanguage as SupportedLanguage) || 'es',
+            preferredTheme: (data.preferredTheme as ThemeMode) || 'light',
+            authProvider: (data.authProvider as 'email' | 'google') || providerType,
+            createdAt: String(data.createdAt || new Date().toISOString()),
+            updatedAt: String(data.updatedAt || new Date().toISOString()),
+          };
+          await syncUserWithBackend(loadedProfile);
+          return loadedProfile;
+        }
+
+        // First-time user: create document in `users/{uid}`
+        const nowIso = new Date().toISOString();
+        const assignedRole: UserRole = normalizeRole(preferredRole || registrationDetails?.role || 'buyer');
+        const cleanName = (
+          registrationDetails?.name ||
+          firebaseUser.displayName ||
+          firebaseUser.email?.split('@')[0] ||
+          'Usuario'
+        )
+          .trim()
+          .slice(0, 120);
+        const cleanEmail = (registrationDetails?.email || firebaseUser.email || '')
+          .trim()
+          .toLowerCase()
+          .slice(0, 160);
+        const cleanPhotoURL = (firebaseUser.photoURL || '').slice(0, 1024);
+        const cleanOrg = (
+          registrationDetails?.organizationName ||
+          cleanName ||
+          'Usuario Independiente'
+        )
+          .trim()
+          .slice(0, 160);
+        const cleanNit = (registrationDetails?.nitOrId || 'Pendiente').trim().slice(0, 60);
+        const cleanPhone = (registrationDetails?.phone || firebaseUser.phoneNumber || 'Pendiente')
+          .trim()
+          .slice(0, 40);
+        const cleanCity = (registrationDetails?.city || 'Bogotá D.C.').trim().slice(0, 80);
+
+        const newFirestoreDoc = {
+          uid,
+          name: cleanName,
+          email: cleanEmail,
+          role: assignedRole,
+          photoURL: cleanPhotoURL,
+          organizationName: cleanOrg,
+          nitOrId: cleanNit,
+          phone: cleanPhone,
+          city: cleanCity,
+          verified: Boolean(firebaseUser.emailVerified || isGoogleProvider),
+          authProvider: providerType,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        };
+
+        try {
+          await setDoc(userDocRef, newFirestoreDoc);
+        } catch (error) {
+          handleFirestoreError(error, OperationType.CREATE, `users/${uid}`);
+        }
+
+        const createdProfile: UserProfile = {
+          id: uid,
+          uid,
+          name: cleanName,
+          email: cleanEmail,
+          role: assignedRole,
+          photoURL: cleanPhotoURL,
+          avatarUrl: cleanPhotoURL,
+          organizationName: cleanOrg,
+          nitOrId: cleanNit,
+          phone: cleanPhone,
+          city: cleanCity,
+          verified: Boolean(firebaseUser.emailVerified || isGoogleProvider),
+          twoFactorEnabled: false,
+          preferredLanguage: 'es',
+          preferredTheme: 'light',
+          authProvider: providerType,
+          createdAt: nowIso,
+          updatedAt: nowIso,
+        };
+
+        await syncUserWithBackend(createdProfile);
+        return createdProfile;
+      })();
+
+      userDocLocksRef.current.set(uid, task);
+      try {
+        return await task;
+      } finally {
+        userDocLocksRef.current.delete(uid);
+      }
+    },
+    [syncUserWithBackend]
+  );
+
+  // Listen to Firebase Auth state changes
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (!firebaseUser) {
+        setIsAuthenticated(false);
+        setUserProfile(EMPTY_USER_PROFILE);
+        setCurrentRoleState('buyer');
+        localStorage.removeItem('foodlink_is_auth_v3');
+        setIsAuthReady(true);
+        return;
+      }
+
+      const isGoogleUser = firebaseUser.providerData.some(p => p.providerId === 'google.com');
+      const isPasswordUser = firebaseUser.providerData.some(p => p.providerId === 'password');
+
+      // Requirement 5: Email/password users must have emailVerified === true before accessing platform
+      if (isPasswordUser && !isGoogleUser && !firebaseUser.emailVerified) {
+        setEmailVerificationPending(true);
+        setPendingVerificationEmail(firebaseUser.email || '');
+        setIsAuthenticated(false);
+        localStorage.removeItem('foodlink_is_auth_v3');
+        setIsAuthReady(true);
+        return;
+      }
+
+      try {
+        const profile = await ensureUserProfileInFirestore(firebaseUser);
+        setUserProfile(profile);
+        setCurrentRoleState(profile.role);
+        setEmailVerificationPending(false);
+        setPendingVerificationEmail('');
+        setIsAuthenticated(true);
+        localStorage.setItem('foodlink_is_auth_v3', 'true');
+      } catch (err) {
+        console.error('Error loading user profile from Firestore:', err);
+      } finally {
+        setIsAuthReady(true);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [ensureUserProfileInFirestore]);
+
+  // Role-protected navigation & URL route protection (Requirement 9)
+  const setActiveTab = useCallback(
+    (tab: string) => {
+      if (tab === 'login') {
+        setShowLanding(false);
+        return;
+      }
+      const viewAliases: Record<string, string> = {
+        catalog: 'explore',
+        organizations: 'map',
+        dashboard: 'home',
+      };
+      const normalizedTab = viewAliases[tab] || tab;
+      setShowLanding(false);
+
+      if (SELLER_ONLY_TABS.has(normalizedTab)) {
+        if (!isAuthenticated || !userProfile.id || userProfile.role !== 'seller') {
+          setActiveTabState('home');
+          if (typeof window !== 'undefined' && window.location.hash) {
+            window.history.replaceState(null, '', '#home');
+          }
+          return;
+        }
+      }
+      setActiveTabState(normalizedTab);
+      if (typeof window !== 'undefined') {
+        window.history.replaceState(null, '', `#${normalizedTab}`);
+      }
+    },
+    [isAuthenticated, userProfile.id, userProfile.role]
+  );
+
+  const navigateWithGuard = useCallback(
+    (view: string) => {
+      if (view === 'landing') {
+        setShowLanding(true);
+        return;
+      }
+      setShowLanding(false);
+      setActiveTab(view);
+    },
+    [setActiveTab]
+  );
+
+  // Enforce route protection if user manually edits URL path or hash
+  useEffect(() => {
+    const enforceRouteSecurity = () => {
+      const rawHash = window.location.hash.replace(/^#\/?/, '').trim();
+      const rawPath = window.location.pathname.replace(/^\/+/, '').trim();
+      const requestedRoute = rawHash || rawPath;
+
+      if (!requestedRoute) return;
+
+      // If unauthenticated user tries to access any internal route via URL
+      const protectedRoutes = new Set([
+        'home',
+        'dashboard',
+        'explore',
+        'map',
+        'publish',
+        'my-publications',
+        'offers',
+        'negotiations',
+        'notifications',
+        'statistics',
+        'profile',
+      ]);
+
+      if (!isAuthenticated && protectedRoutes.has(requestedRoute)) {
+        setShowLanding(false);
+        setActiveTabState('home');
+        window.history.replaceState(null, '', '/');
+        return;
+      }
+
+      if (isAuthenticated && SELLER_ONLY_TABS.has(requestedRoute)) {
+        if (userProfile.role !== 'seller') {
+          setActiveTabState('home');
+          window.history.replaceState(null, '', '#home');
+          return;
+        }
+      }
+
+      if (isAuthenticated && protectedRoutes.has(requestedRoute)) {
+        const normalizedTab = requestedRoute === 'dashboard' ? 'home' : requestedRoute;
+        if (!SELLER_ONLY_TABS.has(normalizedTab) || userProfile.role === 'seller') {
+          setActiveTabState(normalizedTab);
+        }
       }
     };
 
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
-  }, [theme]);
+    enforceRouteSecurity();
+    window.addEventListener('hashchange', enforceRouteSecurity);
+    window.addEventListener('popstate', enforceRouteSecurity);
+    return () => {
+      window.removeEventListener('hashchange', enforceRouteSecurity);
+      window.removeEventListener('popstate', enforceRouteSecurity);
+    };
+  }, [isAuthenticated, userProfile.role]);
 
-  // Navigation, Route Guards & Auth Modal State
-  const [currentView, setCurrentView] = useState<string>('login');
-  const [redirectTo, setRedirectTo] = useState<string | null>(null);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
-  const [authModalTab, setAuthModalTab] = useState<'login' | 'register' | 'forgot' | 'reset'>('login');
-  const [authModalMessage, setAuthModalMessage] = useState<string | null>(null);
-
-  const navigateWithGuard = (targetView: string, requiredRole?: RoleType): boolean => {
-    if (!isAuthenticated) {
-      if (targetView !== 'landing' && targetView !== 'catalog' && targetView !== 'login' && targetView !== 'organizations') {
-        setRedirectTo(targetView);
-        setAuthModalTab('login');
-        setAuthModalMessage('Acceso privado: Debes iniciar sesión para interactuar con la plataforma.');
-        setCurrentView('login');
-        showToast('Acceso restringido: Inicia sesión para continuar.', 'warning');
-        return false;
-      }
-      setCurrentView(targetView);
-      return true;
+  // Whenever user role is buyer, ensure activeTab is never a seller-only tab
+  useEffect(() => {
+    if (userProfile.role !== 'seller' && SELLER_ONLY_TABS.has(activeTab)) {
+      setActiveTabState('home');
     }
+  }, [userProfile.role, activeTab]);
 
-    if (requiredRole && currentRole !== requiredRole && currentRole !== 'admin') {
-      showToast(
-        `Esta sección requiere perfil de: ${
-          requiredRole === 'establishment' ? 'Establecimiento' : 'Fundación / Comprador'
-        }`,
-        'error'
-      );
-      return false;
-    }
-    setCurrentView(targetView);
-    return true;
-  };
-
-  // Safe setter for currentView that respects authentication
-  const handleSetCurrentView = (targetView: string) => {
-    const normalizedView = targetView === 'establishment_dashboard' ? 'my_publications' : targetView;
-    if (!isAuthenticated && normalizedView !== 'landing' && normalizedView !== 'catalog' && normalizedView !== 'login' && normalizedView !== 'organizations') {
-      setRedirectTo(normalizedView);
-      setAuthModalTab('login');
-      setAuthModalMessage('Acceso privado: Debes iniciar sesión o registrarte para ver el catálogo y funciones.');
-      setCurrentView('login');
-      showToast('Acceso privado: Inicia sesión para continuar.', 'warning');
-      return;
-    }
-    setCurrentView(normalizedView);
-  };
-
-  // Secure Logout with Firebase
-  const logout = async () => {
-    try {
-      if (isFirebaseConfigured && auth) {
-        await signOut(auth);
-      }
-    } catch (err) {
-      console.warn('Firebase signOut error:', err);
-    }
-
-    try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest',
-        },
-      });
-    } catch (err) {
-      console.warn('Logout API call exception (fallback applied):', err);
-    }
-
-    localStorage.removeItem('foodlink_token');
-    localStorage.removeItem('foodlink_role');
-    localStorage.removeItem('foodlink_user');
-    setCurrentRole('public');
-    setCurrentUser(null);
-    setRedirectTo(null);
-    setCurrentView('login');
-    showToast('Has cerrado sesión correctamente', 'info');
-  };
-
-  // Login handler with redirectTo support
-  const login = (user: UserProfile, token?: string) => {
-    setCurrentUser(user);
-    setCurrentRole(user.role);
-    localStorage.setItem('foodlink_user', JSON.stringify(user));
-    if (token) {
-      localStorage.setItem('foodlink_token', token);
-    }
-    localStorage.setItem('foodlink_role', user.role);
-    setIsAuthModalOpen(false);
-    setAuthModalMessage(null);
-
-    showToast(`¡Bienvenido, ${user.name}!`, 'success');
-
-    if (redirectTo) {
-      const destination = redirectTo;
-      setRedirectTo(null);
-      setCurrentView(destination);
-      showToast(`Redirigiendo a: ${destination === 'dashboard' ? 'Panel de Control' : destination === 'catalog' ? 'Catálogo' : destination}`, 'info');
-    } else {
-      setCurrentView(user.role === 'public' ? 'login' : 'dashboard');
-    }
-  };
-
-  // 2FA Toggle
-  const toggle2FA = async (enabled: boolean) => {
-    if (!currentUser) return;
-    try {
-      const res = await fetch('/api/auth/toggle-2fa', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: currentUser.email, enabled }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setCurrentUser((prev) => (prev ? { ...prev, twoFactorEnabled: data.twoFactorEnabled } : null));
-        showToast(data.message, 'success');
-      } else {
-        showToast(data.error || 'Error al actualizar 2FA', 'error');
-      }
-    } catch (err) {
-      setCurrentUser((prev) => (prev ? { ...prev, twoFactorEnabled: enabled } : null));
-      showToast(enabled ? 'Verificación en Dos Pasos (2FA) activada' : '2FA desactivada', 'success');
-    }
-  };
-
-  // Commission Pricing (Admin configurable)
-  const [commissionPricing, setCommissionPricing] = useState<CommissionPricing>(() => {
-    const saved = localStorage.getItem('foodlink_commissions');
+  // Real Data State (No mock/fake data on first login - Requirement 8)
+  const [allProducts, setAllProducts] = useState<FoodProduct[]>(() => {
+    const saved = localStorage.getItem('foodlink_real_products_v1');
     if (saved) {
       try {
         return JSON.parse(saved);
@@ -385,40 +736,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         console.error(e);
       }
     }
-    return DEFAULT_COMMISSION_PRICING;
-  });
-
-  // Products
-  const [products, setProducts] = useState<FoodProduct[]>(() => {
-    const saved = localStorage.getItem('foodlink_products');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const hasOldMocks = parsed.some((p: FoodProduct) => p.id === 'prod-01' || p.id === 'prod-02');
-          if (!hasOldMocks) {
-            return parsed;
-          }
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    }
     return INITIAL_PRODUCTS;
   });
 
-  // Offers
-  const [offers, setOffers] = useState<ProductOffer[]>(() => {
-    const saved = localStorage.getItem('foodlink_offers');
+  const [allOffers, setAllOffers] = useState<ProductOffer[]>(() => {
+    const saved = localStorage.getItem('foodlink_real_offers_v1');
     if (saved) {
       try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const hasOldMocks = parsed.some((o: ProductOffer) => o.id === 'off-01' || o.id === 'off-02');
-          if (!hasOldMocks) {
-            return parsed;
-          }
-        }
+        return JSON.parse(saved);
       } catch (e) {
         console.error(e);
       }
@@ -426,37 +751,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return INITIAL_OFFERS;
   });
 
-  // Favorites
-  const [favorites, setFavorites] = useState<string[]>(() => {
-    const saved = localStorage.getItem('foodlink_favorites');
+  const [allNotifications, setAllNotifications] = useState<NotificationItem[]>(() => {
+    const saved = localStorage.getItem('foodlink_real_notifications_v1');
     if (saved) {
       try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          const hasOldMocks = parsed.some((id: string) => id === 'prod-01' || id === 'prod-03');
-          if (!hasOldMocks) {
-            return parsed;
-          }
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    }
-    return [];
-  });
-
-  // Notifications
-  const [notifications, setNotifications] = useState<NotificationItem[]>(() => {
-    const saved = localStorage.getItem('foodlink_notifs');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const hasUpdatedSamples = parsed.some((n: NotificationItem) => n.id === 'notif-demo-crit-1');
-          if (hasUpdatedSamples) {
-            return parsed;
-          }
-        }
+        return JSON.parse(saved);
       } catch (e) {
         console.error(e);
       }
@@ -464,589 +763,844 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return INITIAL_NOTIFICATIONS;
   });
 
-  // Commission Records
-  const [commissionRecords, setCommissionRecords] = useState<CommissionRecord[]>(() => {
-    const saved = localStorage.getItem('foodlink_com_records');
+  const [allCommissions, setAllCommissions] = useState<CommissionRecord[]>(() => {
+    const saved = localStorage.getItem('foodlink_real_commissions_v1');
     if (saved) {
       try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const hasOldMocks = parsed.some((c: CommissionRecord) => c.id === 'com-01' || c.id === 'com-02');
-          if (!hasOldMocks) {
-            return parsed;
-          }
-        }
+        return JSON.parse(saved);
       } catch (e) {
         console.error(e);
       }
     }
-    return INITIAL_COMMISSION_RECORDS;
+    return INITIAL_COMMISSIONS;
   });
 
-  // Navigation & Modals
-  const [selectedProductIdForDetail, setSelectedProductIdForDetail] = useState<string | null>(null);
-  const [selectedOfferIdForNegotiation, setSelectedOfferIdForNegotiation] = useState<string | null>(null);
-  const [productForRenewal, setProductForRenewal] = useState<FoodProduct | null>(null);
-  const [isPublishModalOpen, setIsPublishModalOpen] = useState<boolean>(false);
-  const [globalSearchQuery, setGlobalSearchQuery] = useState<string>('');
-
-  const loadDemoData = () => {
-    setProducts(INITIAL_PRODUCTS);
-    setOffers(INITIAL_OFFERS);
-    setNotifications(INITIAL_NOTIFICATIONS);
-    setCommissionRecords(INITIAL_COMMISSION_RECORDS);
-    showToast('Datos de demostración cargados correctamente', 'success');
-  };
-
-  // Guarded setters that enforce authentication for interactive modals and detail views
-  const handleSetIsPublishModalOpen = (open: boolean) => {
-    if (open && !isAuthenticated) {
-      setRedirectTo('dashboard');
-      setAuthModalTab('login');
-      setAuthModalMessage('Debes iniciar sesión con tu cuenta de establecimiento para publicar alimentos.');
-      setIsAuthModalOpen(true);
-      showToast('Acceso restringido: Inicia sesión para publicar alimentos.', 'warning');
-      return;
-    }
-    setIsPublishModalOpen(open);
-  };
-
-  const handleSetSelectedOfferIdForNegotiation = (id: string | null) => {
-    if (id && !isAuthenticated) {
-      setRedirectTo('dashboard');
-      setAuthModalTab('login');
-      setAuthModalMessage('Debes iniciar sesión para acceder a la sala de negociación.');
-      setIsAuthModalOpen(true);
-      showToast('Acceso privado: Inicia sesión para negociar.', 'warning');
-      return;
-    }
-    setSelectedOfferIdForNegotiation(id);
-  };
-
-  const handleSetSelectedProductIdForDetail = (id: string | null) => {
-    if (id && !isAuthenticated) {
-      setRedirectTo('catalog');
-      setAuthModalTab('login');
-      setAuthModalMessage('Inicia sesión o regístrate para ver detalles y ofertar por este producto.');
-      setIsAuthModalOpen(true);
-      showToast('Acceso privado: Inicia sesión para continuar.', 'warning');
-      return;
-    }
-    setSelectedProductIdForDetail(id);
-  };
-
-  // Toasts
-  const [toasts, setToasts] = useState<ToastItem[]>([]);
-
-  const showToast = (message: string, type: 'success' | 'info' | 'warning' | 'error' = 'success') => {
-    const id = 'toast-' + Math.random().toString(36).substring(2, 9);
-    setToasts((prev) => [...prev, { id, type, message }]);
-    setTimeout(() => {
-      removeToast(id);
-    }, 4500);
-  };
-
-  const removeToast = (id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  };
-
-  // Sync to local storage
   useEffect(() => {
-    if (currentUser) {
-      localStorage.setItem('foodlink_role', currentRole);
-    } else {
-      localStorage.removeItem('foodlink_role');
-    }
-    localStorage.setItem('foodlink_commissions', JSON.stringify(commissionPricing));
-    localStorage.setItem('foodlink_products', JSON.stringify(products));
-    localStorage.setItem('foodlink_offers', JSON.stringify(offers));
-    localStorage.setItem('foodlink_favorites', JSON.stringify(favorites));
-    localStorage.setItem('foodlink_notifs', JSON.stringify(notifications));
-    localStorage.setItem('foodlink_com_records', JSON.stringify(commissionRecords));
-  }, [currentUser, currentRole, commissionPricing, products, offers, favorites, notifications, commissionRecords]);
+    localStorage.setItem('foodlink_real_products_v1', JSON.stringify(allProducts));
+  }, [allProducts]);
 
-  // Handle role switch
-  const switchRole = (role: RoleType) => {
-    if (!isAuthenticated) {
-      setAuthModalTab('login');
-      setIsAuthModalOpen(true);
-      return;
-    }
-    const normalizedRole = (role === 'buyer' ? 'buyer_foundation' : role) as RoleType;
-    setCurrentRole(normalizedRole);
-    if (currentUser) {
-      setCurrentUser({ ...currentUser, role: normalizedRole });
-    }
-    showToast(`Modo cambiado a: ${normalizedRole === 'establishment' ? 'Establecimiento' : normalizedRole === 'admin' ? 'Administrador' : 'Fundación / Comprador'}`, 'info');
-  };
+  useEffect(() => {
+    localStorage.setItem('foodlink_real_offers_v1', JSON.stringify(allOffers));
+  }, [allOffers]);
 
-  const updateCurrentUser = (updates: Partial<UserProfile>) => {
-    if (!currentUser) return;
-    setCurrentUser((prev) => {
-      if (!prev) return null;
-      const updated = { ...prev, ...updates };
-      localStorage.setItem('foodlink_user', JSON.stringify(updated));
-      return updated;
-    });
-    showToast('Perfil actualizado correctamente', 'success');
-  };
+  useEffect(() => {
+    localStorage.setItem('foodlink_real_notifications_v1', JSON.stringify(allNotifications));
+  }, [allNotifications]);
 
-  const updateCommissionPricing = (newPricing: CommissionPricing) => {
-    setCommissionPricing(newPricing);
-    showToast('Tabla de comisiones actualizada por el administrador', 'success');
-  };
+  useEffect(() => {
+    localStorage.setItem('foodlink_real_commissions_v1', JSON.stringify(allCommissions));
+  }, [allCommissions]);
 
-  const resetCommissionPricing = () => {
-    setCommissionPricing(DEFAULT_COMMISSION_PRICING);
-    showToast('Comisiones restablecidas a los valores por defecto', 'info');
-  };
+  // Scoped data for the currently authenticated user so a user never sees another user's private negotiations, notifications, or commissions
+  const products = allProducts;
+  const offers = isAuthenticated && userProfile.id
+    ? allOffers.filter(o => o.buyerId === userProfile.id || o.sellerId === userProfile.id)
+    : [];
+  const notifications = isAuthenticated && userProfile.id
+    ? allNotifications.filter(n => n.userId === userProfile.id)
+    : [];
+  const commissions = isAuthenticated && userProfile.id
+    ? allCommissions.filter(c => c.sellerId === userProfile.id)
+    : [];
 
-  const getCommissionForDays = (days: DurationDays): number => {
-    return commissionPricing[days] ?? 2500;
-  };
+  // Modals & Selection State
+  const [selectedProduct, setSelectedProduct] = useState<FoodProduct | null>(null);
+  const [makingOfferProduct, setMakingOfferProduct] = useState<FoodProduct | null>(null);
+  const [activeNegotiationOffer, setActiveNegotiationOffer] = useState<ProductOffer | null>(null);
+  const [deliveryActOffer, setDeliveryActOffer] = useState<ProductOffer | null>(null);
+  const [isPublishModalOpen, setIsPublishModalOpenState] = useState<boolean>(false);
 
-  // Product actions
-  const addProduct = (
-    productData: Omit<FoodProduct, 'id' | 'publishedAt' | 'expiresAt' | 'offersCount' | 'viewsCount'>,
-    paymentMethod: string
-  ): FoodProduct => {
-    const publishedAt = new Date().toISOString();
-    const expiresAt = new Date(Date.now() + productData.durationDays * 24 * 3600 * 1000).toISOString();
-    const id = 'prod-' + Date.now().toString(36);
+  const setIsPublishModalOpen = useCallback(
+    (open: boolean) => {
+      if (open && (!isAuthenticated || !userProfile.id || userProfile.role !== 'seller')) {
+        return;
+      }
+      setIsPublishModalOpenState(open);
+    },
+    [isAuthenticated, userProfile.id, userProfile.role]
+  );
 
-    const newProduct: FoodProduct = {
-      ...productData,
-      id,
-      publishedAt,
-      expiresAt,
-      status: 'activa',
-      offersCount: 0,
-      viewsCount: 1,
-    };
+  // Role setter only allows setting current user's validated role
+  const setCurrentRole = useCallback(
+    (role: UserRole) => {
+      if (!isAuthenticated) {
+        setCurrentRoleState(role);
+        return;
+      }
+      // When authenticated, role changes must go through Firestore (`upgradeToSeller`)
+      if (userProfile.role === role) {
+        setCurrentRoleState(role);
+      }
+    },
+    [isAuthenticated, userProfile.role]
+  );
 
-    setProducts((prev) => [newProduct, ...prev]);
-
-    // Create commission record
-    const newRecord: CommissionRecord = {
-      id: 'com-' + Date.now().toString(36),
-      productName: newProduct.name,
-      durationDays: newProduct.durationDays,
-      commission: newProduct.commissionPaid,
-      date: new Date().toISOString().split('T')[0],
-      status: 'Activa',
-      paymentMethod,
-      transactionRef: 'TRX-' + Math.floor(100000 + Math.random() * 900000),
-    };
-    setCommissionRecords((prev) => [newRecord, ...prev]);
-
-    // Add notification
-    const newNotif: NotificationItem = {
-      id: 'notif-' + Date.now().toString(36),
-      userId: newProduct.sellerId,
-      type: 'publicacion_activada',
-      title: '¡Publicación activada con éxito!',
-      message: `Tu producto "${newProduct.name}" ya está visible en el catálogo por ${newProduct.durationDays} día(s).`,
-      timestamp: 'Hace un momento',
-      read: false,
-      relatedProductId: id,
-    };
-    setNotifications((prev) => [newNotif, ...prev]);
-
-    showToast(`¡Publicación de "${newProduct.name}" activada exitosamente!`, 'success');
-    return newProduct;
-  };
-
-  const updateProduct = (id: string, updates: Partial<FoodProduct>) => {
-    setProducts((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, ...updates } : p))
-    );
-    showToast('Producto actualizado correctamente', 'info');
-  };
-
-  const renewProduct = (id: string, additionalDays: DurationDays, paymentMethod: string) => {
-    const commissionCost = getCommissionForDays(additionalDays);
-    let updatedName = '';
-
-    setProducts((prev) =>
-      prev.map((p) => {
-        if (p.id === id) {
-          updatedName = p.name;
-          // Calculate new expiration date
-          const currentExpiry = new Date(p.expiresAt).getTime();
-          const baseTime = currentExpiry > Date.now() ? currentExpiry : Date.now();
-          const newExpiresAt = new Date(baseTime + additionalDays * 24 * 3600 * 1000).toISOString();
-          return {
-            ...p,
-            durationDays: ((p.durationDays + additionalDays) as DurationDays),
-            commissionPaid: p.commissionPaid + commissionCost,
-            expiresAt: newExpiresAt,
-            status: 'activa' as ProductStatus,
-          };
-        }
-        return p;
-      })
-    );
-
-    // Create commission record for renewal
-    const newRecord: CommissionRecord = {
-      id: 'com-ren-' + Date.now().toString(36),
-      productName: updatedName,
-      durationDays: additionalDays,
-      commission: commissionCost,
-      date: new Date().toISOString().split('T')[0],
-      status: 'Renovada',
-      paymentMethod,
-      transactionRef: 'RNW-' + Math.floor(100000 + Math.random() * 900000),
-    };
-    setCommissionRecords((prev) => [newRecord, ...prev]);
-
-    // Add notification
-    const newNotif: NotificationItem = {
-      id: 'notif-' + Date.now().toString(36),
-      userId: currentUser?.id || 'anon-user',
-      type: 'publicacion_activada',
-      title: 'Publicación renovada',
-      message: `Has extendido "${updatedName}" por ${additionalDays} día(s) adicionales.`,
-      timestamp: 'Hace un momento',
-      read: false,
-      relatedProductId: id,
-    };
-    setNotifications((prev) => [newNotif, ...prev]);
-
-    showToast(`Publicación extendida por ${additionalDays} días. Comisión pagada: $${commissionCost.toLocaleString('es-CO')} COP`, 'success');
-  };
-
-  const changeProductStatus = (id: string, newStatus: ProductStatus) => {
-    setProducts((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, status: newStatus } : p))
-    );
-    showToast(`Estado de la publicación cambiado a: ${newStatus}`, 'info');
-  };
-
-  const deleteProduct = (id: string) => {
-    setProducts((prev) => prev.filter((p) => p.id !== id));
-    showToast('Publicación retirada de la plataforma', 'info');
-  };
-
-  // Helper to resolve email and display name for any user or partner organization
-  const resolveUserContact = (userId: string, fallbackName?: string): { email: string; name: string } => {
-    if (currentUser && currentUser.id === userId && currentUser.email) {
+  /**
+   * Requirement 3: Upgrade from buyer to seller ("Quiero vender productos")
+   */
+  const upgradeToSeller = useCallback(async (): Promise<AuthActionResponse> => {
+    const currentUser = auth.currentUser;
+    if (!currentUser || !isAuthenticated || !userProfile.id) {
       return {
-        email: currentUser.email,
-        name: currentUser.organizationName ? `${currentUser.name} (${currentUser.organizationName})` : currentUser.name,
+        success: false,
+        message: 'Debes iniciar sesión para cambiar tu rol a vendedor.',
       };
     }
 
-    for (const mockUser of Object.values(MOCK_USERS)) {
-      if (mockUser.id === userId) {
+    if (userProfile.role === 'seller') {
+      return {
+        success: true,
+        message: 'Tu cuenta ya tiene el rol de Vendedor activo.',
+      };
+    }
+
+    const uid = currentUser.uid;
+    const nowIso = new Date().toISOString();
+    const userDocRef = doc(db, 'users', uid);
+
+    try {
+      await updateDoc(userDocRef, {
+        role: 'seller',
+        updatedAt: serverTimestamp(),
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${uid}`);
+    }
+
+    const updatedProfile: UserProfile = {
+      ...userProfile,
+      role: 'seller',
+      updatedAt: nowIso,
+    };
+
+    setUserProfile(updatedProfile);
+    setCurrentRoleState('seller');
+    await syncUserWithBackend(updatedProfile);
+
+    return {
+      success: true,
+      message: '¡Felicidades! Tu cuenta ahora es de Vendedor. Ya puedes publicar productos y acceder a tus estadísticas.',
+    };
+  }, [isAuthenticated, userProfile, syncUserWithBackend]);
+
+  const updateUserProfile = useCallback(
+    async (updates: Partial<UserProfile>) => {
+      const currentUser = auth.currentUser;
+      if (!currentUser || !isAuthenticated || !userProfile.id) return;
+
+      const uid = currentUser.uid;
+      const nowIso = new Date().toISOString();
+      const nextName = (updates.name ?? userProfile.name).trim().slice(0, 120);
+      const nextPhoto = (updates.photoURL ?? updates.avatarUrl ?? userProfile.photoURL ?? '').slice(0, 1024);
+      const nextOrg = (updates.organizationName ?? userProfile.organizationName).trim().slice(0, 160);
+      const nextNit = (updates.nitOrId ?? userProfile.nitOrId).trim().slice(0, 60);
+      const nextPhone = (updates.phone ?? userProfile.phone).trim().slice(0, 40);
+      const nextCity = (updates.city ?? userProfile.city).trim().slice(0, 80);
+      const nextLang = updates.preferredLanguage ?? userProfile.preferredLanguage ?? 'es';
+      const nextTheme = updates.preferredTheme ?? userProfile.preferredTheme ?? 'light';
+      const nextTwoFactor = updates.twoFactorEnabled ?? userProfile.twoFactorEnabled ?? false;
+
+      const firestoreUpdates: Record<string, unknown> = {
+        name: nextName,
+        photoURL: nextPhoto,
+        organizationName: nextOrg,
+        nitOrId: nextNit,
+        phone: nextPhone,
+        city: nextCity,
+        updatedAt: serverTimestamp(),
+      };
+
+      try {
+        await updateDoc(doc(db, 'users', uid), firestoreUpdates);
+      } catch (error) {
+        handleFirestoreError(error, OperationType.UPDATE, `users/${uid}`);
+      }
+
+      const updated: UserProfile = {
+        ...userProfile,
+        name: nextName,
+        photoURL: nextPhoto,
+        avatarUrl: nextPhoto,
+        organizationName: nextOrg,
+        nitOrId: nextNit,
+        phone: nextPhone,
+        city: nextCity,
+        preferredLanguage: nextLang,
+        preferredTheme: nextTheme,
+        twoFactorEnabled: nextTwoFactor,
+        updatedAt: nowIso,
+      };
+
+      setUserProfile(updated);
+      await syncUserWithBackend(updated);
+    },
+    [isAuthenticated, userProfile, syncUserWithBackend]
+  );
+
+  const openAuthModal = (mode: 'login' | 'register' = 'login', preselectedRole?: UserRole) => {
+    setAuthModalInitialMode(mode);
+    if (preselectedRole) {
+      setCurrentRoleState(preselectedRole);
+    }
+    setIsAuthModalOpen(true);
+  };
+
+  const evaluatePasswordStrength = (password: string): PasswordStrength => {
+    const hasMinLength = password.length >= 8;
+    const hasNumber = /\d/.test(password);
+    const hasSymbol = /[!@#$%^&*(),.?":{}|<>_\-+=/\\[\]]/.test(password);
+    const hasMixedCase = /[a-z]/.test(password) && /[A-Z]/.test(password);
+
+    let score = 0;
+    if (hasMinLength) score += 1;
+    if (hasNumber) score += 1;
+    if (hasSymbol) score += 1;
+    if (hasMixedCase) score += 1;
+
+    const labelsEs: PasswordStrength['label'][] = ['Débil', 'Débil', 'Regular', 'Buena', 'Fuerte'];
+    const labelsEn: PasswordStrength['label'][] = ['Weak', 'Weak', 'Fair', 'Good', 'Strong'];
+
+    return {
+      score,
+      label: language === 'en' ? labelsEn[score] : labelsEs[score],
+      hasMinLength,
+      hasNumber,
+      hasSymbol,
+      hasMixedCase,
+    };
+  };
+
+  const checkEmailExists = async (email: string): Promise<EmailCheckResult> => {
+    const normalized = email.trim().toLowerCase();
+    if (!normalized || !normalized.includes('@')) {
+      return { exists: false, message: 'Formato de correo inválido.' };
+    }
+
+    // 1. Check Firebase Auth signInMethods if available
+    try {
+      const methods = await fetchSignInMethodsForEmail(auth, normalized);
+      if (methods && methods.length > 0) {
+        const isGoogle = methods.includes('google.com');
         return {
-          email: mockUser.email,
-          name: `${mockUser.name} (${mockUser.organizationName})`,
+          exists: true,
+          provider: isGoogle ? 'google' : 'email',
+          message: 'Cuenta encontrada.',
         };
       }
+    } catch {
+      // Fallback to backend registry check
     }
 
-    const partner = PARTNER_ORGANIZATIONS.find((org) => org.id === userId || org.name === fallbackName);
-    if (partner) {
-      return {
-        email: partner.email,
-        name: partner.name,
-      };
+    // 2. Check backend synced registry
+    try {
+      const response = await fetch('/api/auth/check-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: normalized }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        return {
+          exists: Boolean(data.exists),
+          provider: data.provider === 'google' ? 'google' : 'email',
+          message: data.message,
+        };
+      }
+    } catch {
+      // Ignore network error
     }
 
     return {
-      email: 'contacto@superlosandes.com.co',
-      name: fallbackName || 'Usuario Publik Solidario',
+      exists: false,
+      message: 'Esta cuenta no está registrada. Debes registrarte primero o crear una cuenta.',
     };
   };
 
-  // Central dispatcher for in-app + transactional email notifications
-  const dispatchNotification = (params: {
-    userId: string;
-    recipientFallbackName?: string;
-    type: NotificationType;
-    title: string;
-    message: string;
-    emailSubject?: string;
-    actionLabel?: string;
-    relatedProductId?: string;
-    relatedOfferId?: string;
-    dedupKey?: string;
-  }) => {
-    const nowIso = new Date().toISOString();
-    const notifId = 'notif-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6);
-    const contact = resolveUserContact(params.userId, params.recipientFallbackName);
-    const subject = params.emailSubject || `[Publik Solidario] ${params.title}`;
-
-    // Check user notification preferences
-    let shouldSendEmail = true;
-    try {
-      const savedPrefs = localStorage.getItem('foodlink_notif_prefs');
-      if (savedPrefs) {
-        const prefs = JSON.parse(savedPrefs);
-        if (
-          (params.type === 'nueva_oferta' ||
-            params.type === 'nueva_contraoferta' ||
-            params.type === 'oferta_aceptada' ||
-            params.type === 'oferta_rechazada') &&
-          prefs.emailOffers === false
-        ) {
-          shouldSendEmail = false;
-        }
-        if (
-          (params.type === 'publicacion_proxima_finalizar' ||
-            params.type === 'publicacion_menos_6h') &&
-          prefs.emailExpirations === false
-        ) {
-          shouldSendEmail = false;
-        }
-      }
-    } catch {
-      // default to true
+  /**
+   * Requirement 4 & 5: Real Firebase Email/Password Login + Email Verification Check
+   */
+  const login = async (
+    email: string,
+    password: string,
+    rememberMe = true
+  ): Promise<AuthActionResponse> => {
+    const normalized = email.trim().toLowerCase();
+    if (!normalized || !password) {
+      return {
+        success: false,
+        message: 'Por favor ingresa tu correo electrónico y contraseña.',
+      };
     }
 
-    let createdNew = false;
+    try {
+      const cred = await signInWithEmailAndPassword(auth, normalized, password);
+      await cred.user.reload();
 
-    setNotifications((prev) => {
-      if (params.dedupKey && prev.some((n) => n.dedupKey === params.dedupKey)) {
-        return prev;
+      // Requirement 5: Verify emailVerified before allowing dashboard access
+      if (!cred.user.emailVerified) {
+        setEmailVerificationPending(true);
+        setPendingVerificationEmail(cred.user.email || normalized);
+        setIsAuthenticated(false);
+        localStorage.removeItem('foodlink_is_auth_v3');
+        return {
+          success: false,
+          code: 'email-not-verified',
+          requiresEmailVerification: true,
+          message: 'Tu correo electrónico aún no está verificado. Verifica tu correo antes de continuar.',
+        };
       }
-      createdNew = true;
+
+      const profile = await ensureUserProfileInFirestore(cred.user);
+      setUserProfile(profile);
+      setCurrentRoleState(profile.role);
+      setEmailVerificationPending(false);
+      setPendingVerificationEmail('');
+      setIsAuthenticated(true);
+      setShowLanding(false);
+      setIsAuthModalOpen(false);
+      if (rememberMe) {
+        localStorage.setItem('foodlink_is_auth_v3', 'true');
+      }
+
+      return {
+        success: true,
+        message: `Bienvenido a FoodLink Solidario, ${profile.name}`,
+      };
+    } catch (firebaseErr: unknown) {
+      const fbCode =
+        firebaseErr && typeof firebaseErr === 'object' && 'code' in firebaseErr
+          ? String((firebaseErr as { code: unknown }).code)
+          : '';
+
+      if (fbCode === 'auth/user-not-found') {
+        return {
+          success: false,
+          code: 'user-not-found',
+          message: 'Esta cuenta no está registrada. Debes registrarte primero o crear una cuenta.',
+        };
+      }
+
+      if (fbCode === 'auth/invalid-credential' || fbCode === 'auth/wrong-password') {
+        // Check if the email exists to distinguish unregistered accounts from wrong password
+        const check = await checkEmailExists(normalized);
+        if (!check.exists) {
+          return {
+            success: false,
+            code: 'user-not-found',
+            message: 'Esta cuenta no está registrada. Debes registrarte primero o crear una cuenta.',
+          };
+        }
+        return {
+          success: false,
+          code: 'wrong-password',
+          message: 'La contraseña ingresada es incorrecta. Inténtalo de nuevo o solicita recuperación.',
+        };
+      }
+
+      return {
+        success: false,
+        code: fbCode || 'auth-error',
+        message: getFirebaseAuthErrorMessage(fbCode),
+      };
+    }
+  };
+
+  /**
+   * Requirement 2 & 5: Real Firebase Registration with Role Selection ('buyer' | 'seller')
+   * and Email Verification dispatch.
+   */
+  const registerUser = async (data: RegisterPayload): Promise<AuthActionResponse> => {
+    const normalized = data.email.trim().toLowerCase();
+    const selectedRole: UserRole = data.role === 'seller' ? 'seller' : 'buyer';
+
+    if (!data.name.trim()) {
+      return { success: false, message: 'El nombre completo o razón social es obligatorio.' };
+    }
+
+    const strength = evaluatePasswordStrength(data.password);
+    if (!strength.hasMinLength || !strength.hasNumber) {
+      return {
+        success: false,
+        message: 'La contraseña debe tener mínimo 8 caracteres e incluir al menos un número.',
+      };
+    }
+
+    try {
+      const cred = await createUserWithEmailAndPassword(auth, normalized, data.password);
+      await updateFirebaseProfile(cred.user, { displayName: data.name.trim() });
+
+      // Save user profile and selected role in Firestore `users/{uid}`
+      await ensureUserProfileInFirestore(cred.user, selectedRole, {
+        ...data,
+        email: normalized,
+        role: selectedRole,
+      });
+
+      // Send real Firebase verification email
+      try {
+        await sendEmailVerification(cred.user);
+      } catch (verifyErr) {
+        console.warn('Error al enviar correo de verificación inicial:', verifyErr);
+      }
+
+      // Require email verification before entering dashboard
+      setEmailVerificationPending(true);
+      setPendingVerificationEmail(normalized);
+      setIsAuthenticated(false);
+      localStorage.removeItem('foodlink_is_auth_v3');
+
+      return {
+        success: true,
+        code: 'email-verification-sent',
+        requiresEmailVerification: true,
+        message: 'Tu correo electrónico aún no está verificado. Verifica tu correo antes de continuar.',
+      };
+    } catch (firebaseErr: unknown) {
+      const fbCode =
+        firebaseErr && typeof firebaseErr === 'object' && 'code' in firebaseErr
+          ? String((firebaseErr as { code: unknown }).code)
+          : '';
+
+      return {
+        success: false,
+        code: fbCode || 'register-error',
+        message: getFirebaseAuthErrorMessage(fbCode),
+      };
+    }
+  };
+
+  /**
+   * Requirement 5: Resend verification email ("Reenviar correo de verificación")
+   */
+  const resendVerificationEmail = async (): Promise<AuthActionResponse> => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      return {
+        success: false,
+        message: 'Inicia sesión nuevamente con tu correo y contraseña para reenviar el enlace de verificación.',
+      };
+    }
+
+    try {
+      await currentUser.reload();
+      if (currentUser.emailVerified) {
+        const profile = await ensureUserProfileInFirestore(currentUser);
+        setUserProfile(profile);
+        setCurrentRoleState(profile.role);
+        setEmailVerificationPending(false);
+        setPendingVerificationEmail('');
+        setIsAuthenticated(true);
+        setShowLanding(false);
+        setIsAuthModalOpen(false);
+        return {
+          success: true,
+          message: 'Tu correo electrónico ya está verificado. Accediendo a la plataforma...',
+        };
+      }
+
+      await sendEmailVerification(currentUser);
+      return {
+        success: true,
+        message: `Se ha reenviado el correo de verificación a ${currentUser.email}. Revisa tu bandeja de entrada y carpeta de spam.`,
+      };
+    } catch (err: unknown) {
+      const fbCode =
+        err && typeof err === 'object' && 'code' in err ? String((err as { code: unknown }).code) : '';
+      if (fbCode === 'auth/too-many-requests') {
+        return {
+          success: false,
+          message: 'Ya se envió un correo recientemente. Por favor espera unos segundos antes de volver a intentarlo.',
+        };
+      }
+      return {
+        success: false,
+        message: 'No se pudo reenviar el correo de verificación en este momento. Inténtalo nuevamente.',
+      };
+    }
+  };
+
+  /**
+   * Checks if the current user has clicked the verification link in their email
+   */
+  const checkEmailVerificationStatus = async (): Promise<{ verified: boolean; message: string }> => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      return {
+        verified: false,
+        message: 'Tu correo electrónico aún no está verificado. Verifica tu correo antes de continuar.',
+      };
+    }
+
+    try {
+      await currentUser.reload();
+      if (currentUser.emailVerified) {
+        const profile = await ensureUserProfileInFirestore(currentUser);
+        if (!profile.verified) {
+          try {
+            await updateDoc(doc(db, 'users', currentUser.uid), {
+              verified: true,
+              updatedAt: serverTimestamp(),
+            });
+          } catch {
+            // Ignore non-critical update error
+          }
+        }
+        setUserProfile({ ...profile, verified: true });
+        setCurrentRoleState(profile.role);
+        setEmailVerificationPending(false);
+        setPendingVerificationEmail('');
+        setIsAuthenticated(true);
+        setShowLanding(false);
+        setIsAuthModalOpen(false);
+        localStorage.setItem('foodlink_is_auth_v3', 'true');
+        return {
+          verified: true,
+          message: '¡Correo electrónico verificado correctamente! Bienvenido a FoodLink Solidario.',
+        };
+      }
+      return {
+        verified: false,
+        message: 'Tu correo electrónico aún no está verificado. Verifica tu correo antes de continuar.',
+      };
+    } catch {
+      return {
+        verified: false,
+        message: 'No se pudo comprobar el estado de verificación. Intenta nuevamente.',
+      };
+    }
+  };
+
+  const clearEmailVerificationPending = async () => {
+    setEmailVerificationPending(false);
+    setPendingVerificationEmail('');
+    try {
+      await signOut(auth);
+    } catch {
+      // Ignore
+    }
+  };
+
+  /**
+   * Requirement 6: Real Google Sign-In + Firebase Authentication + Firestore Profile Creation
+   */
+  const loginWithSocial = async (
+    _provider: 'google',
+    preferredRole?: UserRole
+  ): Promise<AuthActionResponse> => {
+    try {
+      const googleProvider = new GoogleAuthProvider();
+      googleProvider.setCustomParameters({ prompt: 'select_account' });
+      const result = await signInWithPopup(auth, googleProvider);
+
+      const validRole: UserRole = preferredRole === 'seller' ? 'seller' : 'buyer';
+      const profile = await ensureUserProfileInFirestore(result.user, validRole);
+
+      setUserProfile(profile);
+      setCurrentRoleState(profile.role);
+      setEmailVerificationPending(false);
+      setPendingVerificationEmail('');
+      setIsAuthenticated(true);
+      setShowLanding(false);
+      setIsAuthModalOpen(false);
+      localStorage.setItem('foodlink_is_auth_v3', 'true');
+
+      return {
+        success: true,
+        message: `Autenticado con Google como ${profile.name}`,
+      };
+    } catch (firebaseErr: unknown) {
+      const fbCode =
+        firebaseErr && typeof firebaseErr === 'object' && 'code' in firebaseErr
+          ? String((firebaseErr as { code: unknown }).code)
+          : '';
+
+      return {
+        success: false,
+        code: fbCode || 'google-auth-error',
+        message: getFirebaseAuthErrorMessage(fbCode),
+      };
+    }
+  };
+
+  const requestPasswordReset = async (email: string): Promise<{ success: boolean; message: string }> => {
+    const normalized = email.trim().toLowerCase();
+    if (!normalized || !normalized.includes('@')) {
+      return { success: false, message: 'Ingresa un correo electrónico válido.' };
+    }
+
+    try {
+      await sendPasswordResetEmail(auth, normalized);
+      return {
+        success: true,
+        message: `Hemos enviado un enlace de recuperación a ${normalized}. Revisa tu bandeja de entrada.`,
+      };
+    } catch (firebaseErr: unknown) {
+      const fbCode =
+        firebaseErr && typeof firebaseErr === 'object' && 'code' in firebaseErr
+          ? String((firebaseErr as { code: unknown }).code)
+          : '';
+      return {
+        success: false,
+        message: getFirebaseAuthErrorMessage(fbCode),
+      };
+    }
+  };
+
+  const logout = () => {
+    signOut(auth).catch((e) => console.warn('Error cerrando sesión en Firebase:', e));
+    setIsAuthenticated(false);
+    setEmailVerificationPending(false);
+    setPendingVerificationEmail('');
+    setUserProfile(EMPTY_USER_PROFILE);
+    setCurrentRoleState('buyer');
+    setShowLanding(true);
+    setActiveTabState('home');
+    localStorage.removeItem('foodlink_is_auth_v3');
+    if (typeof window !== 'undefined') {
+      window.history.replaceState(null, '', '/');
+    }
+  };
+
+  const formatCOP = (amount: number): string => {
+    return new Intl.NumberFormat('es-CO', {
+      style: 'currency',
+      currency: 'COP',
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  const getCommissionForDuration = (days: DurationDays): number => {
+    return commissionPricing[days] || COMMISSION_PRICING[days] || 12000;
+  };
+
+  /**
+   * Central Notification Dispatcher (In-App + Automated Email Dispatch)
+   */
+  const dispatchNotificationEvent = useCallback(
+    (params: {
+      userId: string;
+      type: NotificationType;
+      title: string;
+      message: string;
+      relatedProductId?: string;
+      relatedOfferId?: string;
+      productName?: string;
+      recipientEmail?: string;
+      recipientName?: string;
+      actionLabel?: string;
+      dedupKey?: string;
+    }) => {
+      const notificationId = `notif-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      const nowIso = new Date().toISOString();
+      const targetEmail = params.recipientEmail || userProfile.email || '';
+      const targetName = params.recipientName || userProfile.organizationName || userProfile.name || 'Usuario';
+
       const newNotif: NotificationItem = {
-        id: notifId,
+        id: notificationId,
         userId: params.userId,
         type: params.type,
         title: params.title,
         message: params.message,
-        timestamp: 'Hace un momento',
+        timestamp: 'Justo ahora',
         createdAt: nowIso,
         read: false,
         relatedProductId: params.relatedProductId,
         relatedOfferId: params.relatedOfferId,
-        recipientEmail: contact.email,
-        recipientName: contact.name,
-        emailStatus: shouldSendEmail ? 'queued_local' : 'disabled',
-        emailSubject: subject,
+        recipientEmail: targetEmail,
+        recipientName: targetName,
+        emailSubject: `[FoodLink Solidario] ${params.title}`,
+        emailStatus: 'queued_local',
         dedupKey: params.dedupKey,
       };
-      return [newNotif, ...prev];
-    });
 
-    if (shouldSendEmail) {
-      fetch('/api/notifications/send-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          notificationId: notifId,
-          userId: params.userId,
-          to: contact.email,
-          recipientName: contact.name,
-          subject,
-          eventType: params.type,
-          title: params.title,
-          message: params.message,
-          actionLabel: params.actionLabel || 'Ver operación en Publik Solidario',
-        }),
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (data?.emailRecord) {
-            setNotifications((prev) =>
-              prev.map((n) =>
-                n.id === notifId
-                  ? {
-                      ...n,
-                      emailStatus: data.emailRecord.status,
-                      emailHtmlPreview: data.emailRecord.htmlBody,
-                    }
-                  : n
-              )
-            );
-          }
+      setAllNotifications((prev) => {
+        if (params.dedupKey && prev.some((n) => n.dedupKey === params.dedupKey)) {
+          return prev;
+        }
+        return [newNotif, ...prev];
+      });
+
+      if (targetEmail) {
+        fetch('/api/notifications/send-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: targetEmail,
+            recipientName: targetName,
+            subject: `[FoodLink Solidario] ${params.title}`,
+            notificationType: params.type,
+            title: params.title,
+            message: params.message,
+            actionLabel: params.actionLabel || 'Ver operación en FoodLink Solidario',
+            productName: params.productName,
+          }),
         })
-        .catch(() => {
-          // Keep queued_local fallback
-        });
-    }
-
-    return createdNew;
-  };
-
-  // Automatic & manual detector for publications approaching expiration (<24h and <6h)
-  const checkProductExpirations = (manual = false): number => {
-    const now = Date.now();
-    let generatedAlerts = 0;
-    const statusUpdates: Record<string, ProductStatus> = {};
-
-    products.forEach((p) => {
-      if (p.status === 'finalizada' || p.status === 'vendida' || p.status === 'pausada') {
-        return;
-      }
-
-      const expiresMs = new Date(p.expiresAt).getTime();
-      const diffHours = (expiresMs - now) / (1000 * 3600);
-
-      if (diffHours <= 0) {
-        if (p.status !== 'finalizada') {
-          statusUpdates[p.id] = 'finalizada';
-        }
-        return;
-      }
-
-      // Less than or equal to 6 hours remaining -> Critical <6h alert
-      if (diffHours <= 6) {
-        if (p.status !== 'proxima_a_finalizar') {
-          statusUpdates[p.id] = 'proxima_a_finalizar';
-        }
-        const hoursLeft = Math.max(1, Math.ceil(diffHours));
-        const dedupKey = `critica_6h_${p.id}`;
-        const alreadyNotified = notifications.some((n) => n.dedupKey === dedupKey);
-        if (!alreadyNotified) {
-          generatedAlerts++;
-          dispatchNotification({
-            userId: p.sellerId,
-            recipientFallbackName: p.sellerName,
-            type: 'publicacion_menos_6h',
-            title: '¡Alerta urgente! Menos de 6 horas para vencer',
-            message: `La publicación "${p.name}" (${p.quantity} ${p.unit}) vence en aproximadamente ${hoursLeft} hora(s). Revisa ofertas pendientes o extiende su vigencia.`,
-            emailSubject: `[Urgente < 6h] Tu publicación "${p.name}" está por vencer`,
-            actionLabel: 'Gestionar publicación ahora',
-            relatedProductId: p.id,
-            dedupKey,
-          });
-        }
-      } else if (diffHours <= 24) {
-        // Between 6h and 24h remaining -> Upcoming expiration alert
-        if (p.status !== 'proxima_a_finalizar') {
-          statusUpdates[p.id] = 'proxima_a_finalizar';
-        }
-        const hoursLeft = Math.round(diffHours);
-        const dedupKey = `proxima_24h_${p.id}`;
-        const alreadyNotified = notifications.some((n) => n.dedupKey === dedupKey);
-        if (!alreadyNotified) {
-          generatedAlerts++;
-          dispatchNotification({
-            userId: p.sellerId,
-            recipientFallbackName: p.sellerName,
-            type: 'publicacion_proxima_finalizar',
-            title: 'Publicación próxima a vencer',
-            message: `El lote "${p.name}" (${p.quantity} ${p.unit}) finaliza en ${hoursLeft} horas (menos de 24 horas restantes).`,
-            emailSubject: `Aviso de vencimiento próximo: "${p.name}"`,
-            actionLabel: 'Ver estado de la publicación',
-            relatedProductId: p.id,
-            dedupKey,
-          });
-        }
-      }
-    });
-
-    if (Object.keys(statusUpdates).length > 0) {
-      setProducts((prev) =>
-        prev.map((p) => (statusUpdates[p.id] ? { ...p, status: statusUpdates[p.id] } : p))
-      );
-    }
-
-    if (manual) {
-      if (generatedAlerts > 0) {
-        showToast(`Se detectaron y enviaron ${generatedAlerts} alerta(s) de vencimiento por correo.`, 'warning');
-      } else {
-        showToast('Verificación completada: todas las publicaciones próximas a vencer ya fueron notificadas.', 'info');
-      }
-    }
-
-    return generatedAlerts;
-  };
-
-  useEffect(() => {
-    checkProductExpirations(false);
-    const interval = setInterval(() => {
-      checkProductExpirations(false);
-    }, 60000);
-    return () => clearInterval(interval);
-  }, [products.length]);
-
-  const simulateCritical6hForProduct = (id: string) => {
-    const target = products.find((p) => p.id === id);
-    if (!target) return;
-
-    const newExpiresAt = new Date(Date.now() + 4 * 3600 * 1000).toISOString();
-    setProducts((prev) =>
-      prev.map((p) =>
-        p.id === id
-          ? {
-              ...p,
-              expiresAt: newExpiresAt,
-              status: 'proxima_a_finalizar' as ProductStatus,
+          .then((res) => (res.ok ? res.json() : null))
+          .then((data) => {
+            if (data && data.status) {
+              setAllNotifications((prev) =>
+                prev.map((n) =>
+                  n.id === notificationId
+                    ? {
+                        ...n,
+                        emailStatus: data.status,
+                        emailHtmlPreview: data.emailEntry?.html,
+                      }
+                    : n
+                )
+              );
             }
-          : p
-      )
-    );
+          })
+          .catch(() => {
+            // Keep local notification intact
+          });
+      }
+    },
+    [userProfile.email, userProfile.organizationName, userProfile.name]
+  );
 
-    dispatchNotification({
-      userId: target.sellerId,
-      recipientFallbackName: target.sellerName,
-      type: 'publicacion_menos_6h',
-      title: '¡Alerta urgente! Menos de 6 horas para vencer',
-      message: `La publicación "${target.name}" (${target.quantity} ${target.unit}) tiene menos de 6 horas restantes (4h). Revisa ofertas o renueva su publicación.`,
-      emailSubject: `[Urgente < 6h] Tu publicación "${target.name}" vence en 4 horas`,
-      actionLabel: 'Gestionar publicación urgente',
-      relatedProductId: target.id,
-      dedupKey: `critica_6h_${target.id}_${Date.now()}`,
+  // Security check in addProduct: only authenticated sellers can publish products
+  const addProduct = (
+    productData: Omit<
+      FoodProduct,
+      'id' | 'publishedAt' | 'expiresAt' | 'status' | 'commissionPaid' | 'offersCount' | 'viewsCount'
+    >
+  ) => {
+    if (!isAuthenticated || !userProfile.id || userProfile.role !== 'seller') {
+      return;
+    }
+
+    const now = new Date();
+    const expires = new Date(now.getTime() + productData.durationDays * 24 * 60 * 60 * 1000);
+    const commission = getCommissionForDuration(productData.durationDays);
+    const newId = `prod-${Date.now()}`;
+
+    const newProduct: FoodProduct = {
+      ...productData,
+      id: newId,
+      sellerId: userProfile.id,
+      sellerName: userProfile.organizationName || userProfile.name,
+      publishedAt: now.toISOString(),
+      expiresAt: expires.toISOString(),
+      status: 'activa',
+      commissionPaid: commission,
+      offersCount: 0,
+      viewsCount: 1,
+    };
+
+    setAllProducts((prev) => [newProduct, ...prev]);
+
+    const newCommission: CommissionRecord = {
+      id: `com-${Date.now()}`,
+      sellerId: userProfile.id,
+      productName: `${newProduct.name} (${newProduct.quantity} ${newProduct.unit})`,
+      durationDays: newProduct.durationDays,
+      commission,
+      date: now.toISOString().split('T')[0],
+      status: 'Activa',
+      paymentMethod: 'PSE Empresarial',
+      transactionRef: `PSE-${Math.floor(100000 + Math.random() * 900000)}`,
+    };
+    setAllCommissions((prev) => [newCommission, ...prev]);
+
+    dispatchNotificationEvent({
+      userId: userProfile.id,
+      type: 'publicacion_activada',
+      title: 'Publicación activada y pago confirmado',
+      message: `Tu publicación "${newProduct.name}" estará visible por ${newProduct.durationDays} día(s). Comisión pagada: ${formatCOP(commission)}.`,
+      relatedProductId: newProduct.id,
+      productName: newProduct.name,
+      recipientEmail: userProfile.email,
+      recipientName: userProfile.organizationName || userProfile.name,
+      actionLabel: 'Ver Mis Publicaciones',
     });
-
-    showToast(`Alerta de < 6 horas generada y correo enviado para "${target.name}"`, 'warning');
   };
 
-  const simulateExpirationForProduct = (id: string) => {
-    const target = products.find((p) => p.id === id);
-    setProducts((prev) =>
+  const updateProductStatus = (productId: string, status: ProductStatus) => {
+    if (!isAuthenticated || !userProfile.id || userProfile.role !== 'seller') {
+      return;
+    }
+    setAllProducts((prev) =>
+      prev.map((p) => (p.id === productId && p.sellerId === userProfile.id ? { ...p, status } : p))
+    );
+  };
+
+  const republishProduct = (productId: string, durationDays: DurationDays) => {
+    if (!isAuthenticated || !userProfile.id || userProfile.role !== 'seller') {
+      return;
+    }
+
+    const now = new Date();
+    const expires = new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000);
+    const commission = getCommissionForDuration(durationDays);
+
+    let targetName = '';
+    setAllProducts((prev) =>
       prev.map((p) => {
-        if (p.id === id) {
+        if (p.id === productId && p.sellerId === userProfile.id) {
+          targetName = `${p.name} (${p.quantity} ${p.unit})`;
           return {
             ...p,
-            expiresAt: new Date(Date.now() - 1000 * 60).toISOString(),
-            status: 'finalizada' as ProductStatus,
+            durationDays,
+            commissionPaid: p.commissionPaid + commission,
+            publishedAt: now.toISOString(),
+            expiresAt: expires.toISOString(),
+            status: 'activa',
           };
         }
         return p;
       })
     );
-    if (target) {
-      dispatchNotification({
-        userId: target.sellerId,
-        recipientFallbackName: target.sellerName,
-        type: 'publicacion_finalizada',
-        title: 'Publicación finalizada por tiempo',
-        message: `El tiempo contratado para "${target.name}" ha concluido. Puedes renovarla desde Mis Publicaciones.`,
-        emailSubject: `Publicación finalizada: "${target.name}"`,
-        actionLabel: 'Renovar publicación',
-        relatedProductId: target.id,
+
+    if (targetName) {
+      const newCommission: CommissionRecord = {
+        id: `com-${Date.now()}`,
+        sellerId: userProfile.id,
+        productName: `${targetName} (Renovación)`,
+        durationDays,
+        commission,
+        date: now.toISOString().split('T')[0],
+        status: 'Renovada',
+        paymentMethod: 'PSE Empresarial',
+        transactionRef: `PSE-${Math.floor(100000 + Math.random() * 900000)}`,
+      };
+      setAllCommissions((prev) => [newCommission, ...prev]);
+
+      dispatchNotificationEvent({
+        userId: userProfile.id,
+        type: 'pago_realizado',
+        title: 'Renovación de publicación exitosa',
+        message: `Has renovado la publicación por ${durationDays} días adicionales (${formatCOP(commission)}).`,
+        relatedProductId: productId,
+        productName: targetName,
+        recipientEmail: userProfile.email,
+        recipientName: userProfile.organizationName || userProfile.name,
+        actionLabel: 'Consultar Publicación Renovada',
       });
     }
-    showToast('Se ha simulado la finalización del tiempo contratado.', 'warning');
   };
 
-  // Offers
   const createOffer = (
-    offerData: Omit<ProductOffer, 'id' | 'createdAt' | 'updatedAt' | 'messages' | 'status'>
+    offerData: Omit<ProductOffer, 'id' | 'status' | 'createdAt' | 'updatedAt' | 'messages'>
   ): ProductOffer => {
-    const id = 'off-' + Date.now().toString(36);
     const nowIso = new Date().toISOString();
-
     const newOffer: ProductOffer = {
       ...offerData,
-      id,
+      id: `off-${Date.now()}`,
+      buyerId: userProfile.id || offerData.buyerId,
+      buyerName: userProfile.name || offerData.buyerName,
+      buyerOrganization: userProfile.organizationName || userProfile.name || offerData.buyerOrganization,
       status: 'pendiente',
-      createdAt: nowIso,
-      updatedAt: nowIso,
+      createdAt: 'Hace un momento',
+      updatedAt: 'Hace un momento',
       messages: [
         {
-          id: 'msg-' + Date.now(),
-          senderId: offerData.buyerId,
-          senderName: `${offerData.buyerName} (${offerData.buyerOrganization})`,
-          senderRole: 'buyer_foundation',
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          text: offerData.message || `Propuesta de adquisición por ${offerData.requestedQuantity} ${offerData.unit} a $${offerData.offeredPricePerUnit.toLocaleString('es-CO')} c/u. Total: $${offerData.totalOfferedPrice.toLocaleString('es-CO')} COP`,
+          id: `msg-${Date.now()}`,
+          senderId: userProfile.id || offerData.buyerId,
+          senderName: `${userProfile.organizationName || userProfile.name} (${userProfile.name})`,
+          senderRole: userProfile.role,
+          timestamp: nowIso.replace('T', ' ').slice(0, 16),
+          text: offerData.message,
           isOfferProposal: true,
           proposedPrice: offerData.offeredPricePerUnit,
           proposedQuantity: offerData.requestedQuantity,
@@ -1054,275 +1608,446 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ],
     };
 
-    setOffers((prev) => [newOffer, ...prev]);
+    if (!isAuthenticated || !userProfile.id) return newOffer;
 
-    // Update product offersCount
-    setProducts((prev) =>
-      prev.map((p) => (p.id === offerData.productId ? { ...p, offersCount: (p.offersCount || 0) + 1 } : p))
+    setAllOffers((prev) => [newOffer, ...prev]);
+    setAllProducts((prev) =>
+      prev.map((p) => (p.id === offerData.productId ? { ...p, offersCount: p.offersCount + 1 } : p))
     );
 
-    // Notify seller in-app + via transactional email
-    dispatchNotification({
+    dispatchNotificationEvent({
       userId: offerData.sellerId,
-      recipientFallbackName: offerData.sellerName,
       type: 'nueva_oferta',
-      title: '¡Nueva oferta recibida!',
-      message: `${offerData.buyerOrganization} ofreció $${offerData.totalOfferedPrice.toLocaleString('es-CO')} COP por ${offerData.requestedQuantity} ${offerData.unit} de "${offerData.productName}".`,
-      emailSubject: `Nueva oferta recibida por "${offerData.productName}"`,
-      actionLabel: 'Revisar y responder oferta',
+      title: `Nueva oferta recibida de ${offerData.buyerOrganization}`,
+      message: `${offerData.buyerOrganization} ha enviado una oferta de ${formatCOP(offerData.totalOfferedPrice)} (${formatCOP(offerData.offeredPricePerUnit)}/${offerData.unit}) por ${offerData.requestedQuantity} ${offerData.unit} de "${offerData.productName}".`,
+      relatedOfferId: newOffer.id,
       relatedProductId: offerData.productId,
-      relatedOfferId: id,
+      productName: offerData.productName,
+      recipientName: offerData.sellerName,
+      actionLabel: 'Revisar y Responder Oferta',
     });
 
-    showToast('¡Oferta enviada al establecimiento y notificada por correo!', 'success');
     return newOffer;
   };
 
-  const respondToOffer = (
+  const updateOfferStatus = (
     offerId: string,
-    action: 'aceptada' | 'rechazada' | 'contraoferta',
+    status: 'aceptada' | 'rechazada' | 'contraoferta',
     counterPrice?: number,
     counterQuantity?: number,
-    messageText?: string
+    counterMessage?: string
   ) => {
-    const targetOffer = offers.find((o) => o.id === offerId);
+    if (!isAuthenticated || !userProfile.id) return;
 
-    setOffers((prev) =>
-      prev.map((off) => {
-        if (off.id === offerId) {
-          const updatedMessages = [...off.messages];
-          const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const targetOffer = allOffers.find((o) => o.id === offerId);
+    const nowStamp = new Date().toISOString().replace('T', ' ').slice(0, 16);
 
-          const senderId = currentUser?.id || 'seller-id';
-          const senderName = currentUser ? `${currentUser.name} (${off.sellerName})` : off.sellerName;
+    setAllOffers((prev) =>
+      prev.map((offer) => {
+        if (offer.id !== offerId) return offer;
 
-          if (action === 'aceptada') {
-            updatedMessages.push({
-              id: 'msg-' + Date.now(),
-              senderId,
-              senderName,
-              senderRole: 'establishment',
-              timestamp: time,
-              text: messageText || '¡Hemos aceptado tu oferta! Tu pedido ha sido reservado para recogida.',
-            });
-          } else if (action === 'rechazada') {
-            updatedMessages.push({
-              id: 'msg-' + Date.now(),
-              senderId,
-              senderName,
-              senderRole: 'establishment',
-              timestamp: time,
-              text: messageText || 'Agradecemos tu interés, pero en este momento no podemos aceptar estos términos de oferta.',
-            });
-          } else if (action === 'contraoferta') {
-            updatedMessages.push({
-              id: 'msg-' + Date.now(),
-              senderId,
-              senderName,
-              senderRole: 'establishment',
-              timestamp: time,
-              text: messageText || `Te proponemos una contraoferta de $${counterPrice?.toLocaleString('es-CO')} por unidad.`,
-              isOfferProposal: true,
-              proposedPrice: counterPrice,
-              proposedQuantity: counterQuantity,
-            });
-          }
-
-          return {
-            ...off,
-            status: action,
-            updatedAt: new Date().toISOString(),
-            messages: updatedMessages,
-            offeredPricePerUnit: counterPrice || off.offeredPricePerUnit,
-            requestedQuantity: counterQuantity || off.requestedQuantity,
-            totalOfferedPrice: (counterPrice || off.offeredPricePerUnit) * (counterQuantity || off.requestedQuantity),
-          };
+        const updatedMessages = [...offer.messages];
+        if (status === 'contraoferta' && counterPrice && counterQuantity) {
+          updatedMessages.push({
+            id: `msg-${Date.now()}`,
+            senderId: userProfile.id,
+            senderName: userProfile.organizationName || userProfile.name,
+            senderRole: userProfile.role,
+            timestamp: nowStamp,
+            text:
+              counterMessage ||
+              `Contraoferta propuesta: ${formatCOP(counterPrice)} por ${offer.unit} (${counterQuantity} ${offer.unit}).`,
+            isOfferProposal: true,
+            proposedPrice: counterPrice,
+            proposedQuantity: counterQuantity,
+          });
+        } else if (status === 'aceptada') {
+          updatedMessages.push({
+            id: `msg-${Date.now()}`,
+            senderId: userProfile.id,
+            senderName: userProfile.organizationName || userProfile.name,
+            senderRole: userProfile.role,
+            timestamp: nowStamp,
+            text: '¡Oferta ACEPTADA! Procedamos a coordinar la entrega y logística de recogida.',
+          });
+        } else if (status === 'rechazada') {
+          updatedMessages.push({
+            id: `msg-${Date.now()}`,
+            senderId: userProfile.id,
+            senderName: userProfile.organizationName || userProfile.name,
+            senderRole: userProfile.role,
+            timestamp: nowStamp,
+            text: 'Oferta rechazada. Gracias por su interés, en esta ocasión no podemos aceptar las condiciones propuestas.',
+          });
         }
-        return off;
+
+        const nextPrice = counterPrice ?? offer.offeredPricePerUnit;
+        const nextQty = counterQuantity ?? offer.requestedQuantity;
+
+        return {
+          ...offer,
+          status,
+          offeredPricePerUnit: nextPrice,
+          requestedQuantity: nextQty,
+          totalOfferedPrice: nextPrice * nextQty,
+          updatedAt: 'Hace un momento',
+          messages: updatedMessages,
+        };
       })
     );
 
     if (targetOffer) {
-      const finalPrice = counterPrice || targetOffer.offeredPricePerUnit;
-      const finalQty = counterQuantity || targetOffer.requestedQuantity;
-      const finalTotal = finalPrice * finalQty;
-
-      if (action === 'aceptada') {
-        dispatchNotification({
-          userId: targetOffer.buyerId,
-          recipientFallbackName: targetOffer.buyerOrganization,
-          type: 'oferta_aceptada',
-          title: '¡Tu oferta ha sido aceptada!',
-          message: `${targetOffer.sellerName} aceptó tu oferta por ${finalQty} ${targetOffer.unit} de "${targetOffer.productName}" (Total: $${finalTotal.toLocaleString('es-CO')} COP). Coordina el retiro en el chat.`,
-          emailSubject: `¡Oferta aceptada! "${targetOffer.productName}" en Publik Solidario`,
-          actionLabel: 'Coordinar retiro en Negociaciones',
-          relatedProductId: targetOffer.productId,
-          relatedOfferId: targetOffer.id,
-        });
-        showToast('¡Oferta aceptada! Se ha notificado por correo al comprador.', 'success');
-      } else if (action === 'contraoferta') {
-        dispatchNotification({
-          userId: targetOffer.buyerId,
-          recipientFallbackName: targetOffer.buyerOrganization,
-          type: 'nueva_contraoferta',
-          title: 'Nueva contraoferta recibida',
-          message: `${targetOffer.sellerName} envió una contraoferta para "${targetOffer.productName}": ${finalQty} ${targetOffer.unit} a $${finalPrice.toLocaleString('es-CO')} c/u (Total: $${finalTotal.toLocaleString('es-CO')} COP).`,
-          emailSubject: `Nueva contraoferta de ${targetOffer.sellerName} por "${targetOffer.productName}"`,
-          actionLabel: 'Responder contraoferta',
-          relatedProductId: targetOffer.productId,
-          relatedOfferId: targetOffer.id,
-        });
-        showToast('Contraoferta enviada y notificada por correo al comprador.', 'info');
-      } else if (action === 'rechazada') {
-        dispatchNotification({
-          userId: targetOffer.buyerId,
-          recipientFallbackName: targetOffer.buyerOrganization,
-          type: 'oferta_rechazada',
-          title: 'Oferta rechazada',
-          message: `${targetOffer.sellerName} no pudo aceptar los términos de la oferta por "${targetOffer.productName}". Puedes explorar otros lotes o presentar una nueva propuesta.`,
-          emailSubject: `Actualización sobre tu oferta por "${targetOffer.productName}"`,
-          actionLabel: 'Ver detalles de la oferta',
-          relatedProductId: targetOffer.productId,
-          relatedOfferId: targetOffer.id,
-        });
-        showToast('Oferta rechazada y notificada al comprador.', 'warning');
+      if (status === 'aceptada') {
+        setAllProducts((prev) =>
+          prev.map((p) => (p.id === targetOffer.productId ? { ...p, status: 'vendida' } : p))
+        );
       }
+
+      const notifType: NotificationType =
+        status === 'aceptada'
+          ? 'oferta_aceptada'
+          : status === 'rechazada'
+          ? 'oferta_rechazada'
+          : 'nueva_contraoferta';
+
+      const finalPrice = counterPrice ?? targetOffer.offeredPricePerUnit;
+      const finalQty = counterQuantity ?? targetOffer.requestedQuantity;
+
+      const notifTitle =
+        status === 'aceptada'
+          ? `¡Oferta aceptada para ${targetOffer.productName}!`
+          : status === 'rechazada'
+          ? `Oferta rechazada en ${targetOffer.productName}`
+          : `Nueva contraoferta recibida en ${targetOffer.productName}`;
+
+      const notifMessage =
+        status === 'aceptada'
+          ? `La oferta por ${finalQty} ${targetOffer.unit} de "${targetOffer.productName}" (${formatCOP(finalPrice * finalQty)}) ha sido ACEPTADA. Ingresa a la negociación para coordinar la entrega.`
+          : status === 'rechazada'
+          ? `La propuesta por "${targetOffer.productName}" ha sido rechazada por la contraparte.`
+          : `Se ha propuesto una contraoferta para "${targetOffer.productName}": ${formatCOP(finalPrice)}/${targetOffer.unit} por ${finalQty} ${targetOffer.unit} (Total: ${formatCOP(finalPrice * finalQty)}).`;
+
+      const recipientUserId =
+        userProfile.id === targetOffer.sellerId ? targetOffer.buyerId : targetOffer.sellerId;
+      const recipientName =
+        userProfile.id === targetOffer.sellerId ? targetOffer.buyerOrganization : targetOffer.sellerName;
+
+      dispatchNotificationEvent({
+        userId: recipientUserId,
+        type: notifType,
+        title: notifTitle,
+        message: notifMessage,
+        relatedOfferId: offerId,
+        relatedProductId: targetOffer.productId,
+        productName: targetOffer.productName,
+        recipientName,
+        actionLabel:
+          status === 'contraoferta'
+            ? 'Revisar Contraoferta en Negociaciones'
+            : 'Ver Detalle de la Operación',
+      });
     }
   };
 
-  const sendMessageToOffer = (offerId: string, text: string) => {
-    if (!text.trim()) return;
-    const senderId = currentUser?.id || 'user-id';
-    const senderName = currentUser ? `${currentUser.name} (${currentUser.organizationName || 'Usuario'})` : 'Usuario';
+  const sendOfferMessage = (
+    offerId: string,
+    text: string,
+    isProposal = false,
+    proposedPrice?: number,
+    proposedQuantity?: number
+  ) => {
+    if (!isAuthenticated || !userProfile.id) return;
 
-    setOffers((prev) =>
-      prev.map((off) => {
-        if (off.id === offerId) {
-          return {
-            ...off,
-            messages: [
-              ...off.messages,
-              {
-                id: 'msg-' + Date.now(),
-                senderId,
-                senderName,
-                senderRole: currentRole === 'establishment' ? 'establishment' : 'buyer_foundation',
-                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                text,
-              },
-            ],
-            updatedAt: new Date().toISOString(),
-          };
+    const nowStamp = new Date().toISOString().replace('T', ' ').slice(0, 16);
+    const targetOffer = allOffers.find((o) => o.id === offerId);
+
+    setAllOffers((prev) =>
+      prev.map((offer) => {
+        if (offer.id !== offerId) return offer;
+
+        const newMessage = {
+          id: `msg-${Date.now()}`,
+          senderId: userProfile.id,
+          senderName: userProfile.organizationName || userProfile.name,
+          senderRole: userProfile.role,
+          timestamp: nowStamp,
+          text,
+          isOfferProposal: isProposal,
+          proposedPrice,
+          proposedQuantity,
+        };
+
+        const nextPrice = proposedPrice ?? offer.offeredPricePerUnit;
+        const nextQty = proposedQuantity ?? offer.requestedQuantity;
+
+        const updatedOffer: ProductOffer = {
+          ...offer,
+          status: isProposal ? 'contraoferta' : offer.status,
+          offeredPricePerUnit: nextPrice,
+          requestedQuantity: nextQty,
+          totalOfferedPrice: nextPrice * nextQty,
+          updatedAt: 'Hace un momento',
+          messages: [...offer.messages, newMessage],
+        };
+
+        if (activeNegotiationOffer?.id === offerId) {
+          setActiveNegotiationOffer(updatedOffer);
         }
-        return off;
+
+        return updatedOffer;
       })
     );
+
+    if (targetOffer && isProposal && proposedPrice && proposedQuantity) {
+      const recipientUserId =
+        userProfile.id === targetOffer.sellerId ? targetOffer.buyerId : targetOffer.sellerId;
+      const recipientName =
+        userProfile.id === targetOffer.sellerId ? targetOffer.buyerOrganization : targetOffer.sellerName;
+
+      dispatchNotificationEvent({
+        userId: recipientUserId,
+        type: 'nueva_contraoferta',
+        title: `Contraoferta en negociación: ${targetOffer.productName}`,
+        message: `${userProfile.organizationName || userProfile.name} envió una contraoferta de ${formatCOP(proposedPrice)}/${targetOffer.unit} por ${proposedQuantity} ${targetOffer.unit} (Total: ${formatCOP(proposedPrice * proposedQuantity)}).`,
+        relatedOfferId: offerId,
+        relatedProductId: targetOffer.productId,
+        productName: targetOffer.productName,
+        recipientName,
+        actionLabel: 'Responder Contraoferta',
+      });
+    }
   };
 
-  // Favorites
-  const toggleFavorite = (productId: string) => {
-    setFavorites((prev) => {
-      const exists = prev.includes(productId);
-      if (exists) {
-        showToast('Producto removido de favoritos', 'info');
-        return prev.filter((id) => id !== productId);
-      } else {
-        showToast('Producto guardado en tus favoritos', 'success');
-        return [...prev, productId];
+  /**
+   * Automatic Expiration Monitor (Checks ONLY the authenticated user's own active publications)
+   */
+  const runExpirationAlertsCheck = useCallback(() => {
+    if (!isAuthenticated || !userProfile.id) return;
+    const nowMs = Date.now();
+
+    allProducts.forEach((prod) => {
+      if (prod.sellerId !== userProfile.id) return;
+      if (prod.status === 'vendida' || prod.status === 'pausada' || prod.status === 'finalizada') {
+        return;
+      }
+
+      const expiresAtMs = new Date(prod.expiresAt).getTime();
+      const productExpDateMs = new Date(`${prod.expirationDate}T23:59:59`).getTime();
+      const effectiveExpMs = Math.min(
+        Number.isNaN(expiresAtMs) ? Infinity : expiresAtMs,
+        Number.isNaN(productExpDateMs) ? Infinity : productExpDateMs
+      );
+
+      if (effectiveExpMs === Infinity) return;
+
+      const hoursRemaining = (effectiveExpMs - nowMs) / (1000 * 60 * 60);
+
+      if (hoursRemaining > 0 && hoursRemaining <= 6) {
+        const dedupKey = `exp-6h-${prod.id}`;
+        dispatchNotificationEvent({
+          userId: prod.sellerId,
+          type: 'publicacion_menos_6h',
+          title: `¡URGENTE! Menos de 6 horas para vencer: ${prod.name}`,
+          message: `La publicación "${prod.name}" (${prod.quantity} ${prod.unit}) vence en ${Math.max(1, Math.round(hoursRemaining))} hora(s). Revisa ofertas pendientes para evitar pérdida del lote.`,
+          relatedProductId: prod.id,
+          productName: prod.name,
+          recipientEmail: userProfile.email,
+          recipientName: prod.sellerName,
+          actionLabel: 'Gestionar Lote Urgente',
+          dedupKey,
+        });
+      } else if (hoursRemaining > 6 && hoursRemaining <= 24) {
+        const dedupKey = `exp-24h-${prod.id}`;
+        dispatchNotificationEvent({
+          userId: prod.sellerId,
+          type: 'publicacion_proxima_finalizar',
+          title: `Publicación próxima a vencer: ${prod.name}`,
+          message: `Tu publicación "${prod.name}" vencerá en aproximadamente ${Math.round(hoursRemaining)} horas.`,
+          relatedProductId: prod.id,
+          productName: prod.name,
+          recipientEmail: userProfile.email,
+          recipientName: prod.sellerName,
+          actionLabel: 'Revisar Publicación',
+          dedupKey,
+        });
       }
     });
-  };
+  }, [allProducts, isAuthenticated, userProfile.id, userProfile.email, dispatchNotificationEvent]);
 
-  const isFavorite = (productId: string) => favorites.includes(productId);
+  useEffect(() => {
+    if (!isAuthenticated || !userProfile.id) return;
+    const timer = setTimeout(() => {
+      runExpirationAlertsCheck();
+    }, 1500);
+    const interval = setInterval(() => {
+      runExpirationAlertsCheck();
+    }, 60000);
+    return () => {
+      clearTimeout(timer);
+      clearInterval(interval);
+    };
+  }, [isAuthenticated, userProfile.id, runExpirationAlertsCheck]);
 
-  // Notifications
-  const markNotificationAsRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-    );
-  };
-
-  const toggleNotificationRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: !n.read } : n))
+  const markNotificationAsRead = (notificationId: string) => {
+    setAllNotifications((prev) =>
+      prev.map((n) => (n.id === notificationId ? { ...n, read: true } : n))
     );
   };
 
   const markAllNotificationsAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-    showToast('Todas las notificaciones marcadas como leídas', 'info');
+    if (!userProfile.id) return;
+    setAllNotifications((prev) =>
+      prev.map((n) => (n.userId === userProfile.id ? { ...n, read: true } : n))
+    );
   };
 
-  const unreadNotificationsCount = useMemo(() => {
-    return notifications.filter((n) => !n.read).length;
-  }, [notifications]);
+  const unreadNotificationsCount = notifications.filter((n) => !n.read).length;
+
+  const currentUser: UserProfile | null = isAuthenticated && userProfile.id ? userProfile : null;
+
+  const selectedProductIdForDetail = selectedProduct ? selectedProduct.id : null;
+  const setSelectedProductIdForDetail = useCallback(
+    (id: string | null) => {
+      if (!id) {
+        setSelectedProduct(null);
+        return;
+      }
+      const found = allProducts.find((p) => p.id === id) || null;
+      setSelectedProduct(found);
+    },
+    [allProducts]
+  );
+
+  const selectedOfferIdForNegotiation = activeNegotiationOffer ? activeNegotiationOffer.id : null;
+  const setSelectedOfferIdForNegotiation = useCallback(
+    (id: string | null) => {
+      if (!id) {
+        setActiveNegotiationOffer(null);
+        return;
+      }
+      const found = allOffers.find((o) => o.id === id) || null;
+      setActiveNegotiationOffer(found);
+    },
+    [allOffers]
+  );
+
+  const simulateExpirationForProduct = (productId: string) => {
+    if (!isAuthenticated || !userProfile.id || userProfile.role !== 'seller') return;
+    const inThreeHours = new Date(Date.now() + 3 * 3600 * 1000).toISOString();
+    setAllProducts((prev) =>
+      prev.map((p) =>
+        p.id === productId && p.sellerId === userProfile.id
+          ? { ...p, expiresAt: inThreeHours, status: 'proxima_a_finalizar' }
+          : p
+      )
+    );
+  };
+
+  const toggle2FA = (enabled?: boolean) => {
+    const nextValue = typeof enabled === 'boolean' ? enabled : !userProfile.twoFactorEnabled;
+    updateUserProfile({ twoFactorEnabled: nextValue });
+  };
+
+  const loadDemoData = () => {
+    // No-op: Demo data is disabled so users always see real states
+  };
 
   return (
     <AppContext.Provider
       value={{
-        currentUser,
-        setCurrentUser,
-        currentRole,
-        switchRole,
-        setRole: switchRole,
-        updateCurrentUser,
+        showLanding,
+        setShowLanding,
         isAuthenticated,
-        logout,
-        login,
-        toggle2FA,
-        redirectTo,
-        setRedirectTo,
+        isAuthReady,
+        currentRole,
+        setCurrentRole,
+        userProfile,
+        currentUser,
+        updateUserProfile,
+        upgradeToSeller,
+        activeTab,
+        setActiveTab,
+        currentView: activeTab,
+        setCurrentView: setActiveTab,
         navigateWithGuard,
+        emailVerificationPending,
+        pendingVerificationEmail,
+        resendVerificationEmail,
+        checkEmailVerificationStatus,
+        clearEmailVerificationPending,
         isAuthModalOpen,
         setIsAuthModalOpen,
-        authModalTab,
-        setAuthModalTab,
+        authModalInitialMode,
+        setAuthModalTab: setAuthModalInitialMode,
         authModalMessage,
         setAuthModalMessage,
-        theme,
-        setTheme,
-        commissionPricing,
-        updateCommissionPricing,
-        resetCommissionPricing,
-        getCommissionForDays,
-        products,
-        addProduct,
-        updateProduct,
-        renewProduct,
-        changeProductStatus,
-        deleteProduct,
-        offers,
-        createOffer,
-        respondToOffer,
-        sendMessageToOffer,
+        openAuthModal,
+        login,
+        registerUser,
+        loginWithSocial,
+        requestPasswordReset,
+        checkEmailExists,
+        evaluatePasswordStrength,
+        toggle2FA,
+        logout,
+        themeMode,
+        setThemeMode,
+        isDarkMode,
+        language,
+        setLanguage,
+        t,
+        globalSearchQuery,
+        setGlobalSearchQuery,
         favorites,
         toggleFavorite,
         isFavorite,
-        notifications,
-        markNotificationAsRead,
-        toggleNotificationRead,
-        markAllNotificationsAsRead,
-        unreadNotificationsCount,
-        checkProductExpirations,
-        simulateCritical6hForProduct,
-        commissionRecords,
-        currentView,
-        setCurrentView: handleSetCurrentView,
-        selectedProductIdForDetail,
-        setSelectedProductIdForDetail: handleSetSelectedProductIdForDetail,
-        selectedOfferIdForNegotiation,
-        setSelectedOfferIdForNegotiation: handleSetSelectedOfferIdForNegotiation,
-        productForRenewal,
-        setProductForRenewal,
-        isPublishModalOpen,
-        setIsPublishModalOpen: handleSetIsPublishModalOpen,
         toasts,
         showToast,
+        addToast: showToast,
         removeToast,
-        simulateExpirationForProduct,
-        globalSearchQuery,
-        setGlobalSearchQuery,
+        products,
+        offers,
+        notifications,
+        commissions,
+        commissionRecords: commissions,
+        commissionPricing,
+        updateCommissionPricing,
+        resetCommissionPricing,
+        unreadNotificationsCount,
         loadDemoData,
+        selectedProduct,
+        setSelectedProduct,
+        selectedProductIdForDetail,
+        setSelectedProductIdForDetail,
+        makingOfferProduct,
+        setMakingOfferProduct,
+        activeNegotiationOffer,
+        setActiveNegotiationOffer,
+        selectedOfferIdForNegotiation,
+        setSelectedOfferIdForNegotiation,
+        deliveryActOffer,
+        setDeliveryActOffer,
+        isPublishModalOpen,
+        setIsPublishModalOpen,
+        addProduct,
+        updateProductStatus,
+        changeProductStatus: updateProductStatus,
+        simulateExpirationForProduct,
+        republishProduct,
+        renewProduct: republishProduct,
+        createOffer,
+        updateOfferStatus,
+        respondToOffer: updateOfferStatus,
+        sendOfferMessage,
+        sendMessageToOffer: sendOfferMessage,
+        markNotificationAsRead,
+        toggleNotificationRead: markNotificationAsRead,
+        markAllNotificationsAsRead,
+        runExpirationAlertsCheck,
+        checkProductExpirations: runExpirationAlertsCheck,
+        getCommissionForDuration,
+        getCommissionForDays: getCommissionForDuration,
+        formatCOP,
       }}
     >
       {children}
@@ -1330,10 +2055,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   );
 };
 
-export const useApp = () => {
+export const useApp = (): AppContextType => {
   const context = useContext(AppContext);
   if (!context) {
-    throw new Error('useApp must be used within an AppProvider');
+    throw new Error('useApp debe usarse dentro de un AppProvider');
   }
   return context;
 };

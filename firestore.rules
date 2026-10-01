@@ -1,0 +1,142 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Reusable Hardened Primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // 3. Entity Validation Blueprint: User (/users/{userId})
+    function isValidUser(data) {
+      return data.keys().hasAll([
+          'uid',
+          'name',
+          'email',
+          'role',
+          'photoURL',
+          'organizationName',
+          'nitOrId',
+          'phone',
+          'city',
+          'verified',
+          'authProvider',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'uid',
+          'name',
+          'email',
+          'role',
+          'photoURL',
+          'organizationName',
+          'nitOrId',
+          'phone',
+          'city',
+          'verified',
+          'authProvider',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.uid is string &&
+        data.uid == request.auth.uid &&
+        data.uid.size() >= 1 &&
+        data.uid.size() <= 128 &&
+        data.uid.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.name is string &&
+        data.name.size() >= 1 &&
+        data.name.size() <= 120 &&
+        data.email is string &&
+        data.email.size() >= 3 &&
+        data.email.size() <= 160 &&
+        data.role is string &&
+        (data.role == 'buyer' || data.role == 'seller') &&
+        data.photoURL is string &&
+        data.photoURL.size() <= 1024 &&
+        data.organizationName is string &&
+        data.organizationName.size() <= 160 &&
+        data.nitOrId is string &&
+        data.nitOrId.size() <= 60 &&
+        data.phone is string &&
+        data.phone.size() <= 40 &&
+        data.city is string &&
+        data.city.size() <= 80 &&
+        data.verified is bool &&
+        data.authProvider is string &&
+        (data.authProvider == 'email' || data.authProvider == 'google') &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    // 4. Collection Rules: /users/{userId}
+    match /users/{userId} {
+      // Strictly isolated PII: Only the authenticated document owner can read their own profile
+      allow get: if isSignedIn() && isValidId(userId) && isOwner(userId);
+      allow list: if false;
+
+      // Creation during registration (email or Google Sign-In)
+      allow create: if isSignedIn() &&
+        isValidId(userId) &&
+        isValidUser(incoming()) &&
+        isOwner(userId) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+
+      // Action-based updates with strict key allowlists and immutable field preservation
+      allow update: if isSignedIn() &&
+        isValidId(userId) &&
+        isValidUser(incoming()) &&
+        isOwner(userId) &&
+        incoming().uid == existing().uid &&
+        incoming().email == existing().email &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().authProvider == existing().authProvider &&
+        incoming().updatedAt == request.time && (
+          // Action 1: Upgrade Role from Buyer to Seller ("Quiero vender productos")
+          (
+            existing().role == 'buyer' &&
+            incoming().role == 'seller' &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['role', 'verified', 'updatedAt'])
+          ) ||
+          // Action 2: Update User Profile Metadata while keeping role unchanged
+          (
+            incoming().role == existing().role &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'name',
+              'photoURL',
+              'organizationName',
+              'nitOrId',
+              'phone',
+              'city',
+              'verified',
+              'updatedAt'
+            ])
+          )
+        );
+
+      allow delete: if false;
+    }
+  }
+}

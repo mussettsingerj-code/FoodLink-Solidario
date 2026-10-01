@@ -1,344 +1,391 @@
 import React from 'react';
-import { useApp } from '../../context/AppContext';
-import { ProductCard } from '../catalog/ProductCard';
-import { ProductDetailModal } from '../catalog/ProductDetailModal';
-import { EmptyState } from '../common/EmptyState';
 import {
-  Plus,
-  ShoppingBag,
-  ArrowRight,
-  Clock,
-  CheckCircle2,
-  MessageSquare,
-  Leaf,
   Package,
-  MapPin,
+  Clock,
+  Inbox,
+  CheckCircle2,
+  PlusCircle,
+  Search,
+  ArrowRight,
+  AlertTriangle,
+  Store,
+  ShoppingBag,
+  Sparkles,
+  CalendarClock,
+  Bell,
 } from 'lucide-react';
+import { useApp } from '../../context/AppContext';
 
 export const DashboardHomeView: React.FC = () => {
   const {
-    currentUser,
-    currentRole,
+    userProfile,
     products,
     offers,
     notifications,
-    setCurrentView,
-    selectedProductIdForDetail,
-    setSelectedProductIdForDetail,
-    setSelectedOfferIdForNegotiation,
-    loadDemoData,
+    setActiveTab,
+    setSelectedProduct,
+    setActiveNegotiationOffer,
+    formatCOP,
   } = useApp();
 
-  const userId = currentUser?.id || '';
-  const isAdmin = currentRole === 'admin';
-  const isEstablishment = currentRole === 'establishment';
+  const isSeller = userProfile.role === 'seller';
 
-  // Métricas principales calculadas en tiempo real
-  const availableProducts = products.filter(
+  // Seller metrics (strictly scoped to the authenticated seller's own products and offers)
+  const myProducts = products.filter((p) => p.sellerId === userProfile.id);
+  const activeProductsCount = myProducts.filter((p) => p.status === 'activa').length;
+  const expiringSoonCount = myProducts.filter((p) => p.status === 'proxima_a_finalizar').length;
+  const receivedPendingOffers = offers.filter(
+    (o) =>
+      o.sellerId === userProfile.id &&
+      (o.status === 'pendiente' || o.status === 'contraoferta')
+  );
+  const completedSalesCount =
+    myProducts.filter((p) => p.status === 'vendida').length +
+    offers.filter((o) => o.sellerId === userProfile.id && o.status === 'aceptada').length;
+
+  // Buyer metrics (strictly real data for the authenticated buyer)
+  const availableCatalogProducts = products.filter(
     (p) => p.status === 'activa' || p.status === 'proxima_a_finalizar'
   );
+  const mySentOffers = offers.filter((o) => o.buyerId === userProfile.id);
+  const acceptedOffersCount = mySentOffers.filter((o) => o.status === 'aceptada').length;
+  const activeNegotiationsCount = mySentOffers.filter(
+    (o) => o.status === 'pendiente' || o.status === 'contraoferta'
+  ).length;
 
-  const myActivePublications = products.filter(
-    (p) =>
-      (p.sellerId === userId || isAdmin || !isEstablishment) &&
-      (p.status === 'activa' || p.status === 'proxima_a_finalizar')
-  );
-
-  const relevantOffers = offers.filter(
-    (o) => o.sellerId === userId || o.buyerId === userId || isAdmin
-  );
-
-  const completedOperations = offers.filter((o) => o.status === 'aceptada');
-
-  const totalKgRecovered =
-    completedOperations.reduce((acc, o) => acc + o.requestedQuantity, 0) +
-    products
-      .filter((p) => p.status === 'vendida')
-      .reduce((acc, p) => acc + p.quantity, 0);
-
-  const estimatedRations = totalKgRecovered * 4;
-  const co2SavedKg = Math.round(totalKgRecovered * 2.5);
-
-  // Productos destacados (máximo 3 para evitar saturar el dashboard)
-  const featuredProducts = availableProducts.slice(0, 3);
-
-  // Actividad reciente combinada (ofertas y notificaciones recientes)
-  const recentOffers = relevantOffers.slice(0, 4);
+  const urgentProducts = availableCatalogProducts.slice(0, 3);
+  const recentOffers = offers.slice(0, 3);
+  const recentNotifications = notifications.slice(0, 4);
 
   return (
-    <div className="space-y-8">
-      {/* 1. Saludo y Acción Principal */}
-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-            <span className="font-semibold text-emerald-700 dark:text-emerald-400">
-              {currentUser?.organizationName || 'Publik Solidario'}
-            </span>
-            <span aria-hidden="true">·</span>
-            <span>{currentUser?.city || 'Colombia'}</span>
-          </div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
-            Hola, {currentUser?.name || 'Usuario Solidario'}
-          </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 max-w-2xl">
-            Resumen general de inventario disponible, ofertas en curso e impacto generado en la plataforma.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-          <button
-            type="button"
-            onClick={() => setCurrentView('organizations')}
-            className="px-3.5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-semibold rounded-lg transition-colors inline-flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
-          >
-            <MapPin className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            <span>Mapa interactivo</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setCurrentView('catalog')}
-            className="px-4 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-semibold rounded-lg transition-colors inline-flex items-center gap-2 whitespace-nowrap cursor-pointer"
-          >
-            <ShoppingBag className="w-4 h-4" />
-            <span>Explorar catálogo</span>
-          </button>
-
-          <button
-            type="button"
-            id="btn-open-publish-from-dashboard"
-            onClick={() => setCurrentView('publish')}
-            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition-colors inline-flex items-center gap-2 whitespace-nowrap cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span>+ Publicar producto</span>
-          </button>
-        </div>
-      </div>
-
-      {/* 2. Indicadores Principales (5 métricas clave, limpias y tabulares) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        <div
-          onClick={() => setCurrentView('catalog')}
-          className="p-4 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-colors cursor-pointer"
-        >
-          <span className="text-xs font-medium text-slate-500 dark:text-slate-400 block">
-            Productos disponibles
-          </span>
-          <span className="text-2xl font-bold text-slate-900 dark:text-slate-100 font-mono tabular-nums mt-1.5 block">
-            {availableProducts.length}
-          </span>
-          <span className="text-xs text-slate-400 dark:text-slate-500 mt-1 block">
-            En catálogo activo
-          </span>
-        </div>
-
-        <div
-          onClick={() => setCurrentView('my_publications')}
-          className="p-4 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-colors cursor-pointer"
-        >
-          <span className="text-xs font-medium text-slate-500 dark:text-slate-400 block">
-            Publicaciones activas
-          </span>
-          <span className="text-2xl font-bold text-emerald-700 dark:text-emerald-400 font-mono tabular-nums mt-1.5 block">
-            {myActivePublications.length}
-          </span>
-          <span className="text-xs text-slate-400 dark:text-slate-500 mt-1 block">
-            Vigentes para rescate
-          </span>
-        </div>
-
-        <div
-          onClick={() => setCurrentView('offers')}
-          className="p-4 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-colors cursor-pointer"
-        >
-          <span className="text-xs font-medium text-slate-500 dark:text-slate-400 block">
-            Ofertas recibidas
-          </span>
-          <span className="text-2xl font-bold text-slate-900 dark:text-slate-100 font-mono tabular-nums mt-1.5 block">
-            {relevantOffers.length}
-          </span>
-          <span className="text-xs text-amber-600 dark:text-amber-400 font-medium mt-1 block">
-            {relevantOffers.filter((o) => o.status === 'pendiente' || o.status === 'contraoferta').length} en gestión
-          </span>
-        </div>
-
-        <div
-          onClick={() => setCurrentView('offers')}
-          className="p-4 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-colors cursor-pointer"
-        >
-          <span className="text-xs font-medium text-slate-500 dark:text-slate-400 block">
-            Operaciones realizadas
-          </span>
-          <span className="text-2xl font-bold text-slate-900 dark:text-slate-100 font-mono tabular-nums mt-1.5 block">
-            {completedOperations.length}
-          </span>
-          <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-1 block">
-            Acuerdos concretados
-          </span>
-        </div>
-
-        <div
-          onClick={() => setCurrentView('statistics')}
-          className="p-4 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-colors cursor-pointer col-span-2 sm:col-span-1"
-        >
-          <span className="text-xs font-medium text-slate-500 dark:text-slate-400 block">
-            Impacto generado
-          </span>
-          <span className="text-2xl font-bold text-emerald-700 dark:text-emerald-400 font-mono tabular-nums mt-1.5 block">
-            {totalKgRecovered.toLocaleString('es-CO')} kg
-          </span>
-          <span className="text-xs text-slate-400 dark:text-slate-500 mt-1 block">
-            Alimento recuperado
-          </span>
-        </div>
-      </div>
-
-      {/* 3. Contenido Principal: Productos Destacados (Izquierda) + Impacto y Actividad (Derecha) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Columna Izquierda: Productos Destacados (8 columnas) */}
-        <div className="lg:col-span-8 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">
-                Productos destacados
-              </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Lotes prioritarios disponibles para oferta inmediata
-              </p>
+    <div className="max-w-7xl mx-auto px-4 sm:px-8 py-6 sm:py-8 space-y-8">
+      {/* Welcome Hero Banner */}
+      <div className="relative rounded-3xl bg-gradient-to-br from-[#0F291E] via-[#1B4332] to-emerald-900 text-white p-6 sm:p-8 overflow-hidden shadow-lg">
+        <div className="absolute -right-12 -top-12 w-72 h-72 rounded-full bg-emerald-400/10 blur-2xl pointer-events-none" />
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-xs font-semibold mb-3">
+              {isSeller ? (
+                <>
+                  <Store className="w-3.5 h-3.5" />
+                  <span>Panel de Gestión de Vendedor</span>
+                </>
+              ) : (
+                <>
+                  <ShoppingBag className="w-3.5 h-3.5" />
+                  <span>Panel de Adquisición y Compras</span>
+                </>
+              )}
             </div>
-            <button
-              type="button"
-              onClick={() => setCurrentView('catalog')}
-              className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
-            >
-              <span>Ver todos ({availableProducts.length})</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          {featuredProducts.length === 0 ? (
-            <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6">
-              <EmptyState
-                icon={Package}
-                title="No tienes publicaciones todavía."
-                description="Comienza publicando un lote de alimentos disponibles o carga datos de demostración para visualizar productos destacados."
-                actionLabel="+ Publicar producto"
-                onAction={() => setCurrentView('publish')}
-                secondaryLabel="Cargar lotes de ejemplo"
-                onSecondaryAction={loadDemoData}
-              />
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-              {featuredProducts.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  onSelect={(p) => setSelectedProductIdForDetail(p.id)}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Columna Derecha: Resumen de Impacto + Actividad Reciente (4 columnas) */}
-        <div className="lg:col-span-4 space-y-6">
-          {/* Resumen de Impacto */}
-          <div className="bg-slate-900 text-white rounded-xl p-5 border border-slate-800 space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-emerald-400 flex items-center gap-1.5">
-                <Leaf className="w-4 h-4" />
-                <span>Resumen de impacto</span>
-              </span>
-              <button
-                type="button"
-                onClick={() => setCurrentView('statistics')}
-                className="text-xs text-slate-300 hover:text-white underline underline-offset-4 cursor-pointer"
-              >
-                Ver analítica
-              </button>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 pt-1 border-t border-slate-800">
-              <div>
-                <span className="text-xs text-slate-400 block">Raciones servidas</span>
-                <span className="text-xl font-bold font-mono tabular-nums text-white mt-0.5 block">
-                  {estimatedRations.toLocaleString('es-CO')}
-                </span>
-              </div>
-              <div>
-                <span className="text-xs text-slate-400 block">Emisiones evitadas</span>
-                <span className="text-xl font-bold font-mono tabular-nums text-emerald-400 mt-0.5 block">
-                  {co2SavedKg.toLocaleString('es-CO')} kg CO₂
-                </span>
-              </div>
-            </div>
-
-            <p className="text-xs text-slate-300 leading-relaxed">
-              Cada operación completada evita pérdidas en supermercados y fortalece la seguridad alimentaria de fundaciones aliadas.
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight mb-2">
+              Hola, {userProfile.organizationName || userProfile.name}
+            </h2>
+            <p className="text-emerald-100/85 text-sm sm:text-base leading-relaxed">
+              {isSeller
+                ? 'Publica tus excedentes o productos próximos a vencer con tarifas transparentes por tiempo de exposición y conecta directamente con compradores e instituciones.'
+                : 'Explora lotes de alimentos verificados con descuentos significativos, propón ofertas o contraofertas directas y coordina entregas seguras.'}
             </p>
           </div>
 
-          {/* Actividad Reciente */}
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                Actividad reciente
-              </h3>
+          <div className="flex flex-wrap items-center gap-3 shrink-0">
+            {isSeller ? (
+              <>
+                <button
+                  onClick={() => setActiveTab('publish')}
+                  className="flex items-center gap-2 bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-bold px-5 py-3 rounded-xl text-sm shadow-lg shadow-emerald-950/30 transition-all cursor-pointer"
+                >
+                  <PlusCircle className="w-4 h-4 stroke-[2.5]" />
+                  <span>Publicar Nuevo Alimento</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('my-publications')}
+                  className="flex items-center gap-2 bg-white/10 hover:bg-white/15 text-white border border-white/15 font-semibold px-4 py-3 rounded-xl text-sm transition-all cursor-pointer"
+                >
+                  <Package className="w-4 h-4" />
+                  <span>Ver Mis Lotes</span>
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => setActiveTab('explore')}
+                  className="flex items-center gap-2 bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-bold px-5 py-3 rounded-xl text-sm shadow-lg shadow-emerald-950/30 transition-all cursor-pointer"
+                >
+                  <Search className="w-4 h-4 stroke-[2.5]" />
+                  <span>Explorar Catálogo Disponible</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('negotiations')}
+                  className="flex items-center gap-2 bg-white/10 hover:bg-white/15 text-white border border-white/15 font-semibold px-4 py-3 rounded-xl text-sm transition-all cursor-pointer"
+                >
+                  <Inbox className="w-4 h-4" />
+                  <span>Mis Negociaciones</span>
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* KPI Summary Cards (Strictly separated by role, showing real counts starting at 0) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {isSeller ? (
+          <>
+            <div
+              onClick={() => setActiveTab('my-publications')}
+              className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs hover:border-emerald-300 transition-all cursor-pointer group"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                  Publicaciones Activas
+                </span>
+                <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <Package className="w-5 h-5" />
+                </div>
+              </div>
+              <p className="text-3xl font-extrabold text-slate-900 dark:text-white">
+                {activeProductsCount}
+              </p>
+              <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium mt-1">
+                Lotes publicados por tu cuenta
+              </p>
+            </div>
+
+            <div
+              onClick={() => setActiveTab('my-publications')}
+              className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs hover:border-amber-300 transition-all cursor-pointer group"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                  Próximas a Vencer
+                </span>
+                <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <Clock className="w-5 h-5" />
+                </div>
+              </div>
+              <p className="text-3xl font-extrabold text-slate-900 dark:text-white">
+                {expiringSoonCount}
+              </p>
+              <p className="text-xs text-amber-700 dark:text-amber-400 font-medium mt-1">
+                Menos de 24h de exposición
+              </p>
+            </div>
+
+            <div
+              onClick={() => setActiveTab('offers')}
+              className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs hover:border-blue-300 transition-all cursor-pointer group"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                  Ofertas Pendientes
+                </span>
+                <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <Inbox className="w-5 h-5" />
+                </div>
+              </div>
+              <p className="text-3xl font-extrabold text-slate-900 dark:text-white">
+                {receivedPendingOffers.length}
+              </p>
+              <p className="text-xs text-blue-700 dark:text-blue-400 font-medium mt-1">
+                Esperando tu respuesta
+              </p>
+            </div>
+
+            <div
+              onClick={() => setActiveTab('statistics')}
+              className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs hover:border-emerald-300 transition-all cursor-pointer group"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                  Entregas Acordadas
+                </span>
+                <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+              </div>
+              <p className="text-3xl font-extrabold text-slate-900 dark:text-white">
+                {completedSalesCount}
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1">
+                Lotes rescatados con éxito
+              </p>
+            </div>
+          </>
+        ) : (
+          <>
+            <div
+              onClick={() => setActiveTab('explore')}
+              className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs hover:border-emerald-300 transition-all cursor-pointer group"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                  Lotes Disponibles Hoy
+                </span>
+                <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 flex items-center justify-center">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+              </div>
+              <p className="text-3xl font-extrabold text-slate-900 dark:text-white">
+                {availableCatalogProducts.length}
+              </p>
+              <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium mt-1">
+                Disponibles en catálogo
+              </p>
+            </div>
+
+            <div
+              onClick={() => setActiveTab('offers')}
+              className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs hover:border-blue-300 transition-all cursor-pointer group"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                  Mis Ofertas Enviadas
+                </span>
+                <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                  <Inbox className="w-5 h-5" />
+                </div>
+              </div>
+              <p className="text-3xl font-extrabold text-slate-900 dark:text-white">
+                {mySentOffers.length}
+              </p>
+              <p className="text-xs text-blue-700 dark:text-blue-400 font-medium mt-1">
+                Propuestas realizadas por ti
+              </p>
+            </div>
+
+            <div
+              onClick={() => setActiveTab('negotiations')}
+              className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs hover:border-amber-300 transition-all cursor-pointer group"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                  En Negociación
+                </span>
+                <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                  <CalendarClock className="w-5 h-5" />
+                </div>
+              </div>
+              <p className="text-3xl font-extrabold text-slate-900 dark:text-white">
+                {activeNegotiationsCount}
+              </p>
+              <p className="text-xs text-amber-700 dark:text-amber-400 font-medium mt-1">
+                Conversaciones activas
+              </p>
+            </div>
+
+            <div
+              onClick={() => setActiveTab('negotiations')}
+              className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs hover:border-emerald-300 transition-all cursor-pointer group"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                  Adquisiciones Aprobadas
+                </span>
+                <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 flex items-center justify-center">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+              </div>
+              <p className="text-3xl font-extrabold text-slate-900 dark:text-white">
+                {acceptedOffersCount}
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1">
+                Listas para recogida
+              </p>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Main Two-Column Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left 2 Columns: Active Offers & Negotiations */}
+        <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-xs flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h3 className="font-bold text-slate-900 dark:text-white text-base">
+                  {isSeller
+                    ? 'Ofertas y Negociaciones Recientes'
+                    : 'Estado de Mis Ofertas y Negociaciones'}
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Acuerdos directos de precio, volumen y método de recogida
+                </p>
+              </div>
               <button
-                type="button"
-                onClick={() => setCurrentView('notifications')}
-                className="text-xs font-semibold text-slate-500 hover:text-slate-900 dark:hover:text-white cursor-pointer"
+                onClick={() => setActiveTab('offers')}
+                className="text-xs font-bold text-emerald-800 dark:text-emerald-400 hover:text-emerald-600 flex items-center gap-1 cursor-pointer"
               >
-                Ver todo
+                Ver todas <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
 
-            {recentOffers.length === 0 && notifications.length === 0 ? (
-              <p className="text-xs text-slate-500 dark:text-slate-400 py-4 text-center">
-                Aún no hay actividad reciente registrada.
-              </p>
+            {recentOffers.length === 0 ? (
+              <div className="text-center py-12 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 px-4">
+                <Inbox className="w-9 h-9 text-slate-300 dark:text-slate-600 mx-auto mb-2.5" />
+                <p className="text-sm font-bold text-slate-700 dark:text-slate-300">
+                  Aún no tienes ofertas ni negociaciones registradas
+                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto">
+                  {isSeller
+                    ? 'Cuando publiques un lote y un comprador realice una propuesta, aparecerá aquí.'
+                    : 'Explora el catálogo de alimentos disponibles para enviar tu primera oferta.'}
+                </p>
+              </div>
             ) : (
-              <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                {recentOffers.map((off) => (
+              <div className="space-y-3">
+                {recentOffers.map((offer) => (
                   <div
-                    key={off.id}
-                    onClick={() => {
-                      setSelectedOfferIdForNegotiation(off.id);
-                      setCurrentView('negotiations');
-                    }}
-                    className="py-3 first:pt-0 last:pb-0 flex items-start justify-between gap-3 cursor-pointer group"
+                    key={offer.id}
+                    onClick={() => setActiveNegotiationOffer(offer)}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl border border-slate-200/70 dark:border-slate-800 hover:border-emerald-300 hover:bg-emerald-50/20 transition-all cursor-pointer"
                   >
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate group-hover:text-emerald-600 transition-colors">
-                        {off.productName}
-                      </p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
-                        {off.buyerOrganization} · {off.requestedQuantity} {off.unit}
-                      </p>
+                    <div className="flex items-center gap-3.5">
+                      <img
+                        src={offer.productImageUrl}
+                        alt={offer.productName}
+                        className="w-12 h-12 rounded-xl object-cover shrink-0 border border-slate-200"
+                      />
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-bold text-slate-900 dark:text-white text-sm">
+                            {offer.productName}
+                          </h4>
+                          <span
+                            className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                              offer.status === 'pendiente'
+                                ? 'bg-amber-100 text-amber-800'
+                                : offer.status === 'aceptada'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : offer.status === 'contraoferta'
+                                ? 'bg-blue-100 text-blue-800'
+                                : 'bg-red-100 text-red-800'
+                            }`}
+                          >
+                            {offer.status}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          {isSeller
+                            ? `Comprador: ${offer.buyerOrganization}`
+                            : `Vendedor: ${offer.sellerName}`}{' '}
+                          •{' '}
+                          <span className="font-semibold text-slate-700 dark:text-slate-300">
+                            {offer.requestedQuantity} {offer.unit}
+                          </span>
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-right shrink-0">
-                      <span className="text-xs font-mono tabular-nums font-semibold text-slate-900 dark:text-slate-100 block">
-                        ${off.totalOfferedPrice.toLocaleString('es-CO')}
-                      </span>
-                      <span className="text-[11px] text-slate-400 inline-flex items-center gap-1">
-                        {off.status === 'aceptada' ? (
-                          <>
-                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                            <span>Aceptada</span>
-                          </>
-                        ) : off.status === 'contraoferta' ? (
-                          <>
-                            <MessageSquare className="w-3 h-3 text-amber-600" />
-                            <span>En negociación</span>
-                          </>
-                        ) : (
-                          <>
-                            <Clock className="w-3 h-3 text-slate-400" />
-                            <span>Pendiente</span>
-                          </>
-                        )}
+
+                    <div className="flex items-center justify-between sm:justify-end gap-4 border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100">
+                      <div className="text-left sm:text-right">
+                        <p className="text-xs text-slate-400">Valor Propuesto</p>
+                        <p className="text-sm font-extrabold text-emerald-800 dark:text-emerald-400">
+                          {formatCOP(offer.totalOfferedPrice)}
+                        </p>
+                      </div>
+                      <span className="text-xs font-bold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/60 dark:text-emerald-300 px-3 py-1.5 rounded-lg">
+                        Abrir Chat
                       </span>
                     </div>
                   </div>
@@ -347,13 +394,133 @@ export const DashboardHomeView: React.FC = () => {
             )}
           </div>
         </div>
+
+        {/* Right Column: Real Activity & Notifications */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-xs flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="font-bold text-slate-900 dark:text-white text-base">
+                Notificaciones Recientes
+              </h3>
+              <button
+                onClick={() => setActiveTab('notifications')}
+                className="text-xs font-bold text-emerald-800 dark:text-emerald-400 hover:text-emerald-600 cursor-pointer"
+              >
+                Ver todas
+              </button>
+            </div>
+
+            {recentNotifications.length === 0 ? (
+              <div className="text-center py-12 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 px-4">
+                <Bell className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
+                <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Sin notificaciones nuevas
+                </p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                  Aquí recibirás alertas sobre tus ofertas, contraofertas y vencimientos.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {recentNotifications.map((notif) => (
+                  <div
+                    key={notif.id}
+                    onClick={() => setActiveTab('notifications')}
+                    className={`p-3.5 rounded-xl border transition-colors cursor-pointer ${
+                      notif.read
+                        ? 'bg-slate-50/70 dark:bg-slate-800/40 border-slate-200/60 dark:border-slate-800'
+                        : 'bg-amber-50/50 dark:bg-amber-950/30 border-amber-200/80 dark:border-amber-800/60'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <span className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1">
+                        {notif.title}
+                      </span>
+                      {!notif.read && (
+                        <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 leading-relaxed">
+                      {notif.message}
+                    </p>
+                    <span className="text-[10px] text-slate-400 mt-1.5 block font-medium">
+                      {notif.timestamp}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* Modal de Detalle de Producto */}
-      <ProductDetailModal
-        productId={selectedProductIdForDetail}
-        onClose={() => setSelectedProductIdForDetail(null)}
-      />
+      {/* Priority Rescue Section */}
+      {urgentProducts.length > 0 && (
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-5">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-amber-500" />
+              <div>
+                <h3 className="font-bold text-slate-900 dark:text-white text-base">
+                  Lotes Prioritarios Disponibles
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Alimentos publicados recientemente en la plataforma
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setActiveTab('explore')}
+              className="text-xs font-bold text-emerald-800 dark:text-emerald-400 hover:text-emerald-600 flex items-center gap-1 cursor-pointer"
+            >
+              Ir al explorador completo <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {urgentProducts.map((product) => {
+              const discount = Math.round(
+                ((product.originalPrice - product.requestedPrice) / product.originalPrice) * 100
+              );
+              return (
+                <div
+                  key={product.id}
+                  onClick={() => setSelectedProduct(product)}
+                  className="group rounded-2xl border border-slate-200/80 dark:border-slate-800 p-3.5 hover:border-emerald-400 hover:shadow-md transition-all cursor-pointer flex gap-3.5 items-center"
+                >
+                  <img
+                    src={product.imageUrl}
+                    alt={product.name}
+                    className="w-20 h-20 rounded-xl object-cover shrink-0"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                        -{discount}% DTO
+                      </span>
+                      <span className="text-[10px] text-slate-400 truncate">
+                        {product.locationCity}
+                      </span>
+                    </div>
+                    <h4 className="font-bold text-slate-900 dark:text-white text-sm truncate group-hover:text-emerald-800">
+                      {product.name}
+                    </h4>
+                    <p className="text-xs text-slate-500">
+                      {product.quantity} {product.unit} • {product.condition}
+                    </p>
+                    <p className="text-sm font-extrabold text-emerald-800 dark:text-emerald-400 mt-1">
+                      {formatCOP(product.requestedPrice)}{' '}
+                      <span className="text-[10px] font-normal text-slate-400">
+                        / {product.unit}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

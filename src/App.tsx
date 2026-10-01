@@ -1,153 +1,135 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { I18nProvider } from './i18n/I18nContext';
-import { Header } from './components/common/Header';
+import { LandingPage } from './components/landing/LandingPage';
 import { Sidebar } from './components/common/Sidebar';
+import { Header } from './components/common/Header';
 import { Footer } from './components/common/Footer';
 import { ToastContainer } from './components/common/ToastContainer';
-import { LandingPage } from './components/landing/LandingPage';
-import { FoodCatalog } from './components/catalog/FoodCatalog';
-import { LoginView } from './components/auth/LoginView';
-import { PublishFoodModal } from './components/publishing/PublishFoodModal';
-import { NegotiationChatModal } from './components/negotiation/NegotiationChatModal';
-import { AuthModal } from './components/auth/AuthModal';
-
-// Módulos de la nueva arquitectura SaaS de Publik Solidario
 import { DashboardHomeView } from './components/modules/DashboardHomeView';
+import { FoodCatalog } from './components/catalog/FoodCatalog';
 import { PublishProductView } from './components/modules/PublishProductView';
 import { MyPublicationsView } from './components/modules/MyPublicationsView';
 import { OffersView } from './components/modules/OffersView';
 import { NegotiationsView } from './components/modules/NegotiationsView';
-import { StatisticsView } from './components/modules/StatisticsView';
-import { OrganizationsView } from './components/modules/OrganizationsView';
 import { NotificationsView } from './components/modules/NotificationsView';
+import { StatisticsView } from './components/modules/StatisticsView';
 import { ProfileSettingsView } from './components/modules/ProfileSettingsView';
+import { OrganizationsView } from './components/modules/OrganizationsView';
+import { ProductDetailModal } from './components/catalog/ProductDetailModal';
+import { MakeOfferModal } from './components/catalog/MakeOfferModal';
+import { PublishFoodModal } from './components/publishing/PublishFoodModal';
+import { NegotiationChatModal } from './components/negotiation/NegotiationChatModal';
+import { AuthModal } from './components/auth/AuthModal';
+import { LoginView } from './components/auth/LoginView';
 
 const MainLayout: React.FC = () => {
   const {
-    currentView,
+    showLanding,
     isAuthenticated,
-    isPublishModalOpen,
-    setIsPublishModalOpen,
+    isAuthReady,
+    activeTab,
+    userProfile,
     selectedOfferIdForNegotiation,
     setSelectedOfferIdForNegotiation,
-    isAuthModalOpen,
-    setIsAuthModalOpen,
-    setAuthModalTab,
   } = useApp();
-
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const [gmpQuotaExceeded, setGmpQuotaExceeded] = useState(false);
 
-  useEffect(() => {
-    const handleQuotaExceeded = () => setGmpQuotaExceeded(true);
-    window.addEventListener('gmp-quota-exceeded', handleQuotaExceeded);
-    return () => window.removeEventListener('gmp-quota-exceeded', handleQuotaExceeded);
-  }, []);
+  if (!isAuthReady) {
+    return (
+      <div className="min-h-screen bg-[#FAF8F5] dark:bg-slate-950 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
+            Verificando sesión...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
-  const isSaaSWorkspace = isAuthenticated && currentView !== 'landing';
+  if (showLanding && !isAuthenticated) {
+    return (
+      <>
+        <LandingPage />
+        <AuthModal />
+        <ToastContainer />
+      </>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <>
+        <LoginView />
+        <AuthModal />
+        <ToastContainer />
+      </>
+    );
+  }
+
+  const isSeller = userProfile.role === 'seller';
+
+  const renderModule = () => {
+    switch (activeTab) {
+      case 'home':
+      case 'dashboard':
+        return <DashboardHomeView />;
+      case 'explore':
+      case 'catalog':
+        return <FoodCatalog />;
+      case 'map':
+      case 'organizations':
+        return <OrganizationsView />;
+      case 'publish':
+        return isSeller ? <PublishProductView /> : <DashboardHomeView />;
+      case 'my-publications':
+        return isSeller ? <MyPublicationsView /> : <DashboardHomeView />;
+      case 'offers':
+        return <OffersView />;
+      case 'negotiations':
+        return <NegotiationsView />;
+      case 'notifications':
+        return <NotificationsView />;
+      case 'statistics':
+        return isSeller ? <StatisticsView /> : <DashboardHomeView />;
+      case 'profile':
+        return <ProfileSettingsView />;
+      default:
+        return <DashboardHomeView />;
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col font-sans selection:bg-emerald-600 selection:text-white transition-colors duration-200">
-      {gmpQuotaExceeded && (
-        <div className="bg-amber-50 border-b border-amber-200 text-amber-900 px-4 py-2.5 text-xs md:text-sm text-center sticky top-0 z-50 shadow-sm">
-          <span>
-            Google Maps Platform quota reached. If you are the app owner, visit{' '}
-            <a
-              href="https://developers.google.com/maps/ai/ai-studio?utm_campaign=gmp_mcp_codeassist_v1_aistudio#quota_exceeded_errors"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline font-semibold text-amber-950 hover:text-amber-800"
-            >
-              maps developer site
-            </a>{' '}
-            for instructions to update your account.
-          </span>
-        </div>
-      )}
-      {isSaaSWorkspace ? (
-        <div className="flex flex-1 min-h-screen">
-          {/* Navegación Lateral en Escritorio + Drawer y Barra en Móvil */}
-          <Sidebar
-            isMobileOpen={isMobileSidebarOpen}
-            onCloseMobile={() => setIsMobileSidebarOpen(false)}
-          />
-
-          {/* Columna Derecha de Área de Trabajo */}
-          <div className="flex-1 flex flex-col min-w-0">
-            <Header
-              onOpenAuth={() => {
-                setAuthModalTab('login');
-                setIsAuthModalOpen(true);
-              }}
-              onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
-            />
-
-            <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-20 lg:pb-12">
-              {(currentView === 'dashboard' || currentView === 'login') && <DashboardHomeView />}
-              {currentView === 'catalog' && <FoodCatalog />}
-              {currentView === 'publish' && <PublishProductView />}
-              {currentView === 'my_publications' && <MyPublicationsView />}
-              {currentView === 'offers' && <OffersView />}
-              {currentView === 'negotiations' && <NegotiationsView />}
-              {currentView === 'statistics' && <StatisticsView />}
-              {currentView === 'organizations' && <OrganizationsView />}
-              {currentView === 'notifications' && <NotificationsView />}
-              {currentView === 'profile' && <ProfileSettingsView />}
-            </main>
-          </div>
-        </div>
-      ) : (
-        <>
-          <Header
-            onOpenAuth={() => {
-              setAuthModalTab('login');
-              setIsAuthModalOpen(true);
-            }}
-          />
-
-          <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-16">
-            {currentView === 'landing' && <LandingPage />}
-            {currentView === 'catalog' && <FoodCatalog />}
-            {currentView === 'organizations' && <OrganizationsView />}
-            {currentView !== 'landing' &&
-              currentView !== 'catalog' &&
-              currentView !== 'organizations' && <LoginView />}
-          </main>
-
-          <Footer />
-        </>
-      )}
-
-      {/* Modal rápido de publicación (cuando se invoca por estado de modal) */}
-      {isAuthenticated && (
-        <PublishFoodModal
-          isOpen={isPublishModalOpen}
-          onClose={() => setIsPublishModalOpen(false)}
-        />
-      )}
-
-      {/* Modal flotante de chat de negociación (cuando no se está en la vista dedicada de negociaciones) */}
-      {isAuthenticated && currentView !== 'negotiations' && (
-        <NegotiationChatModal
-          offerId={selectedOfferIdForNegotiation}
-          onClose={() => setSelectedOfferIdForNegotiation(null)}
-        />
-      )}
-
-      {/* Modal de autenticación y recuperación */}
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
+    <div className="min-h-screen bg-[#FAF8F5] dark:bg-slate-950 flex text-slate-900 dark:text-slate-100 font-sans selection:bg-emerald-600 selection:text-white transition-colors duration-200">
+      <Sidebar
+        isMobileOpen={isMobileSidebarOpen}
+        onCloseMobile={() => setIsMobileSidebarOpen(false)}
       />
 
-      {/* Notificaciones flotantes Toast */}
+      <div className="flex-1 flex flex-col min-w-0">
+        <Header onOpenMobileMenu={() => setIsMobileSidebarOpen(true)} />
+
+        <main className="flex-1">{renderModule()}</main>
+
+        <Footer />
+      </div>
+
+      {/* Modals */}
+      <ProductDetailModal />
+      <MakeOfferModal />
+      {isSeller && <PublishFoodModal />}
+      <NegotiationChatModal
+        offerId={selectedOfferIdForNegotiation}
+        onClose={() => setSelectedOfferIdForNegotiation(null)}
+      />
+      <AuthModal />
       <ToastContainer />
     </div>
   );
 };
 
-export default function App() {
+export function App() {
   return (
     <I18nProvider>
       <AppProvider>
@@ -156,3 +138,5 @@ export default function App() {
     </I18nProvider>
   );
 }
+
+export default App;

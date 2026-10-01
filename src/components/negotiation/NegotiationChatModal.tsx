@@ -35,7 +35,7 @@ export const NegotiationChatModal: React.FC<NegotiationChatModalProps> = ({ offe
 
   if (!offerId || !offer) return null;
 
-  const isSeller = currentRole === 'establishment' || (currentUser ? currentUser.id === offer.sellerId : false);
+  const isSeller = currentRole === 'seller' || (currentUser ? currentUser.id === offer.sellerId : false);
   const locale = language === 'en' ? 'en-US' : 'es-CO';
 
   const handleSendMessage = (e: React.FormEvent) => {

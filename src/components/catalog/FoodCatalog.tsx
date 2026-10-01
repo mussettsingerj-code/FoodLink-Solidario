@@ -28,8 +28,10 @@ export const FoodCatalog: React.FC = () => {
     setCurrentView,
     globalSearchQuery,
     setGlobalSearchQuery,
-    loadDemoData,
+    userProfile,
   } = useApp();
+
+  const isSeller = isAuthenticated && userProfile.role === 'seller';
 
   // Loading skeleton state
   const [isLoading, setIsLoading] = useState(true);
@@ -158,14 +160,16 @@ export const FoodCatalog: React.FC = () => {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setCurrentView('publish')}
-          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition-colors inline-flex items-center gap-2 whitespace-nowrap self-start sm:self-auto cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Publicar producto</span>
-        </button>
+        {isSeller && (
+          <button
+            type="button"
+            onClick={() => setCurrentView('publish')}
+            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition-colors inline-flex items-center gap-2 whitespace-nowrap self-start sm:self-auto cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Publicar producto</span>
+          </button>
+        )}
       </div>
 
       {/* Barra de Búsqueda y Filtros */}
@@ -351,12 +355,12 @@ export const FoodCatalog: React.FC = () => {
             description={
               hasActiveFilters
                 ? 'Prueba ajustando los criterios de búsqueda, ciudad o estado del producto para ver más lotes disponibles.'
-                : 'Publica un nuevo lote de alimentos excedentes o carga los datos de demostración para explorar el catálogo.'
+                : isSeller
+                ? 'Publica tu primer lote de alimentos excedentes para conectarlo con compradores y organizaciones.'
+                : 'Aún no hay lotes de alimentos publicados en la plataforma. Vuelve pronto para explorar nuevas publicaciones.'
             }
-            actionLabel={hasActiveFilters ? 'Limpiar filtros' : '+ Publicar producto'}
-            onAction={hasActiveFilters ? resetFilters : () => setCurrentView('publish')}
-            secondaryLabel={products.length === 0 ? 'Cargar lotes de ejemplo' : undefined}
-            onSecondaryAction={products.length === 0 ? loadDemoData : undefined}
+            actionLabel={hasActiveFilters ? 'Limpiar filtros' : isSeller ? '+ Publicar producto' : undefined}
+            onAction={hasActiveFilters ? resetFilters : isSeller ? () => setCurrentView('publish') : undefined}
           />
         </div>
       ) : (

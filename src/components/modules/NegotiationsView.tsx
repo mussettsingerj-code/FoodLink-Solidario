@@ -104,8 +104,6 @@ export const NegotiationsView: React.FC = () => {
             description="Cuando realices o recibas una oferta por un producto, podrás conversar y acordar los términos de entrega aquí."
             actionLabel="Explorar productos"
             onAction={() => setCurrentView('catalog')}
-            secondaryLabel="Cargar negociaciones de ejemplo"
-            onSecondaryAction={loadDemoData}
           />
         </div>
       </div>
@@ -398,7 +396,7 @@ export const NegotiationsView: React.FC = () => {
                 const isOwn =
                   currentUser &&
                   (msg.senderId === currentUser.id ||
-                    (currentUser.role === 'establishment' && msg.senderRole === 'establishment'));
+                    (currentUser.role === 'seller' && msg.senderRole === 'seller'));
 
                 return (
                   <div

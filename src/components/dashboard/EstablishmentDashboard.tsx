@@ -44,7 +44,7 @@ export const EstablishmentDashboard: React.FC = () => {
   const [productToRenew, setProductToRenew] = useState<FoodProduct | null>(null);
 
   const userId = currentUser?.id || '';
-  const isAdmin = currentUser?.role === 'admin';
+  const isAdmin = false;
 
   // Filter products for this establishment
   const myProducts = products.filter(
