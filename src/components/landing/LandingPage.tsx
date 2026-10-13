@@ -29,30 +29,30 @@ export const LandingPage: React.FC = () => {
     <div className="space-y-16 pb-12 transition-colors duration-300">
       
       {/* 1. HERO SECTION */}
-      <section className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-emerald-950 via-slate-900 to-emerald-900 text-white p-8 sm:p-14 lg:p-20 shadow-2xl border border-slate-800">
-        <div className="relative z-10 max-w-3xl space-y-6">
-          <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-xs sm:text-sm font-semibold backdrop-blur-md">
-            <Leaf className="w-4 h-4 text-emerald-400" />
-            <span>{t('landing.heroBadge')}</span>
+      <section className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-emerald-950 via-slate-900 to-emerald-900 text-white p-5 sm:p-10 lg:p-16 shadow-2xl border border-slate-800">
+        <div className="relative z-10 max-w-3xl space-y-4 sm:space-y-6">
+          <div className="inline-flex items-center gap-2 px-3 py-1 sm:px-4 sm:py-1.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-xs sm:text-sm font-semibold backdrop-blur-md">
+            <Leaf className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400" />
+            <span className="truncate">{t('landing.heroBadge')}</span>
           </div>
 
-          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black font-display tracking-tight leading-[1.1] text-white">
+          <h1 className="text-2xl xs:text-3xl sm:text-5xl lg:text-6xl font-black font-display tracking-tight leading-[1.12] text-white">
             {t('landing.heroTitle')}
           </h1>
 
-          <p className="text-slate-300 text-base sm:text-lg leading-relaxed max-w-2xl font-normal">
+          <p className="text-slate-300 text-sm sm:text-base lg:text-lg leading-relaxed max-w-2xl font-normal">
             {t('landing.heroSubtitle')}
           </p>
 
           {/* Call to action buttons */}
-          <div className="pt-4 flex flex-wrap items-center gap-4">
+          <div className="pt-2 sm:pt-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
             {!isAuthenticated ? (
               <>
                 <button
                   type="button"
                   id="hero-btn-login"
                   onClick={() => setCurrentView('login')}
-                  className="px-7 py-4 bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-black rounded-2xl shadow-xl hover:shadow-emerald-500/25 transition-all flex items-center gap-2.5 text-base cursor-pointer transform hover:-translate-y-0.5"
+                  className="w-full sm:w-auto px-6 sm:px-7 py-3.5 sm:py-4 bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-black rounded-2xl shadow-xl hover:shadow-emerald-500/25 transition-all flex items-center justify-center gap-2.5 text-sm sm:text-base cursor-pointer transform hover:-translate-y-0.5 min-h-[48px]"
                 >
                   <KeyRound className="w-5 h-5" />
                   <span>{t('auth.loginBtn')}</span>
@@ -63,7 +63,7 @@ export const LandingPage: React.FC = () => {
                   type="button"
                   id="hero-btn-catalog"
                   onClick={() => setCurrentView('catalog')}
-                  className="px-7 py-4 bg-white/10 hover:bg-white/20 text-white font-bold rounded-2xl backdrop-blur-md border border-white/20 transition-all flex items-center gap-2.5 text-base cursor-pointer"
+                  className="w-full sm:w-auto px-6 sm:px-7 py-3.5 sm:py-4 bg-white/10 hover:bg-white/20 text-white font-bold rounded-2xl backdrop-blur-md border border-white/20 transition-all flex items-center justify-center gap-2.5 text-sm sm:text-base cursor-pointer min-h-[48px]"
                 >
                   <ShoppingBag className="w-5 h-5 text-emerald-300" />
                   <span>{t('landing.heroBtnCatalog')}</span>
@@ -75,7 +75,7 @@ export const LandingPage: React.FC = () => {
                   type="button"
                   id="hero-btn-publish"
                   onClick={() => setIsPublishModalOpen(true)}
-                  className="px-7 py-4 bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-black rounded-2xl shadow-xl hover:shadow-emerald-500/25 transition-all flex items-center gap-2.5 text-base cursor-pointer transform hover:-translate-y-0.5"
+                  className="w-full sm:w-auto px-6 sm:px-7 py-3.5 sm:py-4 bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-black rounded-2xl shadow-xl hover:shadow-emerald-500/25 transition-all flex items-center justify-center gap-2.5 text-sm sm:text-base cursor-pointer transform hover:-translate-y-0.5 min-h-[48px]"
                 >
                   <span>{t('landing.heroBtnPublish')}</span>
                   <ArrowRight className="w-5 h-5" />
@@ -85,7 +85,7 @@ export const LandingPage: React.FC = () => {
                   type="button"
                   id="hero-btn-catalog"
                   onClick={() => setCurrentView('catalog')}
-                  className="px-7 py-4 bg-white/10 hover:bg-white/20 text-white font-bold rounded-2xl backdrop-blur-md border border-white/20 transition-all flex items-center gap-2.5 text-base cursor-pointer"
+                  className="w-full sm:w-auto px-6 sm:px-7 py-3.5 sm:py-4 bg-white/10 hover:bg-white/20 text-white font-bold rounded-2xl backdrop-blur-md border border-white/20 transition-all flex items-center justify-center gap-2.5 text-sm sm:text-base cursor-pointer min-h-[48px]"
                 >
                   <ShoppingBag className="w-5 h-5 text-emerald-300" />
                   <span>{t('landing.heroBtnCatalog')}</span>
@@ -95,17 +95,17 @@ export const LandingPage: React.FC = () => {
           </div>
 
           {/* Micro trust indicators */}
-          <div className="pt-6 flex flex-wrap items-center gap-6 text-xs text-slate-300 border-t border-white/10">
+          <div className="pt-4 sm:pt-6 flex flex-wrap items-center gap-3 sm:gap-6 text-xs text-slate-300 border-t border-white/10">
             <span className="flex items-center gap-1.5">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
               <span>{t('landing.trustMicro1')}</span>
             </span>
             <span className="flex items-center gap-1.5">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
               <span>{t('landing.trustMicro2')}</span>
             </span>
             <span className="flex items-center gap-1.5">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
               <span>{t('landing.trustMicro3')}</span>
             </span>
           </div>
@@ -116,51 +116,51 @@ export const LandingPage: React.FC = () => {
       </section>
 
       {/* 2. REAL-TIME IMPACT STATS */}
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-md transition-all">
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+      <section className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="p-4 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-md transition-all">
+          <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 block truncate">
             {t('landing.stats.rescuedFoodLabel')}
           </span>
-          <span className="text-3xl sm:text-4xl font-black text-emerald-700 dark:text-emerald-400 font-display block mt-1">
+          <span className="text-2xl sm:text-3xl lg:text-4xl font-black text-emerald-700 dark:text-emerald-400 font-display block mt-1 tabular-nums truncate">
             {t('landing.stats.rescuedFood')}
           </span>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">
             {t('landing.stats.rescuedFoodSub')}
           </p>
         </div>
 
-        <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-md transition-all">
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+        <div className="p-4 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-md transition-all">
+          <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 block truncate">
             {t('landing.stats.rationsServedLabel')}
           </span>
-          <span className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-slate-100 font-display block mt-1">
+          <span className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 dark:text-slate-100 font-display block mt-1 tabular-nums truncate">
             {t('landing.stats.rationsServed')}
           </span>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">
             {t('landing.stats.rationsServedSub')}
           </p>
         </div>
 
-        <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-md transition-all">
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+        <div className="p-4 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-md transition-all">
+          <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 block truncate">
             {t('landing.stats.moneyRecoveredLabel')}
           </span>
-          <span className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-slate-100 font-display block mt-1">
+          <span className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 dark:text-slate-100 font-display block mt-1 tabular-nums truncate">
             {t('landing.stats.moneyRecovered')}
           </span>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">
             {t('landing.stats.moneyRecoveredSub')}
           </p>
         </div>
 
-        <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-md transition-all">
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+        <div className="p-4 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-md transition-all">
+          <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 block truncate">
             {t('landing.stats.co2AvoidedLabel')}
           </span>
-          <span className="text-3xl sm:text-4xl font-black text-teal-600 dark:text-teal-400 font-display block mt-1">
+          <span className="text-2xl sm:text-3xl lg:text-4xl font-black text-teal-600 dark:text-teal-400 font-display block mt-1 tabular-nums truncate">
             {t('landing.stats.co2Avoided')}
           </span>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">
             {t('landing.stats.co2AvoidedSub')}
           </p>
         </div>
@@ -316,7 +316,7 @@ export const LandingPage: React.FC = () => {
         </div>
 
         {/* Pricing Table / Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5 sm:gap-3.5">
           {[
             { days: 1, label: '1 día', desc: 'Súper perecederos' },
             { days: 2, label: '2 días', desc: 'Maduración avanzada' },
@@ -333,37 +333,37 @@ export const LandingPage: React.FC = () => {
             return (
               <div
                 key={item.days}
-                className={`p-4 rounded-2xl bg-white dark:bg-slate-900 border transition-all text-center relative ${
+                className={`p-3 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border transition-all text-center relative flex flex-col justify-between ${
                   item.popular
                     ? 'border-emerald-500 shadow-md ring-2 ring-emerald-500/20'
                     : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
                 }`}
               >
                 {item.popular && (
-                  <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-emerald-600 text-white text-[10px] font-bold rounded-full uppercase tracking-wider">
+                  <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-emerald-600 text-white text-[10px] font-bold rounded-full uppercase tracking-wider whitespace-nowrap">
                     {t('landing.recommended')}
                   </span>
                 )}
-                <span className="text-sm font-bold text-slate-800 dark:text-slate-200 block">{item.label}</span>
-                <span className="text-lg font-black text-emerald-700 dark:text-emerald-400 block my-1">
+                <span className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200 block">{item.label}</span>
+                <span className="text-base sm:text-lg font-black text-emerald-700 dark:text-emerald-400 block my-1 font-mono tabular-nums">
                   ${price.toLocaleString('es-CO')}
                 </span>
-                <span className="text-[11px] text-slate-400 dark:text-slate-500 block">{item.desc}</span>
+                <span className="text-[10px] sm:text-[11px] text-slate-400 dark:text-slate-500 block leading-tight">{item.desc}</span>
               </div>
             );
           })}
         </div>
 
-        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
+        <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
           <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
             <ShieldCheck className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-            <span>
+            <span className="leading-relaxed">
               {t('landing.supportIncluded')}
             </span>
           </div>
           <button
             onClick={() => (isAuthenticated ? setIsPublishModalOpen(true) : setCurrentView('login'))}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl whitespace-nowrap transition-colors cursor-pointer"
+            className="w-full sm:w-auto px-5 py-2.5 min-h-[44px] bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl whitespace-nowrap transition-colors cursor-pointer flex items-center justify-center shrink-0 focus-visible:ring-2 focus-visible:ring-emerald-600"
           >
             {t('landing.publishWithRate')}
           </button>

@@ -7,6 +7,8 @@ import crypto from 'crypto';
 const PORT = 3000;
 const DATA_DIR = path.resolve(process.cwd(), 'data');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
+const PRODUCTS_FILE = path.join(DATA_DIR, 'products.json');
+const OFFERS_FILE = path.join(DATA_DIR, 'offers.json');
 const EMAIL_OUTBOX_FILE = path.join(DATA_DIR, 'email_outbox.json');
 
 interface StoredUser {
@@ -61,6 +63,52 @@ function saveUsers(users: StoredUser[]) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
   }
   fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf-8');
+}
+
+function ensureProductsFile(): any[] {
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+  if (!fs.existsSync(PRODUCTS_FILE)) {
+    fs.writeFileSync(PRODUCTS_FILE, JSON.stringify([], null, 2), 'utf-8');
+    return [];
+  }
+  try {
+    const raw = fs.readFileSync(PRODUCTS_FILE, 'utf-8');
+    return JSON.parse(raw) as any[];
+  } catch {
+    return [];
+  }
+}
+
+function saveProducts(products: any[]) {
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+  fs.writeFileSync(PRODUCTS_FILE, JSON.stringify(products, null, 2), 'utf-8');
+}
+
+function ensureOffersFile(): any[] {
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+  if (!fs.existsSync(OFFERS_FILE)) {
+    fs.writeFileSync(OFFERS_FILE, JSON.stringify([], null, 2), 'utf-8');
+    return [];
+  }
+  try {
+    const raw = fs.readFileSync(OFFERS_FILE, 'utf-8');
+    return JSON.parse(raw) as any[];
+  } catch {
+    return [];
+  }
+}
+
+function saveOffers(offers: any[]) {
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+  fs.writeFileSync(OFFERS_FILE, JSON.stringify(offers, null, 2), 'utf-8');
 }
 
 function sanitizeUser(u: StoredUser) {
@@ -179,7 +227,314 @@ async function startServer() {
     }
   });
 
-  // Email Notification Service Endpoint
+  // ==========================================
+  // REAL PRODUCTS ENDPOINTS (FIRESTORE SYNC)
+  // ==========================================
+
+  // GET /api/products: returns active, non-expired products published by real sellers
+  app.get('/api/products', (req, res) => {
+    const { sellerId, scope } = req.query as { sellerId?: string; scope?: string };
+    const products = ensureProductsFile();
+    const now = Date.now();
+    let modified = false;
+
+    // Check expiration and archive expired products
+    for (const p of products) {
+      const expTime = new Date(p.expiresAt).getTime();
+      const dateExpTime = p.expirationDate ? new Date(p.expirationDate + 'T23:59:59').getTime() : expTime;
+      if ((expTime <= now || dateExpTime <= now) && p.status === 'activa') {
+        p.status = 'finalizada';
+        modified = true;
+      }
+    }
+    if (modified) {
+      saveProducts(products);
+    }
+
+    if (sellerId) {
+      // Seller looking at their own publications (active, finalizada, vendida)
+      const sellerProducts = products.filter((p: any) => p.sellerId === sellerId);
+      res.json(sellerProducts);
+      return;
+    }
+
+    if (scope === 'all') {
+      res.json(products);
+      return;
+    }
+
+    // Default Explore / Catalog view: ONLY active, real seller, non-expired products
+    const activeProducts = products.filter((p: any) => {
+      if (!p.sellerId) return false;
+      if (p.sellerRole && p.sellerRole !== 'seller') return false;
+      if (p.status !== 'activa') return false;
+      const expTime = new Date(p.expiresAt).getTime();
+      if (expTime <= now) return false;
+      if (p.expirationDate) {
+        const dateExpTime = new Date(p.expirationDate + 'T23:59:59').getTime();
+        if (dateExpTime <= now) return false;
+      }
+      return true;
+    });
+
+    res.json(activeProducts);
+  });
+
+  // POST /api/products: only published by real sellers with role 'seller'
+  app.post('/api/products', (req, res) => {
+    const payload = req.body;
+    const {
+      name,
+      category,
+      brand,
+      description,
+      imageUrl,
+      quantity,
+      unit,
+      condition,
+      expirationDate,
+      recommendedConsumptionDate,
+      locationCity,
+      locationAddress,
+      originalPrice,
+      requestedPrice,
+      minPurchaseQuantity,
+      deliveryConditions,
+      sellerId,
+      sellerName,
+      sellerType,
+      durationDays = 3,
+      commissionPaid = 0,
+    } = payload;
+
+    if (!sellerId || !name || !category || !quantity || !requestedPrice || !expirationDate) {
+      res.status(400).json({ error: 'Faltan campos obligatorios para publicar el producto.' });
+      return;
+    }
+
+    // Verify seller role in users registry
+    const users = ensureUsersFile();
+    const sellerUser = users.find((u: any) => u.id === sellerId);
+    if (sellerUser && sellerUser.role !== 'seller') {
+      res.status(403).json({ error: 'Solo usuarios con rol "seller" pueden publicar productos.' });
+      return;
+    }
+
+    const now = new Date();
+    const expires = new Date(now.getTime() + Number(durationDays) * 24 * 60 * 60 * 1000);
+    const newId = payload.id || `prod-${Date.now()}`;
+
+    const newProduct = {
+      id: newId,
+      name: String(name).trim(),
+      category,
+      brand: brand || 'Genérica',
+      description: description || '',
+      imageUrl: imageUrl || '',
+      quantity: Number(quantity),
+      unit: unit || 'kg',
+      condition: condition || 'Excelente estado / Lote excedente',
+      expirationDate,
+      recommendedConsumptionDate: recommendedConsumptionDate || undefined,
+      locationCity: locationCity || 'Bogotá D.C.',
+      locationAddress: locationAddress || 'Dirección de bodega',
+      originalPrice: Number(originalPrice) || Number(requestedPrice),
+      requestedPrice: Number(requestedPrice),
+      minPurchaseQuantity: Number(minPurchaseQuantity) || 1,
+      deliveryConditions: deliveryConditions || 'Recogida en sede del vendedor',
+      durationDays: Number(durationDays),
+      commissionPaid: Number(commissionPaid),
+      publishedAt: now.toISOString(),
+      expiresAt: expires.toISOString(),
+      status: 'activa',
+      sellerId,
+      sellerRole: 'seller',
+      sellerName: sellerName || sellerUser?.organizationName || sellerUser?.name || 'Vendedor Solidario',
+      sellerType: sellerType || 'Distribuidor',
+      sellerVerified: Boolean(sellerUser?.verified ?? true),
+      sellerPhone: sellerUser?.phone || '',
+      offersCount: 0,
+      viewsCount: 1,
+    };
+
+    const products = ensureProductsFile();
+    products.unshift(newProduct);
+    saveProducts(products);
+
+    res.status(201).json(newProduct);
+  });
+
+  // PATCH /api/products/:id: update product status or stats
+  app.patch('/api/products/:id', (req, res) => {
+    const { id } = req.params;
+    const { status, viewsCount, offersCount } = req.body;
+    const products = ensureProductsFile();
+    const idx = products.findIndex((p: any) => p.id === id);
+
+    if (idx === -1) {
+      res.status(404).json({ error: 'Producto no encontrado.' });
+      return;
+    }
+
+    if (status) products[idx].status = status;
+    if (typeof viewsCount === 'number') products[idx].viewsCount = viewsCount;
+    if (typeof offersCount === 'number') products[idx].offersCount = offersCount;
+
+    saveProducts(products);
+    res.json(products[idx]);
+  });
+
+  // ==========================================
+  // REAL OFFERS ENDPOINTS (FIRESTORE SYNC)
+  // ==========================================
+
+  // GET /api/offers: returns real offers identifying product, buyer, seller, quantity, price, status, date
+  app.get('/api/offers', (req, res) => {
+    const { userId } = req.query as { userId?: string };
+    const offers = ensureOffersFile();
+
+    if (!userId) {
+      res.json([]);
+      return;
+    }
+
+    const userOffers = offers.filter((o: any) => o.buyerId === userId || o.sellerId === userId);
+    res.json(userOffers);
+  });
+
+  // POST /api/offers: creates offer linked to real, active, non-expired product
+  app.post('/api/offers', (req, res) => {
+    const payload = req.body;
+    const {
+      productId,
+      sellerId,
+      buyerId,
+      requestedQuantity,
+      offeredPricePerUnit,
+      totalOfferedPrice,
+      unit,
+      message,
+      pickupMethod,
+      proposedDate,
+      buyerName,
+      buyerOrganization,
+      buyerType,
+    } = payload;
+
+    if (!productId || !sellerId || !buyerId || !requestedQuantity || !offeredPricePerUnit) {
+      res.status(400).json({ error: 'Faltan campos obligatorios para enviar la oferta.' });
+      return;
+    }
+
+    // Validate that product exists, is active, and NOT expired
+    const products = ensureProductsFile();
+    const product = products.find((p: any) => p.id === productId);
+
+    if (!product) {
+      res.status(404).json({ error: 'El producto especificado no existe.' });
+      return;
+    }
+
+    const now = Date.now();
+    const expTime = new Date(product.expiresAt).getTime();
+    const dateExpTime = product.expirationDate ? new Date(product.expirationDate + 'T23:59:59').getTime() : expTime;
+
+    if (product.status !== 'activa' || expTime <= now || dateExpTime <= now) {
+      res.status(400).json({
+        error: 'El producto ha vencido o finalizado su publicación. No se permiten nuevas ofertas.',
+      });
+      return;
+    }
+
+    const nowIso = new Date().toISOString();
+    const newOfferId = payload.id || `off-${Date.now()}`;
+
+    const newOffer = {
+      id: newOfferId,
+      productId,
+      productName: product.name,
+      productImageUrl: product.imageUrl || '',
+      sellerId,
+      sellerName: product.sellerName,
+      buyerId,
+      buyerName: buyerName || 'Comprador Solidario',
+      buyerOrganization: buyerOrganization || buyerName || 'Organización Solidaria',
+      buyerType: buyerType || 'Fundación',
+      requestedQuantity: Number(requestedQuantity),
+      offeredPricePerUnit: Number(offeredPricePerUnit),
+      totalOfferedPrice: Number(totalOfferedPrice) || Number(requestedQuantity) * Number(offeredPricePerUnit),
+      unit: unit || product.unit,
+      message: message || '',
+      pickupMethod: pickupMethod || 'Recogida en sede del vendedor',
+      proposedDate: proposedDate || nowIso.split('T')[0],
+      status: 'pendiente',
+      createdAt: nowIso,
+      updatedAt: nowIso,
+      messages: payload.messages || [
+        {
+          id: `msg-${Date.now()}`,
+          senderId: buyerId,
+          senderName: buyerOrganization || buyerName || 'Comprador Solidario',
+          senderRole: 'buyer',
+          timestamp: nowIso.replace('T', ' ').slice(0, 16),
+          text: message || 'Propuesta de oferta enviada.',
+          isOfferProposal: true,
+          proposedPrice: Number(offeredPricePerUnit),
+          proposedQuantity: Number(requestedQuantity),
+        },
+      ],
+    };
+
+    const offers = ensureOffersFile();
+    offers.unshift(newOffer);
+    saveOffers(offers);
+
+    // Increment offersCount on the real product
+    product.offersCount = (product.offersCount || 0) + 1;
+    saveProducts(products);
+
+    res.status(201).json(newOffer);
+  });
+
+  // PATCH /api/offers/:id: update status (aceptada, rechazada, contraoferta) or message
+  app.patch('/api/offers/:id', (req, res) => {
+    const { id } = req.params;
+    const { status, newMessage, counterPrice, counterQuantity } = req.body;
+    const offers = ensureOffersFile();
+    const idx = offers.findIndex((o: any) => o.id === id);
+
+    if (idx === -1) {
+      res.status(404).json({ error: 'Oferta no encontrada.' });
+      return;
+    }
+
+    const nowIso = new Date().toISOString();
+    if (status) {
+      offers[idx].status = status;
+    }
+    offers[idx].updatedAt = nowIso;
+
+    if (newMessage) {
+      offers[idx].messages = offers[idx].messages || [];
+      offers[idx].messages.push(newMessage);
+    } else if (status === 'contraoferta' && counterPrice && counterQuantity) {
+      offers[idx].messages = offers[idx].messages || [];
+      offers[idx].messages.push({
+        id: `msg-${Date.now()}`,
+        senderId: req.body.senderId || offers[idx].sellerId,
+        senderName: req.body.senderName || offers[idx].sellerName,
+        senderRole: req.body.senderRole || 'seller',
+        timestamp: nowIso.replace('T', ' ').slice(0, 16),
+        text: `Contraoferta: ${counterPrice} por unidad (${counterQuantity} ${offers[idx].unit}).`,
+        isOfferProposal: true,
+        proposedPrice: counterPrice,
+        proposedQuantity: counterQuantity,
+      });
+    }
+
+    saveOffers(offers);
+    res.json(offers[idx]);
+  });
   interface EmailLogEntry {
     id: string;
     to: string;

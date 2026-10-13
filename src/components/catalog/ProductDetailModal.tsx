@@ -20,18 +20,44 @@ import {
 } from 'lucide-react';
 
 interface ProductDetailModalProps {
-  productId: string | null;
-  onClose: () => void;
+  productId?: string | null;
+  onClose?: () => void;
 }
 
-export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ productId, onClose }) => {
-  const { products, toggleFavorite, isFavorite, currentRole, showToast } = useApp();
+export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
+  productId: propProductId,
+  onClose: propOnClose,
+}) => {
+  const {
+    products,
+    toggleFavorite,
+    isFavorite,
+    currentRole,
+    showToast,
+    selectedProductIdForDetail,
+    setSelectedProductIdForDetail,
+    selectedProduct,
+    setSelectedProduct,
+  } = useApp();
   const { t } = useI18n();
   const [isMakeOfferOpen, setIsMakeOfferOpen] = useState(false);
 
-  const product = products.find((p) => p.id === productId);
+  const activeId =
+    propProductId !== undefined
+      ? propProductId
+      : selectedProductIdForDetail || selectedProduct?.id || null;
 
-  if (!productId || !product) return null;
+  const handleClose = () => {
+    if (propOnClose) {
+      propOnClose();
+    }
+    setSelectedProductIdForDetail(null);
+    setSelectedProduct(null);
+  };
+
+  const product = products.find((p) => p.id === activeId);
+
+  if (!activeId || !product) return null;
 
   const favorite = isFavorite(product.id);
 
@@ -51,9 +77,23 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ productI
     showToast(t('product.linkCopied', 'Enlace copiado al portapapeles'), 'info');
   };
 
+  React.useEffect(() => {
+    if (!activeId || !product) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') handleClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeId, product]);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs overflow-y-auto">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-2xl w-full my-auto overflow-hidden border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 transition-colors">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) handleClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-slate-950/75 backdrop-blur-xs overflow-y-auto"
+    >
+      <div className="bg-white dark:bg-slate-900 rounded-2xl sm:rounded-3xl shadow-2xl max-w-2xl w-full my-auto max-h-[92vh] flex flex-col overflow-hidden border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 transition-colors">
         
         {/* Modal Top Bar */}
         <div className="relative aspect-16/9 sm:aspect-21/9 w-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
@@ -69,9 +109,9 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ productI
           <button
             type="button"
             id="btn-close-product-detail-modal"
-            onClick={onClose}
+            onClick={handleClose}
             aria-label="Cerrar modal"
-            className="absolute top-3 right-3 p-2 rounded-full bg-slate-950/80 text-white hover:bg-rose-600 transition-all cursor-pointer border border-slate-700/60 shadow-md"
+            className="absolute top-3 right-3 min-w-[40px] min-h-[40px] flex items-center justify-center p-2 rounded-full bg-slate-950/80 text-white hover:bg-rose-600 transition-all cursor-pointer border border-slate-700/60 shadow-md focus-visible:ring-2 focus-visible:ring-emerald-600"
           >
             <X className="w-5 h-5" />
           </button>
@@ -80,17 +120,19 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ productI
           <div className="absolute top-3 left-3 flex items-center gap-2">
             <button
               onClick={() => toggleFavorite(product.id)}
-              className={`p-2 rounded-full shadow-xs backdrop-blur-md transition-all cursor-pointer ${
+              className={`min-w-[38px] min-h-[38px] flex items-center justify-center p-2 rounded-full shadow-xs backdrop-blur-md transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-emerald-600 ${
                 favorite ? 'bg-rose-500 text-white' : 'bg-slate-900/70 text-white hover:bg-slate-900 border border-slate-700/50'
               }`}
               title={favorite ? t('product.favoriteRemove') : t('product.favoriteAdd')}
+              aria-label={favorite ? t('product.favoriteRemove') : t('product.favoriteAdd')}
             >
               <Heart className={`w-4 h-4 ${favorite ? 'fill-current' : ''}`} />
             </button>
             <button
               onClick={handleShare}
-              className="p-2 rounded-full bg-slate-900/70 text-white hover:bg-slate-900 shadow-xs backdrop-blur-md transition-all cursor-pointer border border-slate-700/50"
+              className="min-w-[38px] min-h-[38px] flex items-center justify-center p-2 rounded-full bg-slate-900/70 text-white hover:bg-slate-900 shadow-xs backdrop-blur-md transition-all cursor-pointer border border-slate-700/50 focus-visible:ring-2 focus-visible:ring-emerald-600"
               title={t('product.share')}
+              aria-label={t('product.share')}
             >
               <Share2 className="w-4 h-4" />
             </button>
@@ -112,7 +154,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ productI
         </div>
 
         {/* Modal Body */}
-        <div className="p-6 max-h-[65vh] overflow-y-auto space-y-5 text-sm">
+        <div className="p-4 sm:p-6 flex-1 overflow-y-auto space-y-4 sm:space-y-5 text-sm custom-scroll">
           
           {/* Price & Urgency Hero */}
           <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-4">
@@ -234,11 +276,11 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ productI
         </div>
 
         {/* Footer Actions */}
-        <div className="p-4 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3">
+        <div className="p-3 sm:p-4 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3 shrink-0">
           <button
             type="button"
-            onClick={onClose}
-            className="px-4 py-2 text-slate-600 dark:text-slate-300 font-semibold hover:bg-slate-200/60 dark:hover:bg-slate-700 rounded-lg transition-all text-xs sm:text-sm border border-slate-200 dark:border-slate-700 cursor-pointer"
+            onClick={handleClose}
+            className="px-4 py-2.5 min-h-[42px] text-slate-600 dark:text-slate-300 font-semibold hover:bg-slate-200/60 dark:hover:bg-slate-700 rounded-xl transition-all text-xs sm:text-sm border border-slate-200 dark:border-slate-700 cursor-pointer focus-visible:ring-2 focus-visible:ring-emerald-600"
           >
             {t('negotiation.closeBtn')}
           </button>
@@ -247,7 +289,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ productI
             type="button"
             id="btn-detail-make-offer"
             onClick={() => setIsMakeOfferOpen(true)}
-            className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-xs transition-all text-xs sm:text-sm flex items-center gap-2 cursor-pointer"
+            className="px-5 py-2.5 min-h-[42px] bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-xs transition-all text-xs sm:text-sm flex items-center gap-2 cursor-pointer focus-visible:ring-2 focus-visible:ring-emerald-600"
           >
             <Send className="w-4 h-4" />
             <span>{t('product.makeOfferBtn')}</span>
@@ -263,7 +305,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ productI
         onClose={() => setIsMakeOfferOpen(false)}
         onSuccess={() => {
           setIsMakeOfferOpen(false);
-          onClose();
+          handleClose();
         }}
       />
     </div>

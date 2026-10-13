@@ -40,6 +40,15 @@ export const ShareQrModal: React.FC<ShareQrModalProps> = ({ isOpen, onClose }) =
     );
   }, [isOpen, shareUrl]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const handleCopy = async () => {
@@ -55,7 +64,7 @@ export const ShareQrModal: React.FC<ShareQrModalProps> = ({ isOpen, onClose }) =
   const handleDownload = () => {
     if (!canvasRef.current) return;
     const link = document.createElement('a');
-    link.download = 'Publik-Solidario-QR.png';
+    link.download = 'FoodLink-Solidario-QR.png';
     link.href = canvasRef.current.toDataURL('image/png');
     link.click();
   };
@@ -65,11 +74,14 @@ export const ShareQrModal: React.FC<ShareQrModalProps> = ({ isOpen, onClose }) =
       role="dialog"
       aria-modal="true"
       aria-labelledby="qr-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs animate-in fade-in duration-200"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-xs animate-in fade-in duration-200"
     >
-      <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-sm w-full overflow-hidden border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 transition-all">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-sm w-full overflow-hidden border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 transition-all my-auto max-h-[92vh] flex flex-col">
         {/* Header */}
-        <div className="p-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
+        <div className="p-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800 shrink-0">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-emerald-600/30 border border-emerald-500/40 text-emerald-400 flex items-center justify-center">
               <QrCode className="w-4 h-4" />
@@ -83,18 +95,18 @@ export const ShareQrModal: React.FC<ShareQrModalProps> = ({ isOpen, onClose }) =
             id="btn-close-qr-modal"
             onClick={onClose}
             aria-label="Cerrar modal"
-            className="p-1.5 rounded-xl bg-slate-800/80 hover:bg-rose-600 text-slate-300 hover:text-white transition-all cursor-pointer border border-slate-700/60"
+            className="p-1.5 rounded-xl bg-slate-800/80 hover:bg-rose-600 text-slate-300 hover:text-white transition-all cursor-pointer border border-slate-700/60 focus-visible:ring-2 focus-visible:ring-emerald-600"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-6 text-center space-y-4">
+        <div className="p-6 text-center space-y-4 overflow-y-auto">
           <div className="inline-flex items-center justify-center bg-white rounded-xl p-1.5 shadow-2xs border border-slate-200 dark:border-slate-700 mx-auto">
             <img
               src="/logo.png"
-              alt="Publik Solidario"
+              alt="FoodLink Solidario"
               className="h-10 w-auto object-contain"
               referrerPolicy="no-referrer"
             />

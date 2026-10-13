@@ -3,7 +3,6 @@ import { useApp } from '../../context/AppContext';
 import { useI18n } from '../../i18n/I18nContext';
 import { ProductOffer } from '../../types';
 import { ProductImage } from '../common/ProductImage';
-import { ProductDetailModal } from '../catalog/ProductDetailModal';
 import { DeliveryCertificateModal } from '../common/DeliveryCertificateModal';
 import { EmptyState } from '../common/EmptyState';
 import {
@@ -387,12 +386,6 @@ export const OffersView: React.FC = () => {
           </div>
         </>
       )}
-
-      {/* Modal de Detalle de Producto */}
-      <ProductDetailModal
-        productId={selectedProductIdForDetail}
-        onClose={() => setSelectedProductIdForDetail(null)}
-      />
 
       {/* Modal de Acta de Entrega en PDF (Exclusivo para operaciones Aceptadas) */}
       <DeliveryCertificateModal

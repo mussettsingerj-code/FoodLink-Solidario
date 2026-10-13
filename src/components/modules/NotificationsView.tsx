@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { NotificationItem, NotificationType } from '../../types';
-import { ProductDetailModal } from '../catalog/ProductDetailModal';
 import { EmptyState } from '../common/EmptyState';
 import {
   Bell,
@@ -639,12 +638,6 @@ export const NotificationsView: React.FC = () => {
           </div>
         </div>
       )}
-
-      {/* Modal de Detalle del Producto si se abre desde una notificación */}
-      <ProductDetailModal
-        productId={selectedProductIdForDetail}
-        onClose={() => setSelectedProductIdForDetail(null)}
-      />
     </div>
   );
 };

@@ -42,7 +42,15 @@ const SAMPLE_IMAGES: Record<string, string> = {
   'Otros alimentos': 'https://images.unsplash.com/photo-1506617420156-8e4536971650?auto=format&fit=crop&w=900&q=80',
 };
 
-export const PublishProductView: React.FC = () => {
+interface PublishProductViewProps {
+  isModal?: boolean;
+  onSuccessClose?: () => void;
+}
+
+export const PublishProductView: React.FC<PublishProductViewProps> = ({
+  isModal = false,
+  onSuccessClose,
+}) => {
   const { addProduct, formatCOP, setActiveTab, userProfile, isAuthenticated } = useApp();
 
   const [step, setStep] = useState<'form' | 'payment' | 'success'>('form');
@@ -172,7 +180,10 @@ export const PublishProductView: React.FC = () => {
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <button
-              onClick={() => setActiveTab('my-publications')}
+              onClick={() => {
+                if (onSuccessClose) onSuccessClose();
+                setActiveTab('my-publications');
+              }}
               className="bg-[#1B4332] hover:bg-emerald-900 text-white font-bold px-6 py-3 rounded-xl text-sm transition-colors cursor-pointer"
             >
               Ir a Mis Publicaciones
@@ -194,7 +205,7 @@ export const PublishProductView: React.FC = () => {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-8 py-6 sm:py-8">
+    <div className={isModal ? 'w-full' : 'max-w-5xl mx-auto px-4 sm:px-8 py-6 sm:py-8'}>
       {/* Step Header */}
       <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -552,7 +563,7 @@ export const PublishProductView: React.FC = () => {
 
           {/* Right Column: Publication Duration & Commission Calculator */}
           <div className="space-y-6">
-            <div className="bg-[#0F291E] text-white rounded-3xl p-6 shadow-xl sticky top-24">
+            <div className="bg-[#0F291E] text-white rounded-3xl p-6 shadow-xl lg:sticky lg:top-6 lg:max-h-[calc(100vh-4rem)] lg:overflow-y-auto custom-scroll">
               <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold uppercase tracking-wider mb-2">
                 <Clock className="w-4 h-4" />
                 <span>Modelo de Exposición por Tiempo</span>

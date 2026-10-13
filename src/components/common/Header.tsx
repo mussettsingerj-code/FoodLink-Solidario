@@ -71,19 +71,20 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
   };
 
   return (
-    <header className="sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 px-4 sm:px-8 h-16 sm:h-18 flex items-center justify-between transition-colors duration-200">
+    <header className="sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 px-3 sm:px-6 lg:px-8 h-16 sm:h-18 flex items-center justify-between transition-colors duration-200 overflow-x-clip">
       {/* Left: Mobile Menu Trigger + Current Section Title */}
-      <div className="flex items-center gap-3 min-w-0">
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
         <button
+          type="button"
           onClick={onOpenMobileMenu}
-          className="lg:hidden p-2.5 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
+          className="lg:hidden p-2 sm:p-2.5 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer shrink-0 focus-visible:ring-2 focus-visible:ring-emerald-600"
           aria-label={language === 'en' ? 'Open menu' : 'Abrir menú'}
         >
           <Menu className="w-5 h-5" />
         </button>
 
         <div className="min-w-0">
-          <h1 className="text-base sm:text-xl font-bold font-display text-slate-900 dark:text-white tracking-tight leading-none truncate">
+          <h1 className="text-sm sm:text-lg lg:text-xl font-bold font-display text-slate-900 dark:text-white tracking-tight leading-none truncate max-w-[115px] xs:max-w-[170px] sm:max-w-[280px] md:max-w-none">
             {getPageTitle()}
           </h1>
           <div className="hidden sm:flex items-center gap-2 mt-1 text-xs text-slate-500 dark:text-slate-400">
@@ -103,34 +104,36 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
       </div>
 
       {/* Right Actions: Language, Theme, Role, Notifications, Avatar */}
-      <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+      <div className="flex items-center gap-1 sm:gap-2 lg:gap-3 shrink-0">
         {/* Permanent Language Toggle Switcher */}
         <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold">
           <button
             type="button"
             onClick={() => setLanguage('es')}
-            className={`px-2 sm:px-2.5 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+            className={`px-1.5 xs:px-2 sm:px-2.5 py-1.5 min-h-[34px] rounded-lg transition-all cursor-pointer flex items-center gap-1 focus-visible:ring-2 focus-visible:ring-emerald-600 ${
               language === 'es'
                 ? 'bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400 shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
             title="Cambiar a Español"
+            aria-label="Cambiar a Español"
           >
-            <span>🇨🇴</span>
-            <span className="uppercase text-[11px] sm:text-xs font-extrabold">ES</span>
+            <span className="hidden xs:inline">🇨🇴</span>
+            <span className="uppercase text-[10px] sm:text-xs font-extrabold">ES</span>
           </button>
           <button
             type="button"
             onClick={() => setLanguage('en')}
-            className={`px-2 sm:px-2.5 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+            className={`px-1.5 xs:px-2 sm:px-2.5 py-1.5 min-h-[34px] rounded-lg transition-all cursor-pointer flex items-center gap-1 focus-visible:ring-2 focus-visible:ring-emerald-600 ${
               language === 'en'
                 ? 'bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400 shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
             title="Switch to English"
+            aria-label="Switch to English"
           >
-            <span>🇺🇸</span>
-            <span className="uppercase text-[11px] sm:text-xs font-extrabold">EN</span>
+            <span className="hidden xs:inline">🇺🇸</span>
+            <span className="uppercase text-[10px] sm:text-xs font-extrabold">EN</span>
           </button>
         </div>
 
@@ -143,7 +146,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
               ? `Theme: ${themeMode === 'light' ? 'Light' : themeMode === 'dark' ? 'Dark' : 'System Auto'}`
               : `Tema: ${themeMode === 'light' ? 'Claro' : themeMode === 'dark' ? 'Oscuro' : 'Automático'}`
           }
-          className="flex items-center gap-1.5 p-2 sm:px-3 sm:py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
+          aria-label={language === 'en' ? 'Toggle theme' : 'Cambiar tema'}
+          className="flex items-center justify-center gap-1.5 min-w-[36px] min-h-[36px] sm:min-w-[40px] sm:min-h-[40px] p-2 sm:px-3 sm:py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-emerald-600"
         >
           {themeMode === 'light' && <Sun className="w-4 h-4 text-amber-500" />}
           {themeMode === 'dark' && <Moon className="w-4 h-4 text-indigo-400" />}
@@ -184,7 +188,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
         {isSeller && activeTab !== 'publish' && (
           <button
             onClick={() => setActiveTab('publish')}
-            className="flex items-center gap-1.5 bg-[#1B4332] hover:bg-emerald-900 text-white text-xs sm:text-sm font-bold px-3.5 py-2 rounded-xl shadow-xs transition-all cursor-pointer"
+            aria-label={t('nav.publish')}
+            className="flex items-center justify-center gap-1.5 min-w-[36px] min-h-[36px] bg-[#1B4332] hover:bg-emerald-900 text-white text-xs sm:text-sm font-bold px-2.5 sm:px-3.5 py-2 rounded-xl shadow-xs transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-emerald-600"
           >
             <PlusCircle className="w-4 h-4 text-emerald-300" />
             <span className="hidden sm:inline">{t('nav.publish')}</span>
@@ -194,7 +199,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
         {/* Notifications Bell */}
         <button
           onClick={() => setActiveTab('notifications')}
-          className={`relative p-2 sm:p-2.5 rounded-xl border transition-colors cursor-pointer ${
+          aria-label={t('nav.notifications')}
+          className={`relative min-w-[36px] min-h-[36px] sm:min-w-[40px] sm:min-h-[40px] flex items-center justify-center p-2 sm:p-2.5 rounded-xl border transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-emerald-600 ${
             activeTab === 'notifications'
               ? 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
               : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
@@ -212,7 +218,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
         {/* Profile Avatar Shortcut */}
         <button
           onClick={() => setActiveTab('profile')}
-          className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#1B4332] text-white font-bold text-xs flex items-center justify-center shadow-xs hover:opacity-90 transition-opacity cursor-pointer overflow-hidden border border-emerald-800/40"
+          aria-label={t('nav.profile')}
+          className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[#1B4332] text-white font-bold text-xs flex items-center justify-center shadow-xs hover:opacity-90 transition-opacity cursor-pointer overflow-hidden border border-emerald-800/40 shrink-0 focus-visible:ring-2 focus-visible:ring-emerald-600"
           title={t('nav.profile')}
         >
           {userProfile.photoURL ? (

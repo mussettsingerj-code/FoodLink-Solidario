@@ -95,27 +95,41 @@ export const NegotiationChatModal: React.FC<NegotiationChatModalProps> = ({ offe
 
   const StatusIcon = statusBadge.icon;
 
+  React.useEffect(() => {
+    if (!offerId || !offer) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [offerId, offer, onClose]);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-2xl w-full flex flex-col h-[85vh] overflow-hidden border border-slate-200 dark:border-slate-800">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-slate-950/75 backdrop-blur-xs overflow-y-auto"
+    >
+      <div className="bg-white dark:bg-slate-900 rounded-2xl sm:rounded-3xl shadow-2xl max-w-2xl w-full flex flex-col h-[92vh] sm:h-[85vh] max-h-[92vh] overflow-hidden border border-slate-200 dark:border-slate-800 my-auto">
         
         {/* Header */}
-        <div className="p-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-lg overflow-hidden border border-slate-700 bg-slate-800 shrink-0">
+        <div className="p-3.5 sm:p-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800 shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg overflow-hidden border border-slate-700 bg-slate-800 shrink-0">
               <ProductImage
                 src={offer.productImageUrl}
                 alt={offer.productName}
               />
             </div>
-            <div>
-              <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">
+            <div className="min-w-0">
+              <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block truncate">
                 {t('negotiation.moduleTitle', 'Módulo de Negociación Solidaria')}
               </span>
-              <h3 className="font-bold text-sm sm:text-base font-display truncate max-w-xs sm:max-w-md text-white">
+              <h3 className="font-bold text-xs sm:text-base font-display truncate max-w-[150px] xs:max-w-xs sm:max-w-md text-white">
                 {offer.productName}
               </h3>
-              <p className="text-xs text-slate-400">
+              <p className="text-[11px] sm:text-xs text-slate-400 truncate">
                 {offer.buyerOrganization} ↔ {offer.sellerName}
               </p>
             </div>
@@ -125,7 +139,7 @@ export const NegotiationChatModal: React.FC<NegotiationChatModalProps> = ({ offe
             id="btn-close-negotiation-modal"
             onClick={onClose}
             aria-label="Cerrar modal"
-            className="p-2 rounded-xl bg-slate-800/80 hover:bg-rose-600 text-slate-300 hover:text-white transition-all cursor-pointer border border-slate-700/60"
+            className="p-2 min-w-[38px] min-h-[38px] flex items-center justify-center rounded-xl bg-slate-800/80 hover:bg-rose-600 text-slate-300 hover:text-white transition-all cursor-pointer border border-slate-700/60 shrink-0 focus-visible:ring-2 focus-visible:ring-emerald-600"
           >
             <X className="w-5 h-5" />
           </button>
@@ -301,23 +315,24 @@ export const NegotiationChatModal: React.FC<NegotiationChatModalProps> = ({ offe
         </div>
 
         {/* Chat Input */}
-        <form onSubmit={handleSendMessage} className="p-3 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center gap-2">
+        <form onSubmit={handleSendMessage} className="p-3 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center gap-2 shrink-0">
           <input
             type="text"
             placeholder={t('negotiation.typeMessagePlaceholder', 'Escribe un mensaje de negociación...')}
             value={messageText}
             onChange={(e) => setMessageText(e.target.value)}
-            className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-750 rounded-lg px-4 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-emerald-600 focus:bg-white dark:focus:bg-slate-800 transition-all"
+            className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 sm:px-4 py-2.5 text-base sm:text-sm text-slate-900 dark:text-slate-100 focus:outline-emerald-600 focus:bg-white dark:focus:bg-slate-850 transition-all"
           />
           <button
             type="submit"
             disabled={!messageText.trim()}
-            className={`p-2.5 rounded-lg shadow-xs transition-colors ${
+            className={`min-w-[42px] min-h-[42px] flex items-center justify-center p-2.5 rounded-xl shadow-xs transition-colors shrink-0 focus-visible:ring-2 focus-visible:ring-emerald-600 ${
               messageText.trim()
                 ? 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer'
                 : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed'
             }`}
             title={t('negotiation.sendMessageBtn', 'Enviar mensaje')}
+            aria-label={t('negotiation.sendMessageBtn', 'Enviar mensaje')}
           >
             <Send className="w-4 h-4" />
           </button>
