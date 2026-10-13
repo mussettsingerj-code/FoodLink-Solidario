@@ -9,6 +9,7 @@ import {
   PlusCircle,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { useI18n } from '../../i18n/I18nContext';
 
 export const StatisticsView: React.FC = () => {
   const {
@@ -20,6 +21,7 @@ export const StatisticsView: React.FC = () => {
     isAuthenticated,
     setActiveTab,
   } = useApp();
+  const { t } = useI18n();
 
   // Security guard: Exclusively for authenticated sellers (Requirement 3 & 9)
   if (!isAuthenticated || userProfile.role !== 'seller') {
@@ -44,18 +46,18 @@ export const StatisticsView: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
-            Analítica de Vendedor
+            {t('statistics.tag')}
           </span>
           <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
-            Estadísticas Comerciales y de Impacto Ambiental
+            {t('statistics.title')}
           </h2>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            Monitorea tus lotes publicados, ingresos recuperados y alimentos rescatados.
+            {t('statistics.subtitle')}
           </p>
         </div>
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 text-xs font-bold">
-          <Award className="w-4 h-4 text-emerald-600" />
-          <span>Certificado Ley 1990 Activo</span>
+          <Award className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+          <span>{t('statistics.certificateActive')}</span>
         </div>
       </div>
 
@@ -63,7 +65,7 @@ export const StatisticsView: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold uppercase text-slate-400">Alimentos Rescatados</span>
+            <span className="text-xs font-bold uppercase text-slate-400">{t('statistics.foodRescued')}</span>
             <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 flex items-center justify-center">
               <Leaf className="w-5 h-5" />
             </div>
@@ -73,13 +75,13 @@ export const StatisticsView: React.FC = () => {
             <span className="text-base font-semibold text-slate-500">unid/kg</span>
           </p>
           <p className="text-xs text-emerald-700 dark:text-emerald-400 font-semibold mt-2">
-            Basado en tus operaciones aceptadas
+            {t('statistics.foodRescuedSub')}
           </p>
         </div>
 
         <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold uppercase text-slate-400">Valor Recuperado</span>
+            <span className="text-xs font-bold uppercase text-slate-400">{t('statistics.moneyRecovered')}</span>
             <div className="w-9 h-9 rounded-xl bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 flex items-center justify-center">
               <DollarSign className="w-5 h-5" />
             </div>
@@ -87,25 +89,25 @@ export const StatisticsView: React.FC = () => {
           <p className="text-2xl font-extrabold text-slate-900 dark:text-white">
             {formatCOP(totalRevenue)}
           </p>
-          <p className="text-xs text-slate-500 mt-2">Ingresos por lotes comercializados</p>
+          <p className="text-xs text-slate-500 mt-2">{t('statistics.moneyRecoveredSub')}</p>
         </div>
 
         <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold uppercase text-slate-400">Lotes Publicados</span>
+            <span className="text-xs font-bold uppercase text-slate-400">{t('statistics.lotsPublished')}</span>
             <div className="w-9 h-9 rounded-xl bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 flex items-center justify-center">
               <PackageCheck className="w-5 h-5" />
             </div>
           </div>
           <p className="text-3xl font-extrabold text-slate-900 dark:text-white">{totalPublished}</p>
           <p className="text-xs text-emerald-700 dark:text-emerald-400 font-semibold mt-2">
-            {completedSales} operaciones cerradas con éxito
+            {completedSales} {t('statistics.lotsPublishedSub')}
           </p>
         </div>
 
         <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold uppercase text-slate-400">Inversión en Tarifas</span>
+            <span className="text-xs font-bold uppercase text-slate-400">{t('statistics.feesInvested')}</span>
             <div className="w-9 h-9 rounded-xl bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-400 flex items-center justify-center">
               <TrendingUp className="w-5 h-5" />
             </div>
@@ -113,7 +115,7 @@ export const StatisticsView: React.FC = () => {
           <p className="text-2xl font-extrabold text-slate-900 dark:text-white">
             {formatCOP(totalCommissionsPaid)}
           </p>
-          <p className="text-xs text-slate-500 mt-2">Comisiones por tiempo de exposición</p>
+          <p className="text-xs text-slate-500 mt-2">{t('statistics.feesInvestedSub')}</p>
         </div>
       </div>
 
@@ -122,24 +124,23 @@ export const StatisticsView: React.FC = () => {
         <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-12 text-center shadow-xs">
           <BarChart3 className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
           <h3 className="text-base font-bold text-slate-900 dark:text-white">
-            Aún no hay datos estadísticos registrados en tu cuenta
+            {t('statistics.noStatsTitle')}
           </h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 mb-6 max-w-md mx-auto">
-            Tus métricas comerciales y de impacto ambiental se calcularán en tiempo real a medida
-            que publiques lotes de alimentos y cierres negociaciones.
+            {t('statistics.noStatsDesc')}
           </p>
           <button
             onClick={() => setActiveTab('publish')}
             className="inline-flex items-center gap-2 bg-[#1B4332] hover:bg-emerald-900 text-white font-bold px-5 py-2.5 rounded-xl text-xs transition-colors cursor-pointer"
           >
             <PlusCircle className="w-4 h-4" />
-            <span>Publicar mi primer lote</span>
+            <span>{t('statistics.publishFirst')}</span>
           </button>
         </div>
       ) : (
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-xs">
           <h3 className="font-bold text-slate-900 dark:text-white text-base mb-4">
-            Desglose de Tus Lotes Publicados
+            {t('statistics.breakdownTitle')}
           </h3>
           <div className="space-y-3">
             {myProducts.map((prod) => (

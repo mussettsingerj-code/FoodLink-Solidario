@@ -15,6 +15,9 @@ import {
   ShoppingBag,
   ChevronRight,
   MapPin,
+  Sun,
+  Moon,
+  Monitor,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
@@ -34,6 +37,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
     logout,
     t,
     language,
+    setLanguage,
+    themeMode,
+    setThemeMode,
   } = useApp();
 
   const isSeller = userProfile.role === 'seller';
@@ -58,12 +64,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
       id: 'explore',
       label: t('nav.explore'),
       icon: Search,
-      show: true,
-    },
-    {
-      id: 'map',
-      label: t('nav.map'),
-      icon: MapPin,
       show: true,
     },
     {
@@ -247,6 +247,64 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
             </div>
           </div>
           <ChevronRight className="w-4 h-4 text-emerald-400/60 shrink-0" />
+        </div>
+
+        {/* Language & Theme Controls in User Menu */}
+        <div className="pt-2 pb-1 border-t border-emerald-900/40 flex items-center justify-between gap-2">
+          {/* Language Switch */}
+          <div className="flex items-center bg-emerald-900/60 p-0.5 rounded-lg border border-emerald-800/60 text-xs font-bold">
+            <button
+              type="button"
+              onClick={() => setLanguage('es')}
+              className={`px-2 py-1 rounded-md transition-all cursor-pointer text-[11px] ${
+                language === 'es'
+                  ? 'bg-emerald-500 text-slate-950 font-extrabold shadow-2xs'
+                  : 'text-emerald-300 hover:text-white'
+              }`}
+              title="Español"
+            >
+              ES
+            </button>
+            <button
+              type="button"
+              onClick={() => setLanguage('en')}
+              className={`px-2 py-1 rounded-md transition-all cursor-pointer text-[11px] ${
+                language === 'en'
+                  ? 'bg-emerald-500 text-slate-950 font-extrabold shadow-2xs'
+                  : 'text-emerald-300 hover:text-white'
+              }`}
+              title="English"
+            >
+              EN
+            </button>
+          </div>
+
+          {/* Theme Mode Cycle */}
+          <button
+            type="button"
+            onClick={() => {
+              if (themeMode === 'light') setThemeMode('dark');
+              else if (themeMode === 'dark') setThemeMode('system');
+              else setThemeMode('light');
+            }}
+            title={
+              language === 'en'
+                ? `Theme: ${themeMode === 'light' ? 'Light' : themeMode === 'dark' ? 'Dark' : 'System Auto'}`
+                : `Tema: ${themeMode === 'light' ? 'Claro' : themeMode === 'dark' ? 'Oscuro' : 'Automático'}`
+            }
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-900/60 border border-emerald-800/60 text-emerald-200 text-xs hover:bg-emerald-800/60 transition-colors cursor-pointer"
+          >
+            {themeMode === 'light' && <Sun className="w-3.5 h-3.5 text-amber-400" />}
+            {themeMode === 'dark' && <Moon className="w-3.5 h-3.5 text-indigo-300" />}
+            {themeMode === 'system' && <Monitor className="w-3.5 h-3.5 text-emerald-300" />}
+            <span className="text-[11px] capitalize">
+              {themeMode === 'light'
+                ? t('profile.light', 'Claro')
+                : themeMode === 'dark'
+                ? t('profile.dark', 'Oscuro')
+                : t('profile.system', 'Auto')}
+            </span>
+          </button>
         </div>
 
         <button

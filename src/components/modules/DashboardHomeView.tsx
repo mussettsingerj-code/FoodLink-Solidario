@@ -26,6 +26,7 @@ export const DashboardHomeView: React.FC = () => {
     setSelectedProduct,
     setActiveNegotiationOffer,
     formatCOP,
+    t,
   } = useApp();
 
   const isSeller = userProfile.role === 'seller';
@@ -68,22 +69,22 @@ export const DashboardHomeView: React.FC = () => {
               {isSeller ? (
                 <>
                   <Store className="w-3.5 h-3.5" />
-                  <span>Panel de Gestión de Vendedor</span>
+                  <span>{t('dashboard.sellerPanel')}</span>
                 </>
               ) : (
                 <>
                   <ShoppingBag className="w-3.5 h-3.5" />
-                  <span>Panel de Adquisición y Compras</span>
+                  <span>{t('dashboard.buyerPanel')}</span>
                 </>
               )}
             </div>
             <h2 className="text-2xl sm:text-3xl font-bold tracking-tight mb-2">
-              Hola, {userProfile.organizationName || userProfile.name}
+              {t('dashboard.greeting')}, {userProfile.organizationName || userProfile.name}
             </h2>
             <p className="text-emerald-100/85 text-sm sm:text-base leading-relaxed">
               {isSeller
-                ? 'Publica tus excedentes o productos próximos a vencer con tarifas transparentes por tiempo de exposición y conecta directamente con compradores e instituciones.'
-                : 'Explora lotes de alimentos verificados con descuentos significativos, propón ofertas o contraofertas directas y coordina entregas seguras.'}
+                ? t('dashboard.sellerIntro')
+                : t('dashboard.buyerIntro')}
             </p>
           </div>
 
@@ -95,14 +96,14 @@ export const DashboardHomeView: React.FC = () => {
                   className="flex items-center gap-2 bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-bold px-5 py-3 rounded-xl text-sm shadow-lg shadow-emerald-950/30 transition-all cursor-pointer"
                 >
                   <PlusCircle className="w-4 h-4 stroke-[2.5]" />
-                  <span>Publicar Nuevo Alimento</span>
+                  <span>{t('dashboard.publishNew')}</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('my-publications')}
                   className="flex items-center gap-2 bg-white/10 hover:bg-white/15 text-white border border-white/15 font-semibold px-4 py-3 rounded-xl text-sm transition-all cursor-pointer"
                 >
                   <Package className="w-4 h-4" />
-                  <span>Ver Mis Lotes</span>
+                  <span>{t('dashboard.myLots')}</span>
                 </button>
               </>
             ) : (
@@ -112,14 +113,14 @@ export const DashboardHomeView: React.FC = () => {
                   className="flex items-center gap-2 bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-bold px-5 py-3 rounded-xl text-sm shadow-lg shadow-emerald-950/30 transition-all cursor-pointer"
                 >
                   <Search className="w-4 h-4 stroke-[2.5]" />
-                  <span>Explorar Catálogo Disponible</span>
+                  <span>{t('dashboard.exploreCatalog')}</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('negotiations')}
                   className="flex items-center gap-2 bg-white/10 hover:bg-white/15 text-white border border-white/15 font-semibold px-4 py-3 rounded-xl text-sm transition-all cursor-pointer"
                 >
                   <Inbox className="w-4 h-4" />
-                  <span>Mis Negociaciones</span>
+                  <span>{t('dashboard.myNegotiations')}</span>
                 </button>
               </>
             )}
@@ -137,7 +138,7 @@ export const DashboardHomeView: React.FC = () => {
             >
               <div className="flex items-center justify-between mb-3">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                  Publicaciones Activas
+                  {t('dashboard.activePublications')}
                 </span>
                 <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 flex items-center justify-center group-hover:scale-105 transition-transform">
                   <Package className="w-5 h-5" />
@@ -147,7 +148,7 @@ export const DashboardHomeView: React.FC = () => {
                 {activeProductsCount}
               </p>
               <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium mt-1">
-                Lotes publicados por tu cuenta
+                {t('dashboard.activePublicationsSub')}
               </p>
             </div>
 
@@ -157,7 +158,7 @@ export const DashboardHomeView: React.FC = () => {
             >
               <div className="flex items-center justify-between mb-3">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                  Próximas a Vencer
+                  {t('dashboard.expiringSoon')}
                 </span>
                 <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center group-hover:scale-105 transition-transform">
                   <Clock className="w-5 h-5" />
@@ -167,7 +168,7 @@ export const DashboardHomeView: React.FC = () => {
                 {expiringSoonCount}
               </p>
               <p className="text-xs text-amber-700 dark:text-amber-400 font-medium mt-1">
-                Menos de 24h de exposición
+                {t('dashboard.expiringSoonSub')}
               </p>
             </div>
 
@@ -177,7 +178,7 @@ export const DashboardHomeView: React.FC = () => {
             >
               <div className="flex items-center justify-between mb-3">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                  Ofertas Pendientes
+                  {t('dashboard.pendingOffers')}
                 </span>
                 <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center group-hover:scale-105 transition-transform">
                   <Inbox className="w-5 h-5" />
@@ -187,7 +188,7 @@ export const DashboardHomeView: React.FC = () => {
                 {receivedPendingOffers.length}
               </p>
               <p className="text-xs text-blue-700 dark:text-blue-400 font-medium mt-1">
-                Esperando tu respuesta
+                {t('dashboard.pendingOffersSub')}
               </p>
             </div>
 
@@ -197,7 +198,7 @@ export const DashboardHomeView: React.FC = () => {
             >
               <div className="flex items-center justify-between mb-3">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                  Entregas Acordadas
+                  {t('dashboard.agreedDeliveries')}
                 </span>
                 <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 flex items-center justify-center group-hover:scale-105 transition-transform">
                   <CheckCircle2 className="w-5 h-5" />
@@ -207,7 +208,7 @@ export const DashboardHomeView: React.FC = () => {
                 {completedSalesCount}
               </p>
               <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1">
-                Lotes rescatados con éxito
+                {t('dashboard.agreedDeliveriesSub')}
               </p>
             </div>
           </>
@@ -219,7 +220,7 @@ export const DashboardHomeView: React.FC = () => {
             >
               <div className="flex items-center justify-between mb-3">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                  Lotes Disponibles Hoy
+                  {t('dashboard.lotsAvailableToday')}
                 </span>
                 <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 flex items-center justify-center">
                   <Sparkles className="w-5 h-5" />
@@ -229,7 +230,7 @@ export const DashboardHomeView: React.FC = () => {
                 {availableCatalogProducts.length}
               </p>
               <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium mt-1">
-                Disponibles en catálogo
+                {t('dashboard.lotsAvailableTodaySub')}
               </p>
             </div>
 
@@ -239,7 +240,7 @@ export const DashboardHomeView: React.FC = () => {
             >
               <div className="flex items-center justify-between mb-3">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                  Mis Ofertas Enviadas
+                  {t('dashboard.mySentOffers')}
                 </span>
                 <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
                   <Inbox className="w-5 h-5" />
@@ -249,7 +250,7 @@ export const DashboardHomeView: React.FC = () => {
                 {mySentOffers.length}
               </p>
               <p className="text-xs text-blue-700 dark:text-blue-400 font-medium mt-1">
-                Propuestas realizadas por ti
+                {t('dashboard.mySentOffersSub')}
               </p>
             </div>
 
@@ -259,7 +260,7 @@ export const DashboardHomeView: React.FC = () => {
             >
               <div className="flex items-center justify-between mb-3">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                  En Negociación
+                  {t('dashboard.inNegotiation')}
                 </span>
                 <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center">
                   <CalendarClock className="w-5 h-5" />
@@ -269,7 +270,7 @@ export const DashboardHomeView: React.FC = () => {
                 {activeNegotiationsCount}
               </p>
               <p className="text-xs text-amber-700 dark:text-amber-400 font-medium mt-1">
-                Conversaciones activas
+                {t('dashboard.inNegotiationSub')}
               </p>
             </div>
 
@@ -279,7 +280,7 @@ export const DashboardHomeView: React.FC = () => {
             >
               <div className="flex items-center justify-between mb-3">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                  Adquisiciones Aprobadas
+                  {t('dashboard.approvedPurchases')}
                 </span>
                 <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 flex items-center justify-center">
                   <CheckCircle2 className="w-5 h-5" />
@@ -289,7 +290,7 @@ export const DashboardHomeView: React.FC = () => {
                 {acceptedOffersCount}
               </p>
               <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1">
-                Listas para recogida
+                {t('dashboard.approvedPurchasesSub')}
               </p>
             </div>
           </>
@@ -305,18 +306,18 @@ export const DashboardHomeView: React.FC = () => {
               <div>
                 <h3 className="font-bold text-slate-900 dark:text-white text-base">
                   {isSeller
-                    ? 'Ofertas y Negociaciones Recientes'
-                    : 'Estado de Mis Ofertas y Negociaciones'}
+                    ? t('dashboard.recentOffersSeller')
+                    : t('dashboard.recentOffersBuyer')}
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Acuerdos directos de precio, volumen y método de recogida
+                  {t('dashboard.recentOffersSub')}
                 </p>
               </div>
               <button
                 onClick={() => setActiveTab('offers')}
                 className="text-xs font-bold text-emerald-800 dark:text-emerald-400 hover:text-emerald-600 flex items-center gap-1 cursor-pointer"
               >
-                Ver todas <ArrowRight className="w-3.5 h-3.5" />
+                {t('dashboard.viewAll')} <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
 
@@ -324,12 +325,12 @@ export const DashboardHomeView: React.FC = () => {
               <div className="text-center py-12 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 px-4">
                 <Inbox className="w-9 h-9 text-slate-300 dark:text-slate-600 mx-auto mb-2.5" />
                 <p className="text-sm font-bold text-slate-700 dark:text-slate-300">
-                  Aún no tienes ofertas ni negociaciones registradas
+                  {t('dashboard.noOffersTitle')}
                 </p>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto">
                   {isSeller
-                    ? 'Cuando publiques un lote y un comprador realice una propuesta, aparecerá aquí.'
-                    : 'Explora el catálogo de alimentos disponibles para enviar tu primera oferta.'}
+                    ? t('dashboard.noOffersDescSeller')
+                    : t('dashboard.noOffersDescBuyer')}
                 </p>
               </div>
             ) : (
@@ -344,7 +345,7 @@ export const DashboardHomeView: React.FC = () => {
                       <img
                         src={offer.productImageUrl}
                         alt={offer.productName}
-                        className="w-12 h-12 rounded-xl object-cover shrink-0 border border-slate-200"
+                        className="w-12 h-12 rounded-xl object-cover shrink-0 border border-slate-200 dark:border-slate-700"
                       />
                       <div>
                         <div className="flex items-center gap-2">
@@ -354,21 +355,21 @@ export const DashboardHomeView: React.FC = () => {
                           <span
                             className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
                               offer.status === 'pendiente'
-                                ? 'bg-amber-100 text-amber-800'
+                                ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300'
                                 : offer.status === 'aceptada'
-                                ? 'bg-emerald-100 text-emerald-800'
+                                ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300'
                                 : offer.status === 'contraoferta'
-                                ? 'bg-blue-100 text-blue-800'
-                                : 'bg-red-100 text-red-800'
+                                ? 'bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300'
+                                : 'bg-red-100 dark:bg-red-950/60 text-red-800 dark:text-red-300'
                             }`}
                           >
                             {offer.status}
                           </span>
                         </div>
-                        <p className="text-xs text-slate-500 mt-0.5">
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                           {isSeller
-                            ? `Comprador: ${offer.buyerOrganization}`
-                            : `Vendedor: ${offer.sellerName}`}{' '}
+                            ? `${t('dashboard.buyerLabel')}: ${offer.buyerOrganization}`
+                            : `${t('dashboard.sellerLabel')}: ${offer.sellerName}`}{' '}
                           •{' '}
                           <span className="font-semibold text-slate-700 dark:text-slate-300">
                             {offer.requestedQuantity} {offer.unit}
@@ -377,15 +378,15 @@ export const DashboardHomeView: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between sm:justify-end gap-4 border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100">
+                    <div className="flex items-center justify-between sm:justify-end gap-4 border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100 dark:border-slate-800">
                       <div className="text-left sm:text-right">
-                        <p className="text-xs text-slate-400">Valor Propuesto</p>
+                        <p className="text-xs text-slate-400">{t('dashboard.proposedPrice')}</p>
                         <p className="text-sm font-extrabold text-emerald-800 dark:text-emerald-400">
                           {formatCOP(offer.totalOfferedPrice)}
                         </p>
                       </div>
                       <span className="text-xs font-bold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/60 dark:text-emerald-300 px-3 py-1.5 rounded-lg">
-                        Abrir Chat
+                        {t('dashboard.openChat')}
                       </span>
                     </div>
                   </div>
@@ -400,13 +401,13 @@ export const DashboardHomeView: React.FC = () => {
           <div>
             <div className="flex items-center justify-between mb-5">
               <h3 className="font-bold text-slate-900 dark:text-white text-base">
-                Notificaciones Recientes
+                {t('dashboard.recentNotifications')}
               </h3>
               <button
                 onClick={() => setActiveTab('notifications')}
                 className="text-xs font-bold text-emerald-800 dark:text-emerald-400 hover:text-emerald-600 cursor-pointer"
               >
-                Ver todas
+                {t('dashboard.viewAll')}
               </button>
             </div>
 
@@ -414,10 +415,10 @@ export const DashboardHomeView: React.FC = () => {
               <div className="text-center py-12 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 px-4">
                 <Bell className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
                 <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                  Sin notificaciones nuevas
+                  {t('dashboard.noNotifications')}
                 </p>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-                  Aquí recibirás alertas sobre tus ofertas, contraofertas y vencimientos.
+                  {t('dashboard.noNotificationsSub')}
                 </p>
               </div>
             ) : (
@@ -462,10 +463,10 @@ export const DashboardHomeView: React.FC = () => {
               <AlertTriangle className="w-5 h-5 text-amber-500" />
               <div>
                 <h3 className="font-bold text-slate-900 dark:text-white text-base">
-                  Lotes Prioritarios Disponibles
+                  {t('dashboard.priorityLots')}
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Alimentos publicados recientemente en la plataforma
+                  {t('dashboard.priorityLotsSub')}
                 </p>
               </div>
             </div>
@@ -473,7 +474,7 @@ export const DashboardHomeView: React.FC = () => {
               onClick={() => setActiveTab('explore')}
               className="text-xs font-bold text-emerald-800 dark:text-emerald-400 hover:text-emerald-600 flex items-center gap-1 cursor-pointer"
             >
-              Ir al explorador completo <ArrowRight className="w-3.5 h-3.5" />
+              {t('dashboard.fullExplorer')} <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
 
@@ -495,17 +496,17 @@ export const DashboardHomeView: React.FC = () => {
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5 mb-1">
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
-                        -{discount}% DTO
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300">
+                        -{discount}% {t('dashboard.discount')}
                       </span>
                       <span className="text-[10px] text-slate-400 truncate">
                         {product.locationCity}
                       </span>
                     </div>
-                    <h4 className="font-bold text-slate-900 dark:text-white text-sm truncate group-hover:text-emerald-800">
+                    <h4 className="font-bold text-slate-900 dark:text-white text-sm truncate group-hover:text-emerald-800 dark:group-hover:text-emerald-400">
                       {product.name}
                     </h4>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
                       {product.quantity} {product.unit} • {product.condition}
                     </p>
                     <p className="text-sm font-extrabold text-emerald-800 dark:text-emerald-400 mt-1">

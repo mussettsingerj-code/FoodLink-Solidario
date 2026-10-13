@@ -55,7 +55,7 @@ export const LandingPage: React.FC = () => {
                   className="px-7 py-4 bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-black rounded-2xl shadow-xl hover:shadow-emerald-500/25 transition-all flex items-center gap-2.5 text-base cursor-pointer transform hover:-translate-y-0.5"
                 >
                   <KeyRound className="w-5 h-5" />
-                  <span>Iniciar Sesión / Acceso</span>
+                  <span>{t('auth.loginBtn')}</span>
                   <ArrowRight className="w-5 h-5" />
                 </button>
 
@@ -233,7 +233,7 @@ export const LandingPage: React.FC = () => {
             </div>
 
             <button
-              onClick={() => setIsPublishModalOpen(true)}
+              onClick={() => (isAuthenticated ? setIsPublishModalOpen(true) : setCurrentView('login'))}
               className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-sm transition-colors cursor-pointer"
             >
               {t('landing.estBtn')}
@@ -362,7 +362,7 @@ export const LandingPage: React.FC = () => {
             </span>
           </div>
           <button
-            onClick={() => setIsPublishModalOpen(true)}
+            onClick={() => (isAuthenticated ? setIsPublishModalOpen(true) : setCurrentView('login'))}
             className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl whitespace-nowrap transition-colors cursor-pointer"
           >
             {t('landing.publishWithRate')}

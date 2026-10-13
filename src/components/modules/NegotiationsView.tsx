@@ -93,7 +93,7 @@ export const NegotiationsView: React.FC = () => {
             Negociaciones
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Sala de conversación directa entre empresas y organizaciones para acordar entregas.
+            Sala de conversación directa entre compradores y vendedores para acordar entregas.
           </p>
         </div>
 

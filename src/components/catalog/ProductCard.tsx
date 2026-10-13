@@ -2,6 +2,7 @@ import React from 'react';
 import { FoodProduct } from '../../types';
 import { ProductImage } from '../common/ProductImage';
 import { Clock, Building2, ArrowRight } from 'lucide-react';
+import { useI18n } from '../../i18n/I18nContext';
 
 interface ProductCardProps {
   product: FoodProduct;
@@ -10,6 +11,8 @@ interface ProductCardProps {
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelect }) => {
+  const { t, language } = useI18n();
+
   // Calculate remaining time
   const now = Date.now();
   const expires = new Date(product.expiresAt).getTime();
@@ -17,17 +20,21 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelect }) =
   const diffDays = Math.floor(diffHours / 24);
   const remainingHoursInDay = diffHours % 24;
 
-  let remainingLabel = `${diffDays}d ${remainingHoursInDay}h restantes`;
+  let remainingLabel = language === 'en'
+    ? `${diffDays}d ${remainingHoursInDay}h left`
+    : `${diffDays}d ${remainingHoursInDay}h restantes`;
   let urgencyColorClass = 'text-slate-600 dark:text-slate-300';
 
   if (diffHours <= 0 || product.status === 'finalizada') {
-    remainingLabel = 'Finalizada';
+    remainingLabel = language === 'en' ? 'Finished' : 'Finalizada';
     urgencyColorClass = 'text-rose-600 dark:text-rose-400';
   } else if (diffHours < 24) {
-    remainingLabel = `${diffHours}h restantes`;
+    remainingLabel = language === 'en' ? `${diffHours}h left` : `${diffHours}h restantes`;
     urgencyColorClass = 'text-amber-600 dark:text-amber-400';
   } else if (diffDays <= 3) {
-    remainingLabel = `${diffDays}d ${remainingHoursInDay}h restantes`;
+    remainingLabel = language === 'en'
+      ? `${diffDays}d ${remainingHoursInDay}h left`
+      : `${diffDays}d ${remainingHoursInDay}h restantes`;
     urgencyColorClass = 'text-slate-700 dark:text-slate-200';
   }
 
@@ -100,7 +107,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelect }) =
             }}
             className="px-3 py-1.5 text-xs font-semibold text-slate-900 dark:text-slate-100 bg-slate-100 dark:bg-slate-800 hover:bg-emerald-600 hover:text-white dark:hover:bg-emerald-600 dark:hover:text-white rounded-lg transition-colors inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
           >
-            <span>Ver detalles</span>
+            <span>{t('catalog.viewDetail')}</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>

@@ -89,10 +89,16 @@ export interface FoodProduct {
   requestedPrice: number; // in COP per unit
   minPurchaseQuantity: number;
   deliveryConditions: string;
+  coordinates?: {
+    lat: number;
+    lng: number;
+  };
+  placeId?: string;
+  images?: string[];
   
   // Publication model
-  durationDays: DurationDays;
-  commissionPaid: number;
+  durationDays?: DurationDays;
+  commissionPaid?: number;
   publishedAt: string; // ISO date
   expiresAt: string; // ISO date
   status: ProductStatus;

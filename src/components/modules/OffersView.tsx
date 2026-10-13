@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { useI18n } from '../../i18n/I18nContext';
 import { ProductOffer } from '../../types';
 import { ProductImage } from '../common/ProductImage';
 import { ProductDetailModal } from '../catalog/ProductDetailModal';
@@ -25,8 +26,8 @@ export const OffersView: React.FC = () => {
     setSelectedOfferIdForNegotiation,
     selectedProductIdForDetail,
     setSelectedProductIdForDetail,
-    loadDemoData,
   } = useApp();
+  const { t } = useI18n();
 
   const [statusFilter, setStatusFilter] = useState<
     'todas' | 'pendiente' | 'negociacion' | 'aceptada' | 'rechazada' | 'finalizada'
@@ -58,7 +59,7 @@ export const OffersView: React.FC = () => {
       return (
         <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
           <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-          <span>Aceptada</span>
+          <span>{t('offer.statusAccepted')}</span>
         </span>
       );
     }
@@ -66,7 +67,7 @@ export const OffersView: React.FC = () => {
       return (
         <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-rose-600 dark:text-rose-400">
           <XCircle className="w-3.5 h-3.5 shrink-0" />
-          <span>Rechazada</span>
+          <span>{t('offer.statusRejected')}</span>
         </span>
       );
     }
@@ -74,14 +75,14 @@ export const OffersView: React.FC = () => {
       return (
         <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
           <RefreshCw className="w-3.5 h-3.5 shrink-0" />
-          <span>En negociación</span>
+          <span>{t('offer.negotiationTab')}</span>
         </span>
       );
     }
     return (
       <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
         <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-        <span>Pendiente</span>
+        <span>{t('offer.statusPending')}</span>
       </span>
     );
   };
@@ -92,10 +93,10 @@ export const OffersView: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
-            Ofertas
+            {t('offer.pageTitle')}
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Seguimiento centralizado de ofertas recibidas y enviadas por lotes de alimentos.
+            {t('offer.pageSubtitle')}
           </p>
         </div>
 
@@ -105,7 +106,7 @@ export const OffersView: React.FC = () => {
           className="px-4 py-2.5 bg-slate-900 dark:bg-emerald-600 hover:bg-slate-800 dark:hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition-colors inline-flex items-center gap-2 whitespace-nowrap self-start sm:self-auto cursor-pointer"
         >
           <ShoppingBag className="w-4 h-4" />
-          <span>Explorar productos</span>
+          <span>{t('offer.exploreProducts')}</span>
         </button>
       </div>
 
@@ -113,14 +114,14 @@ export const OffersView: React.FC = () => {
       <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-1.5">
           {[
-            { id: 'todas', label: 'Todas', count: offers.length },
-            { id: 'pendiente', label: 'Pendiente', count: offers.filter((o) => o.status === 'pendiente').length },
-            { id: 'negociacion', label: 'En negociación', count: offers.filter((o) => o.status === 'contraoferta').length },
-            { id: 'aceptada', label: 'Aceptada', count: offers.filter((o) => o.status === 'aceptada').length },
-            { id: 'rechazada', label: 'Rechazada', count: offers.filter((o) => o.status === 'rechazada').length },
+            { id: 'todas', label: t('offer.allTab'), count: offers.length },
+            { id: 'pendiente', label: t('offer.statusPending'), count: offers.filter((o) => o.status === 'pendiente').length },
+            { id: 'negociacion', label: t('offer.negotiationTab'), count: offers.filter((o) => o.status === 'contraoferta').length },
+            { id: 'aceptada', label: t('offer.statusAccepted'), count: offers.filter((o) => o.status === 'aceptada').length },
+            { id: 'rechazada', label: t('offer.statusRejected'), count: offers.filter((o) => o.status === 'rechazada').length },
             {
               id: 'finalizada',
-              label: 'Finalizada',
+              label: t('offer.finishedTab'),
               count: offers.filter((o) => o.status === 'aceptada' || o.status === 'rechazada').length,
             },
           ].map((tab) => (
@@ -146,7 +147,7 @@ export const OffersView: React.FC = () => {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Filtrar por producto u organización..."
+            placeholder={t('offer.searchPlaceholder')}
             className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-slate-100 focus:outline-emerald-600"
           />
         </div>
@@ -221,7 +222,7 @@ export const OffersView: React.FC = () => {
                       className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold inline-flex items-center gap-1.5 cursor-pointer"
                     >
                       <FileText className="w-3.5 h-3.5" />
-                      <span>Generar acta de entrega</span>
+                      <span>{t('offer.btnDownloadAct')}</span>
                     </button>
                   )}
                   {offer.status !== 'aceptada' && offer.status !== 'rechazada' && (
@@ -231,14 +232,14 @@ export const OffersView: React.FC = () => {
                         onClick={() => respondToOffer(offer.id, 'aceptada')}
                         className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold cursor-pointer"
                       >
-                        Aceptar
+                        {t('offer.btnAccept')}
                       </button>
                       <button
                         type="button"
                         onClick={() => respondToOffer(offer.id, 'rechazada')}
                         className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-rose-600 cursor-pointer"
                       >
-                        Rechazar
+                        {t('offer.btnReject')}
                       </button>
                     </>
                   )}
@@ -251,7 +252,7 @@ export const OffersView: React.FC = () => {
                     className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold inline-flex items-center gap-1.5 cursor-pointer"
                   >
                     <MessageSquare className="w-3.5 h-3.5" />
-                    <span>Negociar</span>
+                    <span>{t('offer.btnNegotiate')}</span>
                   </button>
                 </div>
               </div>
@@ -264,13 +265,13 @@ export const OffersView: React.FC = () => {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/50 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                    <th className="py-3.5 px-4">Producto</th>
-                    <th className="py-3.5 px-4">Organización ofertante</th>
-                    <th className="py-3.5 px-4 text-right">Cantidad</th>
-                    <th className="py-3.5 px-4 text-right">Valor total</th>
-                    <th className="py-3.5 px-4">Fecha retiro</th>
-                    <th className="py-3.5 px-4">Estado</th>
-                    <th className="py-3.5 px-4 text-right">Acciones</th>
+                    <th className="py-3.5 px-4">{t('offer.colProduct')}</th>
+                    <th className="py-3.5 px-4">{t('offer.colBuyerOrg')}</th>
+                    <th className="py-3.5 px-4 text-right">{t('offer.colQuantity')}</th>
+                    <th className="py-3.5 px-4 text-right">{t('offer.colTotal')}</th>
+                    <th className="py-3.5 px-4">{t('offer.colDate')}</th>
+                    <th className="py-3.5 px-4">{t('offer.colStatus')}</th>
+                    <th className="py-3.5 px-4 text-right">{t('offer.colActions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-xs">
@@ -344,7 +345,7 @@ export const OffersView: React.FC = () => {
                               className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold inline-flex items-center gap-1.5 transition-colors cursor-pointer"
                             >
                               <FileText className="w-3.5 h-3.5" />
-                              <span>Generar acta de entrega</span>
+                              <span>{t('offer.btnDownloadAct')}</span>
                             </button>
                           )}
                           {offer.status !== 'aceptada' && offer.status !== 'rechazada' && (
@@ -354,14 +355,14 @@ export const OffersView: React.FC = () => {
                                 onClick={() => respondToOffer(offer.id, 'aceptada')}
                                 className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold transition-colors cursor-pointer"
                               >
-                                Aceptar
+                                {t('offer.btnAccept')}
                               </button>
                               <button
                                 type="button"
                                 onClick={() => respondToOffer(offer.id, 'rechazada')}
                                 className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-rose-600 hover:border-rose-200 transition-colors cursor-pointer"
                               >
-                                Rechazar
+                                {t('offer.btnReject')}
                               </button>
                             </>
                           )}
@@ -374,7 +375,7 @@ export const OffersView: React.FC = () => {
                             className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-semibold inline-flex items-center gap-1.5 transition-colors cursor-pointer"
                           >
                             <MessageSquare className="w-3.5 h-3.5" />
-                            <span>Negociar</span>
+                            <span>{t('offer.btnNegotiate')}</span>
                           </button>
                         </div>
                       </td>

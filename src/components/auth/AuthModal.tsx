@@ -22,6 +22,7 @@ import {
   ArrowLeft,
   Check,
   RefreshCw,
+  UserX,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { UserRole, EmailCheckResult } from '../../types';
@@ -130,10 +131,18 @@ export const AuthModal: React.FC = () => {
     try {
       const res = await login(loginEmail, loginPassword, rememberMe);
       if (!res.success) {
-        setErrorMsg(res.message);
         setErrorCode(res.code || null);
+        if (res.code === 'user-not-found' || res.message.includes('no está registrada')) {
+          setErrorMsg('No existe una cuenta registrada con este correo electrónico. Verifica tus datos o regístrate como nuevo usuario.');
+        } else if (res.code === 'email-not-verified') {
+          setErrorMsg('Tu correo electrónico no ha sido verificado todavía. Por favor revisa tu bandeja de entrada o spam.');
+        } else if (res.code === 'wrong-password') {
+          setErrorMsg('La contraseña ingresada es incorrecta. Inténtalo de nuevo o solicita la recuperación de tu contraseña.');
+        } else {
+          setErrorMsg(res.message);
+        }
       } else {
-        setSuccessMsg(res.message);
+        setSuccessMsg('¡Inicio de sesión exitoso! Ingresando a la plataforma...');
       }
     } finally {
       setIsSubmitting(false);
@@ -435,23 +444,34 @@ export const AuthModal: React.FC = () => {
 
             <div className="p-6 max-h-[80vh] overflow-y-auto">
               {/* Alerts */}
-              {errorMsg && (
+              {(errorCode === 'user-not-found' || (errorMsg && (errorMsg.includes('no está registrada') || errorMsg.includes('No existe una cuenta')))) && mode === 'login' ? (
+                <div className="mb-4 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/80 flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 flex items-center justify-center shrink-0">
+                    <UserX className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1 text-xs text-amber-950 dark:text-amber-200">
+                    <p className="font-bold text-sm mb-1">Usuario no registrado</p>
+                    <p className="leading-relaxed text-amber-900 dark:text-amber-300">
+                      No encontramos ninguna cuenta registrada con este correo electrónico. Verifica tus datos o crea una cuenta nueva.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={switchToRegisterWithPrefill}
+                      className="mt-2.5 inline-flex items-center gap-1.5 font-bold text-xs text-white bg-amber-600 hover:bg-amber-700 px-3 py-1.5 rounded-lg transition-colors cursor-pointer shadow-xs"
+                    >
+                      <span>Crear cuenta con este correo</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ) : errorMsg ? (
                 <div className="mb-4 p-3.5 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/60 flex items-start gap-2.5">
                   <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
                   <div className="flex-1 text-xs text-red-800 dark:text-red-200">
                     <p className="font-semibold">{errorMsg}</p>
-                    {errorCode === 'user-not-found' && mode === 'login' && (
-                      <button
-                        type="button"
-                        onClick={switchToRegisterWithPrefill}
-                        className="mt-2 inline-flex items-center gap-1 font-bold text-white bg-red-600 hover:bg-red-700 px-3 py-1 rounded-lg transition-colors cursor-pointer"
-                      >
-                        Ir a Crear Cuenta <ArrowRight className="w-3 h-3" />
-                      </button>
-                    )}
                   </div>
                 </div>
-              )}
+              ) : null}
 
               {successMsg && (
                 <div className="mb-4 p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 flex items-start gap-2.5">

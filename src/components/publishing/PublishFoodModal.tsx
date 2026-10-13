@@ -1,5 +1,6 @@
 import React from 'react';
 import { PublishProductView } from '../modules/PublishProductView';
+import { useI18n } from '../../i18n/I18nContext';
 import { X } from 'lucide-react';
 
 interface PublishFoodModalProps {
@@ -8,6 +9,7 @@ interface PublishFoodModalProps {
 }
 
 export const PublishFoodModal: React.FC<PublishFoodModalProps> = ({ isOpen, onClose }) => {
+  const { t } = useI18n();
   if (!isOpen) return null;
 
   return (
@@ -16,10 +18,10 @@ export const PublishFoodModal: React.FC<PublishFoodModalProps> = ({ isOpen, onCl
         <div className="px-6 py-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
           <div>
             <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-              Publik Solidario
+              {t('app.name', 'FoodLink Solidario')}
             </span>
             <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
-              Publicar producto
+              {t('publish.title', 'Publicar lote solidario')}
             </h2>
           </div>
           <button

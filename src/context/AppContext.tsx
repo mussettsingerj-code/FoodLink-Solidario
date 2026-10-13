@@ -124,7 +124,8 @@ interface AppContextType {
   isDarkMode: boolean;
   language: SupportedLanguage;
   setLanguage: (lang: SupportedLanguage) => void;
-  t: (key: string) => string;
+  toggleLanguage: () => void;
+  t: (key: string, fallback?: string, params?: Record<string, string | number>) => string;
 
   // Search & Favorites & Toasts
   globalSearchQuery: string;
@@ -280,6 +281,41 @@ const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
   },
 };
 
+const USER_PROFILES_CACHE_KEY = 'foodlink_users_firestore_cache_v3';
+
+function readCachedUserProfile(uid: string): UserProfile | null {
+  try {
+    const raw = localStorage.getItem(USER_PROFILES_CACHE_KEY);
+    if (!raw) return null;
+    const map = JSON.parse(raw) as Record<string, UserProfile>;
+    return map[uid] || null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedUserProfile(profile: UserProfile): void {
+  if (!profile.id) return;
+  try {
+    const raw = localStorage.getItem(USER_PROFILES_CACHE_KEY);
+    const map: Record<string, UserProfile> = raw ? JSON.parse(raw) : {};
+    map[profile.id] = profile;
+    localStorage.setItem(USER_PROFILES_CACHE_KEY, JSON.stringify(map));
+  } catch {
+    // Ignore storage quota errors
+  }
+}
+
+function isOfflineFirestoreError(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+  return (
+    msg.includes('offline') ||
+    msg.includes('unavailable') ||
+    msg.includes('network') ||
+    msg.includes('could not reach')
+  );
+}
+
 function normalizeRole(rawRole: unknown): UserRole {
   if (rawRole === 'seller' || rawRole === 'establishment') {
     return 'seller';
@@ -357,11 +393,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
 
-  const { language: i18nLang, setLanguage: setI18nLanguage } = useI18n();
+  const { language: i18nLang, setLanguage: setI18nLanguage, toggleLanguage: i18nToggle, t: i18nT } = useI18n();
 
   const [language, setLanguageState] = useState<SupportedLanguage>(() => {
-    const saved = localStorage.getItem('foodlink_language') as SupportedLanguage | null;
-    return saved || i18nLang || 'es';
+    return i18nLang || 'es';
   });
 
   useEffect(() => {
@@ -378,8 +413,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setIsDarkMode(shouldBeDark);
       if (shouldBeDark) {
         document.documentElement.classList.add('dark');
+        document.documentElement.style.colorScheme = 'dark';
       } else {
         document.documentElement.classList.remove('dark');
+        document.documentElement.style.colorScheme = 'light';
       }
     };
     applyTheme();
@@ -399,14 +436,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const setLanguage = (lang: SupportedLanguage) => {
     setLanguageState(lang);
     setI18nLanguage(lang);
-    localStorage.setItem('foodlink_language', lang);
   };
 
   const t = useCallback(
-    (key: string): string => {
-      return TRANSLATIONS[language]?.[key] || TRANSLATIONS['es'][key] || key;
+    (key: string, fallback?: string, params?: Record<string, string | number>): string => {
+      return i18nT(key, fallback, params);
     },
-    [language]
+    [i18nT]
   );
 
   /**
@@ -457,7 +493,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         try {
           snapshot = await getDoc(userDocRef);
         } catch (error) {
-          handleFirestoreError(error, OperationType.GET, `users/${uid}`);
+          if (!isOfflineFirestoreError(error)) {
+            handleFirestoreError(error, OperationType.GET, `users/${uid}`);
+          }
         }
 
         const isGoogleProvider = firebaseUser.providerData.some(p => p.providerId === 'google.com');
@@ -486,8 +524,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             createdAt: String(data.createdAt || new Date().toISOString()),
             updatedAt: String(data.updatedAt || new Date().toISOString()),
           };
+          writeCachedUserProfile(loadedProfile);
           await syncUserWithBackend(loadedProfile);
           return loadedProfile;
+        }
+
+        const cachedExisting = readCachedUserProfile(uid);
+        if (cachedExisting && !registrationDetails) {
+          const recoveredProfile: UserProfile = {
+            ...cachedExisting,
+            role: normalizeRole(cachedExisting.role),
+            verified: Boolean(firebaseUser.emailVerified || isGoogleProvider || cachedExisting.verified),
+          };
+          writeCachedUserProfile(recoveredProfile);
+          await syncUserWithBackend(recoveredProfile);
+          return recoveredProfile;
         }
 
         // First-time user: create document in `users/{uid}`
@@ -538,7 +589,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         try {
           await setDoc(userDocRef, newFirestoreDoc);
         } catch (error) {
-          handleFirestoreError(error, OperationType.CREATE, `users/${uid}`);
+          if (!isOfflineFirestoreError(error)) {
+            handleFirestoreError(error, OperationType.CREATE, `users/${uid}`);
+          }
         }
 
         const createdProfile: UserProfile = {
@@ -562,6 +615,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           updatedAt: nowIso,
         };
 
+        writeCachedUserProfile(createdProfile);
         await syncUserWithBackend(createdProfile);
         return createdProfile;
       })();
@@ -628,7 +682,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       const viewAliases: Record<string, string> = {
         catalog: 'explore',
-        organizations: 'map',
         dashboard: 'home',
       };
       const normalizedTab = viewAliases[tab] || tab;
@@ -864,7 +917,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updatedAt: serverTimestamp(),
       });
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `users/${uid}`);
+      if (!isOfflineFirestoreError(error)) {
+        handleFirestoreError(error, OperationType.UPDATE, `users/${uid}`);
+      }
     }
 
     const updatedProfile: UserProfile = {
@@ -873,6 +928,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updatedAt: nowIso,
     };
 
+    writeCachedUserProfile(updatedProfile);
     setUserProfile(updatedProfile);
     setCurrentRoleState('seller');
     await syncUserWithBackend(updatedProfile);
@@ -913,7 +969,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       try {
         await updateDoc(doc(db, 'users', uid), firestoreUpdates);
       } catch (error) {
-        handleFirestoreError(error, OperationType.UPDATE, `users/${uid}`);
+        if (!isOfflineFirestoreError(error)) {
+          handleFirestoreError(error, OperationType.UPDATE, `users/${uid}`);
+        }
       }
 
       const updated: UserProfile = {
@@ -931,6 +989,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updatedAt: nowIso,
       };
 
+      writeCachedUserProfile(updated);
       setUserProfile(updated);
       await syncUserWithBackend(updated);
     },
@@ -1995,6 +2054,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         isDarkMode,
         language,
         setLanguage,
+        toggleLanguage: i18nToggle,
         t,
         globalSearchQuery,
         setGlobalSearchQuery,

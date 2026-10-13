@@ -29,6 +29,7 @@ export const FoodCatalog: React.FC = () => {
     globalSearchQuery,
     setGlobalSearchQuery,
     userProfile,
+    t,
   } = useApp();
 
   const isSeller = isAuthenticated && userProfile.role === 'seller';
@@ -153,10 +154,10 @@ export const FoodCatalog: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
-            Explorar productos
+            {t('catalog.title')}
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Catálogo en tiempo real de lotes de alimentos disponibles para rescate y aprovechamiento solidario.
+            {t('catalog.subtitle')}
           </p>
         </div>
 
@@ -167,7 +168,7 @@ export const FoodCatalog: React.FC = () => {
             className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition-colors inline-flex items-center gap-2 whitespace-nowrap self-start sm:self-auto cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            <span>Publicar producto</span>
+            <span>{t('catalog.publishProduct')}</span>
           </button>
         )}
       </div>
@@ -181,7 +182,7 @@ export const FoodCatalog: React.FC = () => {
             <input
               type="text"
               id="catalog-search-input"
-              placeholder="Buscar por producto, empresa, categoría o ciudad..."
+              placeholder={t('catalog.searchPlaceholder')}
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
@@ -202,7 +203,7 @@ export const FoodCatalog: React.FC = () => {
             >
               {cities.map((c) => (
                 <option key={c} value={c} className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">
-                  {c === 'todas' ? 'Todas las ciudades' : c}
+                  {c === 'todas' ? t('catalog.allCities') : c}
                 </option>
               ))}
             </select>
@@ -217,7 +218,7 @@ export const FoodCatalog: React.FC = () => {
               className="w-full bg-transparent font-medium text-slate-800 dark:text-slate-200 focus:outline-hidden cursor-pointer truncate"
             >
               <option value="todas" className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">
-                Todos los estados
+                {t('catalog.allConditions')}
               </option>
               {FOOD_CONDITIONS.map((cond) => (
                 <option key={cond} value={cond} className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">
@@ -236,11 +237,11 @@ export const FoodCatalog: React.FC = () => {
               aria-label="Ordenar productos"
               className="w-full bg-transparent font-medium text-slate-800 dark:text-slate-200 focus:outline-hidden cursor-pointer truncate"
             >
-              <option value="urgency" className="bg-white dark:bg-slate-800">Menor tiempo restante</option>
-              <option value="recent" className="bg-white dark:bg-slate-800">Más recientes</option>
-              <option value="qty_desc" className="bg-white dark:bg-slate-800">Mayor cantidad</option>
-              <option value="price_asc" className="bg-white dark:bg-slate-800">Menor valor</option>
-              <option value="price_desc" className="bg-white dark:bg-slate-800">Mayor valor</option>
+              <option value="urgency" className="bg-white dark:bg-slate-800">{t('catalog.sortUrgent')}</option>
+              <option value="recent" className="bg-white dark:bg-slate-800">{t('catalog.sortRecent')}</option>
+              <option value="qty_desc" className="bg-white dark:bg-slate-800">{t('catalog.sortQtyHigh')}</option>
+              <option value="price_asc" className="bg-white dark:bg-slate-800">{t('catalog.sortPriceLow')}</option>
+              <option value="price_desc" className="bg-white dark:bg-slate-800">{t('catalog.sortPriceHigh')}</option>
             </select>
           </div>
         </div>
@@ -257,7 +258,7 @@ export const FoodCatalog: React.FC = () => {
                   : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              Todas ({products.filter((p) => p.status === 'activa' || p.status === 'proxima_a_finalizar').length})
+              {t('common.all')} ({products.filter((p) => p.status === 'activa' || p.status === 'proxima_a_finalizar').length})
             </button>
             {FOOD_CATEGORIES.map((cat) => {
               const count = products.filter(
@@ -292,7 +293,7 @@ export const FoodCatalog: React.FC = () => {
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
                 }`}
               >
-                Todos
+                {t('catalog.urgencyAll')}
               </button>
               <button
                 type="button"
@@ -303,7 +304,7 @@ export const FoodCatalog: React.FC = () => {
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
                 }`}
               >
-                Menos de 24h
+                {t('catalog.urgencyCritical')}
               </button>
               <button
                 type="button"
@@ -314,7 +315,7 @@ export const FoodCatalog: React.FC = () => {
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
                 }`}
               >
-                1 a 3 días
+                {t('catalog.urgencyModerate')}
               </button>
             </div>
 
@@ -325,7 +326,7 @@ export const FoodCatalog: React.FC = () => {
                 className="px-2.5 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400 hover:underline inline-flex items-center gap-1 whitespace-nowrap cursor-pointer"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
-                <span>Limpiar</span>
+                <span>{t('catalog.clearFilters')}</span>
               </button>
             )}
           </div>
@@ -335,9 +336,8 @@ export const FoodCatalog: React.FC = () => {
       {/* Contador de resultados */}
       <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 px-1">
         <span>
-          Mostrando <strong className="text-slate-900 dark:text-slate-100 tabular-nums">{filteredProducts.length}</strong> lote(s) disponibles
+          <strong className="text-slate-900 dark:text-slate-100 tabular-nums">{filteredProducts.length}</strong> {t('catalog.available')}
         </span>
-        <span>Consulta cantidad, vencimiento y empresa en cada tarjeta</span>
       </div>
 
       {/* Grilla de Productos / Estados */}
@@ -351,15 +351,9 @@ export const FoodCatalog: React.FC = () => {
         <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-8">
           <EmptyState
             icon={ShoppingBag}
-            title={hasActiveFilters ? 'No se encontraron productos con estos filtros' : 'No hay productos publicados actualmente'}
-            description={
-              hasActiveFilters
-                ? 'Prueba ajustando los criterios de búsqueda, ciudad o estado del producto para ver más lotes disponibles.'
-                : isSeller
-                ? 'Publica tu primer lote de alimentos excedentes para conectarlo con compradores y organizaciones.'
-                : 'Aún no hay lotes de alimentos publicados en la plataforma. Vuelve pronto para explorar nuevas publicaciones.'
-            }
-            actionLabel={hasActiveFilters ? 'Limpiar filtros' : isSeller ? '+ Publicar producto' : undefined}
+            title={t('catalog.emptyTitle')}
+            description={t('catalog.emptyDesc')}
+            actionLabel={hasActiveFilters ? t('catalog.clearFilters') : isSeller ? t('catalog.publishProduct') : undefined}
             onAction={hasActiveFilters ? resetFilters : isSeller ? () => setCurrentView('publish') : undefined}
           />
         </div>

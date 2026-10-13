@@ -35,6 +35,7 @@ export const ProfileSettingsView: React.FC = () => {
     setThemeMode,
     language,
     setLanguage,
+    t,
   } = useApp();
 
   const isSeller = userProfile.role === 'seller';
@@ -133,18 +134,18 @@ export const ProfileSettingsView: React.FC = () => {
                   {isSeller ? (
                     <>
                       <Store className="w-3.5 h-3.5 text-amber-300" />
-                      Rol: Vendedor
+                      {t('role.seller')}
                     </>
                   ) : (
                     <>
                       <ShoppingBag className="w-3.5 h-3.5 text-emerald-300" />
-                      Rol: Comprador
+                      {t('role.buyer')}
                     </>
                   )}
                 </span>
                 {userProfile.verified && (
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
-                    <ShieldCheck className="w-3.5 h-3.5" /> Cuenta Verificada
+                    <ShieldCheck className="w-3.5 h-3.5" /> {t('profile.verifiedAccount', 'Cuenta Verificada')}
                   </span>
                 )}
               </div>
@@ -165,7 +166,7 @@ export const ProfileSettingsView: React.FC = () => {
               className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl text-xs sm:text-sm font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-lg shadow-amber-950/30 transition-all cursor-pointer shrink-0"
             >
               <Store className="w-4 h-4" />
-              <span>Quiero vender productos</span>
+              <span>{t('profile.wantToSell')}</span>
               <ArrowUpRight className="w-4 h-4" />
             </button>
           )}
@@ -189,15 +190,13 @@ export const ProfileSettingsView: React.FC = () => {
             </div>
             <div>
               <span className="inline-block text-[11px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 mb-0.5">
-                Habilitar herramientas de Vendedor
+                {t('profile.upgradeBannerTag')}
               </span>
               <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                ¿Cuentas con excedentes o lotes de alimentos para comercializar?
+                {t('profile.upgradeBannerTitle')}
               </h3>
               <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 max-w-2xl leading-relaxed">
-                Tu cuenta actual tiene el rol de <strong>Comprador</strong>. Si deseas publicar
-                productos, gestionar lotes y acceder a las estadísticas de comercialización, puedes
-                activar permanentemente el rol de <strong>Vendedor</strong> en tu perfil.
+                {t('profile.upgradeBannerDesc')}
               </p>
             </div>
           </div>
@@ -208,7 +207,7 @@ export const ProfileSettingsView: React.FC = () => {
             className="px-5 py-3 bg-[#1B4332] hover:bg-emerald-900 text-white font-bold text-xs sm:text-sm rounded-xl shadow-sm transition-all flex items-center gap-2 cursor-pointer shrink-0"
           >
             <Store className="w-4 h-4 text-emerald-300" />
-            <span>Quiero vender productos</span>
+            <span>{t('profile.wantToSell')}</span>
           </button>
         </div>
       )}
@@ -223,16 +222,15 @@ export const ProfileSettingsView: React.FC = () => {
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
               <div>
                 <h3 className="font-bold text-slate-900 dark:text-white text-base">
-                  Información de Cuenta y Entidad
+                  {t('profile.accountInfoTitle')}
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Estos datos respaldan la transparencia en las negociaciones dentro de FoodLink
-                  Solidario.
+                  {t('profile.accountInfoDesc')}
                 </p>
               </div>
               {savedToast && (
                 <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-3 py-1.5 rounded-xl border border-emerald-200 dark:border-emerald-800">
-                  <CheckCircle2 className="w-4 h-4" /> Cambios guardados
+                  <CheckCircle2 className="w-4 h-4" /> {t('profile.changesSaved')}
                 </span>
               )}
             </div>
@@ -241,7 +239,7 @@ export const ProfileSettingsView: React.FC = () => {
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
                   <Building2 className="w-3.5 h-3.5 text-slate-400" />
-                  Razón Social / Organización
+                  {t('profile.orgLabel')}
                 </label>
                 <input
                   type="text"
@@ -255,7 +253,7 @@ export const ProfileSettingsView: React.FC = () => {
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
                   <FileText className="w-3.5 h-3.5 text-slate-400" />
-                  NIT o Documento Tributario
+                  {t('profile.nitLabel')}
                 </label>
                 <input
                   type="text"
@@ -269,7 +267,7 @@ export const ProfileSettingsView: React.FC = () => {
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
                   <User className="w-3.5 h-3.5 text-slate-400" />
-                  Nombre del Representante / Usuario
+                  {t('profile.repNameLabel')}
                 </label>
                 <input
                   type="text"
@@ -283,7 +281,7 @@ export const ProfileSettingsView: React.FC = () => {
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
                   <Mail className="w-3.5 h-3.5 text-slate-400" />
-                  Correo Electrónico Corporativo
+                  {t('profile.emailLabel')}
                 </label>
                 <input
                   type="email"
@@ -296,7 +294,7 @@ export const ProfileSettingsView: React.FC = () => {
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
                   <Phone className="w-3.5 h-3.5 text-slate-400" />
-                  Teléfono / WhatsApp Logístico
+                  {t('profile.phoneLabel')}
                 </label>
                 <input
                   type="text"
@@ -310,7 +308,7 @@ export const ProfileSettingsView: React.FC = () => {
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
                   <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                  Ciudad Principal de Operación
+                  {t('profile.cityLabel')}
                 </label>
                 <select
                   value={city}
@@ -339,7 +337,7 @@ export const ProfileSettingsView: React.FC = () => {
                 ) : (
                   <Save className="w-4 h-4" />
                 )}
-                Guardar Cambios del Perfil
+                {t('profile.saveChanges')}
               </button>
             </div>
           </form>
@@ -348,10 +346,10 @@ export const ProfileSettingsView: React.FC = () => {
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 sm:p-8 shadow-xs space-y-6 transition-colors">
             <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
               <h3 className="font-bold text-slate-900 dark:text-white text-base">
-                Preferencias de Visualización
+                {t('profile.preferencesTitle')}
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Personaliza el tema visual y el idioma de tu cuenta.
+                {t('profile.preferencesDesc')}
               </p>
             </div>
 
@@ -360,16 +358,14 @@ export const ProfileSettingsView: React.FC = () => {
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-1.5">
                   <Sun className="w-3.5 h-3.5 text-amber-500" />
-                  Apariencia / Modo Oscuro
+                  {t('profile.appearanceLabel')}
                 </label>
                 <div className="grid grid-cols-3 gap-2">
-                  {(
-                    [
-                      { id: 'light', label: 'Claro', icon: Sun },
-                      { id: 'dark', label: 'Oscuro', icon: Moon },
-                      { id: 'system', label: 'Auto', icon: Monitor },
-                    ] as { id: ThemeMode; label: string; icon: React.ElementType }[]
-                  ).map((item) => {
+                  {[
+                    { id: 'light' as ThemeMode, labelKey: 'profile.light', icon: Sun },
+                    { id: 'dark' as ThemeMode, labelKey: 'profile.dark', icon: Moon },
+                    { id: 'system' as ThemeMode, labelKey: 'profile.system', icon: Monitor },
+                  ].map((item) => {
                     const Icon = item.icon;
                     const active = themeMode === item.id;
                     return (
@@ -384,7 +380,7 @@ export const ProfileSettingsView: React.FC = () => {
                         }`}
                       >
                         <Icon className="w-4 h-4" />
-                        <span>{item.label}</span>
+                        <span>{t(item.labelKey)}</span>
                       </button>
                     );
                   })}
@@ -395,15 +391,13 @@ export const ProfileSettingsView: React.FC = () => {
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-1.5">
                   <Globe className="w-3.5 h-3.5 text-emerald-600" />
-                  Idioma de la Interfaz
+                  {t('profile.languageLabel')}
                 </label>
                 <div className="grid grid-cols-2 gap-2">
-                  {(
-                    [
-                      { id: 'es', label: 'Español (CO)', flag: '🇨🇴' },
-                      { id: 'en', label: 'English (US)', flag: '🇺🇸' },
-                    ] as { id: SupportedLanguage; label: string; flag: string }[]
-                  ).map((lang) => {
+                  {[
+                    { id: 'es' as SupportedLanguage, labelKey: 'profile.spanish', flag: '🇨🇴' },
+                    { id: 'en' as SupportedLanguage, labelKey: 'profile.english', flag: '🇺🇸' },
+                  ].map((lang) => {
                     const active = language === lang.id;
                     return (
                       <button
@@ -417,7 +411,7 @@ export const ProfileSettingsView: React.FC = () => {
                         }`}
                       >
                         <span className="text-base">{lang.flag}</span>
-                        <span>{lang.label}</span>
+                        <span>{t(lang.labelKey)}</span>
                       </button>
                     );
                   })}
@@ -432,20 +426,20 @@ export const ProfileSettingsView: React.FC = () => {
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-xs transition-colors">
             <h3 className="font-bold text-slate-900 dark:text-white text-sm mb-4 flex items-center gap-2">
               <Award className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
-              Resumen Real de Actividad
+              {t('profile.realSummaryTitle')}
             </h3>
             <div className="space-y-3">
               <div className="p-3.5 bg-slate-50 dark:bg-slate-800/70 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                <span className="text-xs text-slate-600 dark:text-slate-400">Rol Activo</span>
+                <span className="text-xs text-slate-600 dark:text-slate-400">{t('profile.activeRole')}</span>
                 <span className="font-bold text-slate-900 dark:text-white text-xs uppercase">
-                  {isSeller ? 'Vendedor (seller)' : 'Comprador (buyer)'}
+                  {isSeller ? `${t('role.seller')} (seller)` : `${t('role.buyer')} (buyer)`}
                 </span>
               </div>
 
               {isSeller && (
                 <div className="p-3.5 bg-slate-50 dark:bg-slate-800/70 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center justify-between">
                   <span className="text-xs text-slate-600 dark:text-slate-400">
-                    Lotes Publicados
+                    {t('profile.publishedLotsCount')}
                   </span>
                   <span className="font-bold text-slate-900 dark:text-white text-sm">
                     {myPublishedProductsCount}
@@ -455,7 +449,7 @@ export const ProfileSettingsView: React.FC = () => {
 
               <div className="p-3.5 bg-slate-50 dark:bg-slate-800/70 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center justify-between">
                 <span className="text-xs text-slate-600 dark:text-slate-400">
-                  Ofertas en Curso
+                  {t('profile.activeOffers')}
                 </span>
                 <span className="font-bold text-slate-900 dark:text-white text-sm">
                   {myActiveOffersCount}
@@ -464,7 +458,7 @@ export const ProfileSettingsView: React.FC = () => {
 
               <div className="p-3.5 bg-slate-50 dark:bg-slate-800/70 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center justify-between">
                 <span className="text-xs text-slate-600 dark:text-slate-400">
-                  Operaciones Aceptadas
+                  {t('profile.completedOperations')}
                 </span>
                 <span className="font-bold text-emerald-700 dark:text-emerald-400 text-sm">
                   {myCompletedOperationsCount}
@@ -476,11 +470,12 @@ export const ProfileSettingsView: React.FC = () => {
           <div className="bg-emerald-950 text-white rounded-2xl p-6 border border-emerald-800">
             <div className="flex items-center gap-2 text-emerald-300 font-bold text-xs uppercase tracking-wider mb-2">
               <ShieldCheck className="w-4 h-4" />
-              Certificación Ley 1990
+              {language === 'en' ? 'Law 1990 Certification' : 'Certificación Ley 1990'}
             </div>
             <p className="text-xs text-emerald-100/80 leading-relaxed mb-4">
-              Tu cuenta cumple con los lineamientos de trazabilidad e inocuidad para la prevención
-              de pérdidas y desperdicio de alimentos en Colombia.
+              {language === 'en'
+                ? 'Your account complies with Colombian traceability and food safety standards for the prevention of food loss and waste.'
+                : 'Tu cuenta cumple con los lineamientos de trazabilidad e inocuidad para la prevención de pérdidas y desperdicio de alimentos en Colombia.'}
             </p>
           </div>
         </div>
@@ -504,23 +499,38 @@ export const ProfileSettingsView: React.FC = () => {
 
             <div>
               <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                Confirmar cambio a Vendedor
+                {t('profile.upgradeModalTitle')}
               </h3>
               <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-1.5 leading-relaxed">
-                ¿Estás seguro de que deseas activar el rol de <strong>Vendedor</strong> en tu
-                cuenta?
+                {t('profile.upgradeModalDesc')}
               </p>
             </div>
 
             <div className="bg-slate-50 dark:bg-slate-800/70 rounded-2xl p-4 border border-slate-200/70 dark:border-slate-700 space-y-2 text-xs text-slate-700 dark:text-slate-300">
               <p className="font-bold text-slate-900 dark:text-white">
-                Al confirmar este cambio:
+                {language === 'en' ? 'Upon confirming this change:' : 'Al confirmar este cambio:'}
               </p>
               <ul className="space-y-1.5 list-disc list-inside">
-                <li>Tu rol en Firestore pasará a ser <strong>Vendedor (seller)</strong>.</li>
-                <li>Podrás publicar productos y gestionar tus publicaciones.</li>
-                <li>Se habilitarán las herramientas y estadísticas exclusivas de vendedor.</li>
-                <li>El cambio se mantendrá guardado al cerrar sesión y volver a entrar.</li>
+                <li>
+                  {language === 'en'
+                    ? 'Your role in Firestore will become Seller (seller).'
+                    : 'Tu rol en Firestore pasará a ser Vendedor (seller).'}
+                </li>
+                <li>
+                  {language === 'en'
+                    ? 'You can publish surplus food batches and manage listings.'
+                    : 'Podrás publicar productos y gestionar tus publicaciones.'}
+                </li>
+                <li>
+                  {language === 'en'
+                    ? 'Exclusive merchant and statistics tools will be enabled.'
+                    : 'Se habilitarán las herramientas y estadísticas exclusivas de vendedor.'}
+                </li>
+                <li>
+                  {language === 'en'
+                    ? 'The change remains permanently across logins.'
+                    : 'El cambio se mantendrá guardado al cerrar sesión y volver a entrar.'}
+                </li>
               </ul>
             </div>
 
@@ -538,7 +548,7 @@ export const ProfileSettingsView: React.FC = () => {
                 disabled={isUpgrading}
                 className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
               >
-                Cancelar
+                {t('profile.canceling')}
               </button>
               <button
                 type="button"
@@ -549,12 +559,12 @@ export const ProfileSettingsView: React.FC = () => {
                 {isUpgrading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Actualizando rol...
+                    {language === 'en' ? 'Updating role...' : 'Actualizando rol...'}
                   </>
                 ) : (
                   <>
                     <CheckCircle2 className="w-4 h-4" />
-                    Confirmar y activar rol Vendedor
+                    {t('profile.confirmUpgrade')}
                   </>
                 )}
               </button>

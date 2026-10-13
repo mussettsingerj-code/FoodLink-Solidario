@@ -2,6 +2,8 @@ import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth } from 'firebase/auth';
 import {
   getFirestore,
+  initializeFirestore,
+  setLogLevel,
   Firestore,
   doc,
   getDocFromServer,
@@ -23,8 +25,26 @@ export const isFirebaseConfigured = Boolean(
   firebaseConfig.projectId
 );
 
+// Suppress noisy internal WebChannel transport warnings in proxied iframe environments
+setLogLevel('silent');
+
 export const app: FirebaseApp = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-export const db: Firestore = getFirestore(app, firebaseAppletConfig.firestoreDatabaseId);
+
+function createFirestoreInstance(): Firestore {
+  try {
+    return initializeFirestore(
+      app,
+      {
+        experimentalAutoDetectLongPolling: true,
+      },
+      firebaseAppletConfig.firestoreDatabaseId
+    );
+  } catch {
+    return getFirestore(app, firebaseAppletConfig.firestoreDatabaseId);
+  }
+}
+
+export const db: Firestore = createFirestoreInstance();
 export const auth: Auth = getAuth(app);
 
 export enum OperationType {
@@ -74,17 +94,19 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     operationType,
     path
   };
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  console.warn('Firestore Operation Notice: ', JSON.stringify(errInfo));
   throw new Error(JSON.stringify(errInfo));
 }
 
 async function testConnection() {
+  if (!isFirebaseConfigured) {
+    console.warn('Firebase configuration is incomplete.');
+    return;
+  }
   try {
     await getDocFromServer(doc(db, 'test', 'connection'));
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.error('Please check your Firebase configuration.');
-    }
+  } catch {
+    // Connection check completed; Firestore handles offline/long-polling fallback automatically
   }
 }
 testConnection();

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { I18nProvider } from './i18n/I18nContext';
 import { LandingPage } from './components/landing/LandingPage';
+import { LandingHeader } from './components/landing/LandingHeader';
 import { Sidebar } from './components/common/Sidebar';
 import { Header } from './components/common/Header';
 import { Footer } from './components/common/Footer';
@@ -15,7 +16,6 @@ import { NegotiationsView } from './components/modules/NegotiationsView';
 import { NotificationsView } from './components/modules/NotificationsView';
 import { StatisticsView } from './components/modules/StatisticsView';
 import { ProfileSettingsView } from './components/modules/ProfileSettingsView';
-import { OrganizationsView } from './components/modules/OrganizationsView';
 import { ProductDetailModal } from './components/catalog/ProductDetailModal';
 import { MakeOfferModal } from './components/catalog/MakeOfferModal';
 import { PublishFoodModal } from './components/publishing/PublishFoodModal';
@@ -50,21 +50,28 @@ const MainLayout: React.FC = () => {
 
   if (showLanding && !isAuthenticated) {
     return (
-      <>
-        <LandingPage />
+      <div className="min-h-screen bg-[#FAF8F5] dark:bg-slate-950 flex flex-col text-slate-900 dark:text-slate-100 font-sans selection:bg-emerald-600 selection:text-white transition-colors duration-200">
+        <LandingHeader />
+        <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+          <LandingPage />
+        </main>
+        <Footer />
         <AuthModal />
         <ToastContainer />
-      </>
+      </div>
     );
   }
 
   if (!isAuthenticated) {
     return (
-      <>
-        <LoginView />
+      <div className="min-h-screen bg-[#FAF8F5] dark:bg-slate-950 flex flex-col text-slate-900 dark:text-slate-100 font-sans selection:bg-emerald-600 selection:text-white transition-colors duration-200">
+        <main className="flex-1">
+          <LoginView />
+        </main>
+        <Footer />
         <AuthModal />
         <ToastContainer />
-      </>
+      </div>
     );
   }
 
@@ -78,9 +85,6 @@ const MainLayout: React.FC = () => {
       case 'explore':
       case 'catalog':
         return <FoodCatalog />;
-      case 'map':
-      case 'organizations':
-        return <OrganizationsView />;
       case 'publish':
         return isSeller ? <PublishProductView /> : <DashboardHomeView />;
       case 'my-publications':

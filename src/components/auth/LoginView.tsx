@@ -22,9 +22,14 @@ import {
   Check,
   Sparkles,
   RefreshCw,
+  Sun,
+  Moon,
+  Monitor,
+  Award,
+  UserX,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { UserRole, EmailCheckResult } from '../../types';
+import { UserRole, EmailCheckResult, ThemeMode } from '../../types';
 
 type ViewMode = 'login' | 'register' | 'forgot';
 
@@ -38,6 +43,10 @@ export const LoginView: React.FC = () => {
     evaluatePasswordStrength,
     setShowLanding,
     language,
+    setLanguage,
+    themeMode,
+    setThemeMode,
+    t,
     emailVerificationPending,
     pendingVerificationEmail,
     resendVerificationEmail,
@@ -61,7 +70,7 @@ export const LoginView: React.FC = () => {
   const [regOrg, setRegOrg] = useState('');
   const [regNit, setRegNit] = useState('');
   const [regPhone, setRegPhone] = useState('');
-  const [regCity, setRegCity] = useState('Bogotá D.C.');
+  const [regCity, setRegCity] = useState('Medellín');
   const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
   const [regConfirmPassword, setRegConfirmPassword] = useState('');
@@ -71,7 +80,7 @@ export const LoginView: React.FC = () => {
   // Forgot Password State
   const [resetEmail, setResetEmail] = useState('');
 
-  // Feedback & Loading State
+  // Feedback & Loading State (5 Login States)
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [socialLoading, setSocialLoading] = useState<boolean>(false);
   const [resendingVerification, setResendingVerification] = useState(false);
@@ -81,6 +90,8 @@ export const LoginView: React.FC = () => {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const emailInputRef = useRef<HTMLInputElement>(null);
+
+  const isEn = language === 'en';
 
   useEffect(() => {
     setErrorMsg(null);
@@ -92,6 +103,12 @@ export const LoginView: React.FC = () => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   };
 
+  const cycleTheme = () => {
+    const order: ThemeMode[] = ['light', 'dark', 'system'];
+    const next = order[(order.indexOf(themeMode) + 1) % order.length];
+    setThemeMode(next);
+  };
+
   const handleEmailBlur = async () => {
     const trimmed = loginEmail.trim();
     if (!trimmed) {
@@ -101,10 +118,9 @@ export const LoginView: React.FC = () => {
     if (!validateEmailFormat(trimmed)) {
       setEmailCheck({
         exists: false,
-        message:
-          language === 'en'
-            ? 'Invalid email format (e.g. user@company.com)'
-            : 'Formato de correo inválido (ej. correo@empresa.co)',
+        message: isEn
+          ? 'Invalid email format (e.g. user@company.com)'
+          : 'Formato de correo inválido (ej. correo@empresa.co)',
       });
       return;
     }
@@ -118,15 +134,18 @@ export const LoginView: React.FC = () => {
     }
   };
 
+  // State 1: CARGA & State 2: ÉXITO & State 3: ERROR & State 4: USUARIO INEXISTENTE & State 5: CORREO NO VERIFICADO
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
     setErrorCode(null);
     setSuccessMsg(null);
 
-    if (!validateEmailFormat(loginEmail)) {
+    const trimmedEmail = loginEmail.trim();
+
+    if (!validateEmailFormat(trimmedEmail)) {
       setErrorMsg(
-        language === 'en'
+        isEn
           ? 'Please enter a valid email address.'
           : 'Por favor ingresa un correo electrónico con formato válido.'
       );
@@ -134,20 +153,42 @@ export const LoginView: React.FC = () => {
     }
 
     if (!loginPassword) {
-      setErrorMsg(
-        language === 'en' ? 'Please enter your password.' : 'Por favor ingresa tu contraseña.'
-      );
+      setErrorMsg(isEn ? 'Please enter your password.' : 'Por favor ingresa tu contraseña.');
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const result = await login(loginEmail, loginPassword, rememberMe);
+      const result = await login(trimmedEmail, loginPassword, rememberMe);
       if (!result.success) {
-        setErrorMsg(result.message);
         setErrorCode(result.code || null);
+        if (result.code === 'user-not-found' || result.message.includes('no está registrada')) {
+          setErrorMsg(
+            isEn
+              ? 'No account was found with this email address. Please check your spelling or create a new account.'
+              : 'No existe una cuenta registrada con este correo electrónico. Verifica tus datos o regístrate como nuevo usuario.'
+          );
+        } else if (result.code === 'email-not-verified') {
+          setErrorMsg(
+            isEn
+              ? 'Your email address is not verified yet. Please check your inbox or spam folder.'
+              : 'Tu correo electrónico no ha sido verificado todavía. Por favor revisa tu bandeja de entrada o spam.'
+          );
+        } else if (result.code === 'wrong-password') {
+          setErrorMsg(
+            isEn
+              ? 'The password entered is incorrect. Please try again or recover your account.'
+              : 'La contraseña ingresada es incorrecta. Inténtalo de nuevo o solicita la recuperación de tu contraseña.'
+          );
+        } else {
+          setErrorMsg(result.message);
+        }
       } else {
-        setSuccessMsg(result.message);
+        setSuccessMsg(
+          isEn
+            ? 'Sign in successful! Redirecting to your dashboard...'
+            : '¡Inicio de sesión exitoso! Redirigiendo a tu panel de control...'
+        );
       }
     } finally {
       setIsSubmitting(false);
@@ -161,28 +202,40 @@ export const LoginView: React.FC = () => {
     setSuccessMsg(null);
 
     if (!regName.trim()) {
-      setErrorMsg('Por favor ingresa tu nombre completo.');
+      setErrorMsg(isEn ? 'Please enter your full name.' : 'Por favor ingresa tu nombre completo.');
       return;
     }
 
     if (!validateEmailFormat(regEmail)) {
-      setErrorMsg('Ingresa un correo electrónico válido.');
+      setErrorMsg(isEn ? 'Enter a valid email address.' : 'Ingresa un correo electrónico válido.');
       return;
     }
 
     const strength = evaluatePasswordStrength(regPassword);
     if (!strength.hasMinLength || !strength.hasNumber) {
-      setErrorMsg('La contraseña debe tener al menos 8 caracteres e incluir un número.');
+      setErrorMsg(
+        isEn
+          ? 'Password must have at least 8 characters and include a number.'
+          : 'La contraseña debe tener al menos 8 caracteres e incluir un número.'
+      );
       return;
     }
 
     if (regPassword !== regConfirmPassword) {
-      setErrorMsg('Las contraseñas no coinciden. Por favor verifícalas.');
+      setErrorMsg(
+        isEn
+          ? 'Passwords do not match. Please verify.'
+          : 'Las contraseñas no coinciden. Por favor verifícalas.'
+      );
       return;
     }
 
     if (!acceptTerms) {
-      setErrorMsg('Debes aceptar los términos y condiciones de uso de FoodLink Solidario.');
+      setErrorMsg(
+        isEn
+          ? 'You must accept the terms of use for FoodLink Solidario.'
+          : 'Debes aceptar los términos y condiciones de uso de FoodLink Solidario.'
+      );
       return;
     }
 
@@ -203,7 +256,11 @@ export const LoginView: React.FC = () => {
         setErrorMsg(result.message);
         setErrorCode(result.code || null);
       } else {
-        setSuccessMsg(result.message);
+        setSuccessMsg(
+          isEn
+            ? 'Account created! Verification link sent to your email.'
+            : '¡Cuenta creada! Enviamos un enlace de verificación a tu correo.'
+        );
       }
     } finally {
       setIsSubmitting(false);
@@ -217,7 +274,11 @@ export const LoginView: React.FC = () => {
     try {
       const res = await resendVerificationEmail();
       if (res.success) {
-        setSuccessMsg(res.message);
+        setSuccessMsg(
+          isEn
+            ? 'Verification email sent. Please check your inbox and spam folder.'
+            : 'Correo de verificación reenviado. Revisa tu bandeja de entrada o correo no deseado.'
+        );
       } else {
         setErrorMsg(res.message);
       }
@@ -233,9 +294,17 @@ export const LoginView: React.FC = () => {
     try {
       const res = await checkEmailVerificationStatus();
       if (res.verified) {
-        setSuccessMsg(res.message);
+        setSuccessMsg(
+          isEn
+            ? 'Email verified successfully! Logging you in...'
+            : '¡Correo verificado con éxito! Ingresando a la plataforma...'
+        );
       } else {
-        setErrorMsg(res.message);
+        setErrorMsg(
+          isEn
+            ? 'We have not detected your verification yet. Make sure to open the link in your email and click again.'
+            : 'Aún no detectamos la verificación. Abre el enlace que llegó a tu correo y vuelve a presionar este botón.'
+        );
       }
     } finally {
       setCheckingVerification(false);
@@ -248,7 +317,7 @@ export const LoginView: React.FC = () => {
     setSuccessMsg(null);
 
     if (!validateEmailFormat(resetEmail)) {
-      setErrorMsg('Ingresa un correo electrónico válido.');
+      setErrorMsg(isEn ? 'Enter a valid email address.' : 'Ingresa un correo electrónico válido.');
       return;
     }
 
@@ -258,7 +327,11 @@ export const LoginView: React.FC = () => {
       if (!result.success) {
         setErrorMsg(result.message);
       } else {
-        setSuccessMsg(result.message);
+        setSuccessMsg(
+          isEn
+            ? 'Password reset instructions have been sent to your email.'
+            : 'Enviamos las instrucciones de restablecimiento a tu correo electrónico.'
+        );
       }
     } finally {
       setIsSubmitting(false);
@@ -274,7 +347,11 @@ export const LoginView: React.FC = () => {
       const preferredRole: UserRole = mode === 'register' ? regRole : 'buyer';
       const res = await loginWithSocial('google', preferredRole);
       if (res.success) {
-        setSuccessMsg(res.message);
+        setSuccessMsg(
+          isEn
+            ? 'Google authentication successful! Entering dashboard...'
+            : '¡Autenticación con Google exitosa! Ingresando al panel...'
+        );
       } else {
         setErrorMsg(res.message);
       }
@@ -290,37 +367,51 @@ export const LoginView: React.FC = () => {
     setMode('register');
   };
 
+  const isUserNotFoundState =
+    errorCode === 'user-not-found' ||
+    (errorMsg &&
+      (errorMsg.includes('no está registrada') ||
+        errorMsg.includes('not registered') ||
+        errorMsg.includes('No existe una cuenta') ||
+        errorMsg.includes('No account was found')));
+
   const pwdStrength = evaluatePasswordStrength(regPassword);
   const passwordsMatch = regConfirmPassword.length > 0 && regPassword === regConfirmPassword;
   const passwordsMismatch = regConfirmPassword.length > 0 && regPassword !== regConfirmPassword;
 
   return (
-    <div className="min-h-screen bg-[#FAF8F5] dark:bg-slate-950 flex flex-col lg:flex-row font-sans selection:bg-emerald-600 selection:text-white transition-colors duration-200">
-      {/* Left Hero Panel */}
-      <div className="lg:w-5/12 xl:w-1/2 bg-[#0F291E] text-white p-8 sm:p-12 lg:p-16 flex flex-col justify-between relative overflow-hidden">
+    <div className="w-full flex flex-col lg:flex-row min-h-[calc(100vh-160px)] font-sans transition-colors duration-200">
+      
+      {/* LEFT VISUAL HERO PANEL (Modern circular economy presentation with subtle animations) */}
+      <div className="lg:w-5/12 xl:w-1/2 bg-gradient-to-br from-[#062016] via-[#0D2D21] to-[#134231] text-white p-8 sm:p-12 lg:p-16 flex flex-col justify-between relative overflow-hidden select-none border-b lg:border-b-0 lg:border-r border-emerald-950/70">
+        
+        {/* Subtle dot pattern background */}
         <div
           className="absolute inset-0 opacity-10 pointer-events-none"
           style={{
-            backgroundImage: 'radial-gradient(#10b981 1px, transparent 1px)',
-            backgroundSize: '24px 24px',
+            backgroundImage: 'radial-gradient(#10b981 1.2px, transparent 1.2px)',
+            backgroundSize: '28px 28px',
           }}
         />
-        <div className="absolute -bottom-32 -left-32 w-96 h-96 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute top-12 right-12 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
 
+        {/* Ambient floating blur lights (Subtle motion) */}
+        <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none animate-glow-pulse" />
+        <div className="absolute top-10 right-10 w-72 h-72 bg-emerald-400/15 rounded-full blur-3xl pointer-events-none animate-glow-pulse" />
+
+        {/* Top Header inside Left Panel */}
         <div className="relative z-10 flex items-center justify-between">
           <div
             onClick={() => setShowLanding(true)}
             className="flex items-center gap-3 cursor-pointer group"
           >
-            <div className="w-11 h-11 rounded-2xl bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-950/60 group-hover:scale-105 transition-transform">
-              <Leaf className="w-6 h-6 text-slate-950 stroke-[2.5]" />
+            <div className="w-11 h-11 rounded-2xl bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-950/60 group-hover:scale-105 group-hover:bg-emerald-400 transition-all duration-300">
+              <Leaf className="w-6 h-6 text-slate-950 stroke-[2.5] animate-pulse-subtle" />
             </div>
             <div>
-              <h1 className="font-bold text-xl leading-none tracking-tight text-white">
+              <h1 className="font-display font-black text-xl leading-none tracking-tight text-white">
                 FoodLink
               </h1>
-              <span className="text-[11px] font-semibold text-emerald-400 tracking-widest uppercase block mt-0.5">
+              <span className="text-[10px] font-bold text-emerald-400 tracking-widest uppercase block mt-0.5">
                 Solidario Colombia
               </span>
             </div>
@@ -329,126 +420,210 @@ export const LoginView: React.FC = () => {
           <button
             type="button"
             onClick={() => setShowLanding(true)}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-300 hover:text-white bg-white/5 hover:bg-white/10 px-3.5 py-2 rounded-xl border border-white/10 transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-300 hover:text-white bg-white/5 hover:bg-white/10 px-3.5 py-2 rounded-xl border border-white/10 transition-all hover:scale-[1.02] cursor-pointer"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            {language === 'en' ? 'Back to website' : 'Volver a portada'}
+            <span>{isEn ? 'Back to home' : 'Volver a inicio'}</span>
           </button>
         </div>
 
-        <div className="relative z-10 my-12 lg:my-0 max-w-lg">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-400/25 text-emerald-300 text-xs font-semibold mb-6">
+        {/* Center Pitch & Floating Micro-Graphics */}
+        <div className="relative z-10 my-10 lg:my-8 max-w-lg space-y-6">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-xs font-semibold backdrop-blur-md">
             <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-            <span>
-              {language === 'en'
-                ? 'Circular Food Economy Network'
-                : 'Red Empresarial de Economía Circular'}
-            </span>
+            <span>{isEn ? 'B2B Circular Food Platform' : 'Red de Rescate de Alimentos B2B'}</span>
           </div>
 
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-[1.12] mb-6">
-            {language === 'en'
-              ? 'Connect surplus food with organizations that need it today.'
-              : 'Transformamos excedentes de alimentos en impacto social real.'}
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black font-display tracking-tight leading-[1.12]">
+            {isEn
+              ? 'Zero Waste, Maximum Social Value.'
+              : 'Menos desperdicio, más oportunidades.'}
           </h2>
 
-          <p className="text-emerald-100/80 text-base sm:text-lg leading-relaxed mb-8">
-            {language === 'en'
-              ? 'Join supermarkets, restaurants, bakeries, and verified social foundations across Colombia.'
-              : 'Únete como Comprador o Vendedor a la red colombiana que conecta establecimientos gastronómicos, supermercados y fundaciones sociales.'}
+          <p className="text-emerald-100/80 text-sm sm:text-base leading-relaxed">
+            {isEn
+              ? 'Connect directly as a Buyer or Seller in Medellín to rescue quality food, negotiate lots, and eliminate waste.'
+              : 'Conéctate como Comprador o Vendedor en Medellín y el Valle de Aburrá para comercializar excedentes de calidad y generar impacto social.'}
           </p>
 
-          <div className="grid grid-cols-2 gap-4 pt-6 border-t border-white/10">
-            <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4">
-              <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm mb-1">
+          {/* Interactive Role Showcase */}
+          <div className="grid grid-cols-2 gap-3.5 pt-2">
+            <div className="bg-white/5 hover:bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl p-4 transition-all duration-300 hover:border-emerald-400/40 hover:-translate-y-1">
+              <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm mb-1.5">
                 <ShoppingBag className="w-4 h-4" />
-                <span>Rol Comprador</span>
+                <span>{t('role.buyer')}</span>
               </div>
-              <p className="text-xs text-emerald-100/70">
-                Explora lotes disponibles, realiza ofertas y coordina entregas verificadas.
+              <p className="text-xs text-emerald-100/75 leading-relaxed">
+                {isEn
+                  ? 'Access surplus food lots at solidary pricing, send offers, and receive certificates.'
+                  : 'Explora lotes de alimentos, haz ofertas solidarias y recibe actas verificadas.'}
               </p>
             </div>
-            <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4">
-              <div className="flex items-center gap-2 text-amber-400 font-bold text-sm mb-1">
+
+            <div className="bg-white/5 hover:bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl p-4 transition-all duration-300 hover:border-amber-400/40 hover:-translate-y-1">
+              <div className="flex items-center gap-2 text-amber-300 font-bold text-sm mb-1.5">
                 <Store className="w-4 h-4" />
-                <span>Rol Vendedor</span>
+                <span>{t('role.seller')}</span>
               </div>
-              <p className="text-xs text-emerald-100/70">
-                Publica excedentes alimentarios, gestiona ofertas recibidas y mide tu impacto.
+              <p className="text-xs text-emerald-100/75 leading-relaxed">
+                {isEn
+                  ? 'Publish surplus batches, coordinate pricing with buyers, and track sales metrics.'
+                  : 'Publica lotes con herramientas exclusivas de venta y métricas de impacto.'}
               </p>
             </div>
+          </div>
+
+          {/* Floating Subtle Stats Card (Microinteraction Graphic with gentle float) */}
+          <div className="p-3.5 rounded-2xl bg-emerald-950/70 border border-emerald-500/30 backdrop-blur-md flex items-center justify-between gap-3 animate-float-slow shadow-lg shadow-black/20">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center shrink-0">
+                <Award className="w-5 h-5 text-emerald-400" />
+              </div>
+              <div>
+                <span className="text-[11px] font-bold text-emerald-200 block">
+                  +48.200 kg {isEn ? 'Rescued Food' : 'Alimentos Rescatados'}
+                </span>
+                <span className="text-[10px] text-emerald-400/80 block">
+                  Medellín y Valle de Aburrá
+                </span>
+              </div>
+            </div>
+            <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+              Ley 1990
+            </span>
           </div>
         </div>
 
+        {/* Bottom Trust Note */}
         <div className="relative z-10 flex flex-wrap items-center justify-between gap-4 text-xs text-emerald-200/70 pt-6 border-t border-white/10">
           <div className="flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-emerald-400" />
-            <span>Autenticación segura con Firebase Authentication</span>
+            <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>{isEn ? 'Official & Secure Authentication' : 'Autenticación Oficial y Segura'}</span>
           </div>
-          <span>Ley 1990 de 2019 • Colombia</span>
+          <span>Inocuidad y Trazabilidad Colombia</span>
         </div>
       </div>
 
-      {/* Right Authentication Form Panel */}
-      <div className="flex-1 flex items-center justify-center p-4 sm:p-8 lg:p-12 overflow-y-auto">
-        <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-200/80 dark:border-slate-800 overflow-hidden transition-colors">
-          {/* Email Verification Pending View (Requirement 5) */}
+      {/* RIGHT FORM CONTAINER (Redesigned with modern cards, microinteractions and all 5 states) */}
+      <div className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8 lg:p-12 animate-fade-in">
+        
+        {/* Language and Theme Switcher Bar */}
+        <div className="w-full max-w-md flex items-center justify-between mb-4 px-1">
+          <div className="flex items-center bg-slate-200/80 dark:bg-slate-800 p-0.5 rounded-xl border border-slate-300/80 dark:border-slate-700 text-xs font-bold shadow-2xs">
+            <button
+              type="button"
+              onClick={() => setLanguage('es')}
+              className={`px-2.5 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+                language === 'es'
+                  ? 'bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+              title="Cambiar a Español"
+            >
+              <span>🇨🇴</span>
+              <span className="uppercase text-xs font-extrabold">ES</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setLanguage('en')}
+              className={`px-2.5 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+                language === 'en'
+                  ? 'bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+              title="Switch to English"
+            >
+              <span>🇺🇸</span>
+              <span className="uppercase text-xs font-extrabold">EN</span>
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={cycleTheme}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 text-xs font-semibold text-slate-700 dark:text-slate-200 transition-all cursor-pointer shadow-2xs hover:scale-[1.02]"
+          >
+            {themeMode === 'light' && <Sun className="w-4 h-4 text-amber-500" />}
+            {themeMode === 'dark' && <Moon className="w-4 h-4 text-indigo-400" />}
+            {themeMode === 'system' && <Monitor className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />}
+            <span className="text-xs font-medium">
+              {themeMode === 'light'
+                ? t('profile.light')
+                : themeMode === 'dark'
+                ? t('profile.dark')
+                : t('profile.system')}
+            </span>
+          </button>
+        </div>
+
+        {/* Elevated Form Card */}
+        <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-xl shadow-slate-200/50 dark:shadow-black/40 border border-slate-200/80 dark:border-slate-800 overflow-hidden transition-all duration-300">
+          
+          {/* Subtle loading line indicator on top during submission */}
+          {isSubmitting && (
+            <div className="h-1 w-full bg-emerald-100 dark:bg-emerald-950 overflow-hidden">
+              <div className="h-full bg-emerald-600 animate-pulse w-full transition-all duration-300" />
+            </div>
+          )}
+
+          {/* STATE 5: CORREO NO VERIFICADO (Dedicated verified-screen state) */}
           {emailVerificationPending ? (
-            <div className="p-6 sm:p-8 space-y-6">
-              <div className="w-14 h-14 rounded-2xl bg-amber-100 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 flex items-center justify-center mx-auto">
-                <Mail className="w-7 h-7 text-amber-600 dark:text-amber-400" />
+            <div className="p-6 sm:p-8 space-y-6 animate-fade-in">
+              <div className="w-14 h-14 rounded-2xl bg-amber-100 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 flex items-center justify-center mx-auto text-amber-600 dark:text-amber-400 shadow-inner">
+                <Mail className="w-7 h-7" />
               </div>
 
-              <div className="text-center space-y-2">
-                <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-                  Verificación de correo electrónico requerida
+              <div className="text-center space-y-1.5">
+                <h2 className="text-xl font-bold font-display text-slate-900 dark:text-white">
+                  {isEn ? 'Email Verification Pending' : 'Correo No Verificado'}
                 </h2>
                 {pendingVerificationEmail && (
-                  <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                    Cuenta: {pendingVerificationEmail}
+                  <p className="text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 py-1 px-3 rounded-lg inline-block border border-emerald-200/60 dark:border-emerald-800/60">
+                    {pendingVerificationEmail}
                   </p>
                 )}
               </div>
 
-              <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/70 flex items-start gap-3">
+              {/* Clear Informational Box */}
+              <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/80 flex items-start gap-3">
                 <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                 <p className="text-xs sm:text-sm font-semibold text-amber-900 dark:text-amber-200 leading-relaxed">
-                  Tu correo electrónico aún no está verificado. Verifica tu correo antes de continuar.
+                  {isEn
+                    ? 'Your email address has not been verified yet. Please check your inbox or spam folder and confirm your email to access the platform.'
+                    : 'Tu correo electrónico no ha sido verificado todavía. Para acceder al panel y operar en la red, por favor revisa tu bandeja de entrada o spam y confirma tu correo.'}
                 </p>
               </div>
 
               {errorMsg && (
-                <div className="p-3.5 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/60 flex items-start gap-2.5">
+                <div className="p-3.5 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/60 flex items-start gap-2.5 animate-fade-in">
                   <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
-                  <p className="text-xs font-medium text-red-800 dark:text-red-200">{errorMsg}</p>
+                  <p className="text-xs font-semibold text-red-800 dark:text-red-200">{errorMsg}</p>
                 </div>
               )}
 
               {successMsg && (
-                <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 flex items-start gap-2.5">
+                <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 flex items-start gap-2.5 animate-fade-in">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                  <p className="text-xs font-medium text-emerald-800 dark:text-emerald-200">
-                    {successMsg}
-                  </p>
+                  <p className="text-xs font-semibold text-emerald-800 dark:text-emerald-200">{successMsg}</p>
                 </div>
               )}
 
-              <div className="space-y-3">
+              <div className="space-y-3 pt-2">
                 <button
                   type="button"
                   onClick={handleCheckVerification}
                   disabled={checkingVerification}
-                  className="w-full py-3.5 bg-[#1B4332] hover:bg-emerald-900 disabled:opacity-60 text-white font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer text-sm"
+                  className="w-full py-3.5 bg-[#1B4332] hover:bg-emerald-900 disabled:opacity-60 text-white font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer text-sm hover:scale-[1.01] active:scale-[0.99]"
                 >
                   {checkingVerification ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      Comprobando verificación...
+                      <span>{isEn ? 'Checking status...' : 'Comprobando verificación...'}</span>
                     </>
                   ) : (
                     <>
                       <CheckCircle2 className="w-4 h-4" />
-                      Ya verifiqué mi correo, continuar
+                      <span>{isEn ? 'I verified my email, sign in' : 'Ya verifiqué mi correo, ingresar'}</span>
                     </>
                   )}
                 </button>
@@ -462,12 +637,12 @@ export const LoginView: React.FC = () => {
                   {resendingVerification ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      Enviando correo...
+                      <span>{isEn ? 'Sending verification email...' : 'Reenviando correo...'}</span>
                     </>
                   ) : (
                     <>
                       <RefreshCw className="w-4 h-4" />
-                      Reenviar correo de verificación
+                      <span>{isEn ? 'Resend verification link' : 'Reenviar correo de verificación'}</span>
                     </>
                   )}
                 </button>
@@ -478,64 +653,63 @@ export const LoginView: React.FC = () => {
                     clearEmailVerificationPending();
                     setMode('login');
                   }}
-                  className="w-full py-2.5 text-xs font-semibold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                  className="w-full py-2 text-xs font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-colors cursor-pointer text-center block"
                 >
-                  Volver al inicio de sesión con otra cuenta
+                  {isEn ? '← Sign in with another account' : '← Iniciar sesión con otra cuenta'}
                 </button>
               </div>
             </div>
           ) : (
             <>
-              {/* Mode Switch Tabs */}
+              {/* Mode Switch Tabs (Iniciar Sesión / Crear Cuenta) */}
               {mode !== 'forgot' && (
-                <div className="grid grid-cols-2 p-1.5 bg-slate-100 dark:bg-slate-800/80 m-6 mb-0 rounded-2xl border border-slate-200/70 dark:border-slate-700">
+                <div className="grid grid-cols-2 p-1.5 bg-slate-100 dark:bg-slate-800/80 m-6 mb-0 rounded-2xl border border-slate-200/80 dark:border-slate-700">
                   <button
                     type="button"
                     onClick={() => setMode('login')}
-                    className={`py-2.5 text-sm font-bold rounded-xl transition-all cursor-pointer ${
+                    className={`py-2.5 text-xs sm:text-sm font-bold rounded-xl transition-all cursor-pointer ${
                       mode === 'login'
-                        ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm'
-                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                        ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                     }`}
                   >
-                    {language === 'en' ? 'Sign In' : 'Iniciar Sesión'}
+                    {t('auth.loginBtn')}
                   </button>
                   <button
                     type="button"
                     onClick={() => setMode('register')}
-                    className={`py-2.5 text-sm font-bold rounded-xl transition-all cursor-pointer ${
+                    className={`py-2.5 text-xs sm:text-sm font-bold rounded-xl transition-all cursor-pointer ${
                       mode === 'register'
-                        ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm'
-                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                        ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                     }`}
                   >
-                    {language === 'en' ? 'Create Account' : 'Crear Cuenta'}
+                    {isEn ? 'Create Account' : 'Crear Cuenta'}
                   </button>
                 </div>
               )}
 
               <div className="p-6 sm:p-8">
+                
                 {/* Header Title */}
                 <div className="mb-6">
                   {mode === 'login' && (
                     <>
-                      <h2 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
-                        {language === 'en' ? 'Welcome back' : 'Bienvenido a FoodLink'}
+                      <h2 className="text-2xl font-bold font-display text-slate-900 dark:text-white tracking-tight">
+                        {t('auth.welcomeBack')}
                       </h2>
                       <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                        {language === 'en'
-                          ? 'Enter your credentials to access your dashboard'
-                          : 'Ingresa con tu cuenta registrada para continuar'}
+                        {t('auth.loginSubtitle')}
                       </p>
                     </>
                   )}
                   {mode === 'register' && (
                     <>
-                      <h2 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
-                        {language === 'en' ? 'Create your account' : 'Registro de Nuevo Usuario'}
+                      <h2 className="text-2xl font-bold font-display text-slate-900 dark:text-white tracking-tight">
+                        {t('auth.registerTitle')}
                       </h2>
                       <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                        Selecciona tu rol (Comprador o Vendedor) y completa tus datos
+                        {t('auth.registerSubtitle')}
                       </p>
                     </>
                   )}
@@ -544,64 +718,88 @@ export const LoginView: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setMode('login')}
-                        className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 transition-colors cursor-pointer"
+                        className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
                       >
                         <ArrowLeft className="w-4 h-4" />
                       </button>
                       <div>
-                        <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-                          Recuperar Contraseña
+                        <h2 className="text-xl font-bold font-display text-slate-900 dark:text-white">
+                          {t('auth.forgotPasswordTitle')}
                         </h2>
                         <p className="text-xs text-slate-500 dark:text-slate-400">
-                          Te enviaremos un enlace seguro a tu correo electrónico
+                          {t('auth.forgotPasswordSubtitle')}
                         </p>
                       </div>
                     </div>
                   )}
                 </div>
 
-                {/* Error Alert Banner */}
-                {errorMsg && (
-                  <div className="mb-5 p-4 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/60 flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
-                    <div className="flex-1 text-xs text-red-800 dark:text-red-200">
-                      <p className="font-semibold leading-relaxed">{errorMsg}</p>
-                      {errorCode === 'user-not-found' && mode === 'login' && (
+                {/* STATE 4: USUARIO INEXISTENTE (Distinct, prominent guidance) */}
+                {isUserNotFoundState && (
+                  <div className="mb-5 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/80 flex items-start gap-3 animate-fade-in shadow-xs">
+                    <div className="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 flex items-center justify-center shrink-0">
+                      <UserX className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1 text-xs text-amber-950 dark:text-amber-200">
+                      <p className="font-bold text-sm mb-1">
+                        {isEn ? 'Account not registered' : 'Usuario no registrado'}
+                      </p>
+                      <p className="leading-relaxed text-amber-900 dark:text-amber-300">
+                        {isEn
+                          ? 'No account was found with this email. Please check your spelling or register for free in seconds.'
+                          : 'No encontramos ninguna cuenta registrada con este correo electrónico. Verifica tus datos o crea una cuenta nueva en pocos segundos.'}
+                      </p>
+                      <div className="mt-3 pt-2.5 border-t border-amber-200 dark:border-amber-800/60 flex items-center justify-between gap-2">
+                        <span className="text-[11px] font-semibold text-amber-800 dark:text-amber-300">
+                          {isEn ? 'Would you like to sign up now?' : '¿Deseas registrarte ahora?'}
+                        </span>
                         <button
                           type="button"
                           onClick={switchToRegisterWithPrefill}
-                          className="mt-2.5 inline-flex items-center gap-1.5 font-bold text-white bg-red-600 hover:bg-red-700 px-3.5 py-1.5 rounded-lg transition-colors cursor-pointer shadow-xs"
+                          className="inline-flex items-center gap-1.5 font-bold text-xs text-white bg-amber-600 hover:bg-amber-700 active:bg-amber-800 px-3 py-1.5 rounded-lg transition-all cursor-pointer shadow-xs hover:scale-[1.02]"
                         >
-                          Crear una cuenta ahora <ArrowRight className="w-3.5 h-3.5" />
+                          <span>{isEn ? 'Create account' : 'Crear cuenta con este correo'}</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
                         </button>
-                      )}
+                      </div>
                     </div>
                   </div>
                 )}
 
-                {/* Success Alert Banner */}
+                {/* STATE 3: ERROR GENERAL BANNER (when not user-not-found) */}
+                {errorMsg && !isUserNotFoundState && (
+                  <div className="mb-5 p-4 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/80 flex items-start gap-3 animate-fade-in">
+                    <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+                    <div className="flex-1 text-xs text-red-900 dark:text-red-200">
+                      <p className="font-semibold leading-relaxed">{errorMsg}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* STATE 2: ÉXITO (Success Banner with green check and smooth fade) */}
                 {successMsg && (
-                  <div className="mb-5 p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 flex items-start gap-3">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                    <div className="flex-1 text-xs font-medium text-emerald-800 dark:text-emerald-200 leading-relaxed">
+                  <div className="mb-5 p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-700/80 flex items-start gap-3 animate-fade-in shadow-xs">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5 animate-bounce" />
+                    <div className="flex-1 text-xs font-semibold text-emerald-900 dark:text-emerald-200 leading-relaxed">
                       {successMsg}
                     </div>
                   </div>
                 )}
 
-                {/* LOGIN FORM */}
+                {/* 1. LOGIN FORM */}
                 {mode === 'login' && (
                   <form onSubmit={handleLoginSubmit} className="space-y-4">
                     <div>
                       <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                        Correo Electrónico
+                        {t('auth.email')}
                       </label>
                       <div className="relative">
-                        <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                        <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors" />
                         <input
                           ref={emailInputRef}
                           type="email"
                           required
+                          disabled={isSubmitting}
                           value={loginEmail}
                           onChange={(e) => {
                             setLoginEmail(e.target.value);
@@ -610,24 +808,25 @@ export const LoginView: React.FC = () => {
                           }}
                           onBlur={handleEmailBlur}
                           placeholder="ejemplo@organizacion.co"
-                          className="w-full pl-10 pr-10 py-3 bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-600/25 focus:border-emerald-600 transition-all"
+                          className="w-full pl-10 pr-10 py-3 bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-600 transition-all disabled:opacity-60"
                         />
                         {isCheckingEmail && (
                           <Loader2 className="w-4 h-4 text-emerald-600 animate-spin absolute right-3.5 top-1/2 -translate-y-1/2" />
                         )}
                       </div>
 
-                      {emailCheck && !emailCheck.exists && validateEmailFormat(loginEmail) && (
-                        <div className="mt-2 p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-800/60 flex items-center justify-between gap-2">
-                          <span className="text-[11px] text-amber-800 dark:text-amber-300 font-medium">
-                            Esta cuenta no está registrada. Debes registrarte primero o crear una cuenta.
+                      {/* Real-time email presence helper */}
+                      {emailCheck && !emailCheck.exists && validateEmailFormat(loginEmail) && !isUserNotFoundState && (
+                        <div className="mt-2.5 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/70 flex items-center justify-between gap-2 animate-fade-in">
+                          <span className="text-[11px] text-amber-900 dark:text-amber-200 font-medium">
+                            {t('auth.notRegisteredNotice')}
                           </span>
                           <button
                             type="button"
                             onClick={switchToRegisterWithPrefill}
                             className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 hover:underline shrink-0 cursor-pointer"
                           >
-                            Registrarse →
+                            {isEn ? 'Register →' : 'Registrarse →'}
                           </button>
                         </div>
                       )}
@@ -636,7 +835,7 @@ export const LoginView: React.FC = () => {
                     <div>
                       <div className="flex items-center justify-between mb-1.5">
                         <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                          Contraseña
+                          {t('auth.password')}
                         </label>
                         <button
                           type="button"
@@ -646,29 +845,27 @@ export const LoginView: React.FC = () => {
                           }}
                           className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 hover:underline cursor-pointer"
                         >
-                          ¿Olvidaste tu contraseña?
+                          {t('auth.forgotPasswordLink')}
                         </button>
                       </div>
                       <div className="relative">
-                        <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                        <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors" />
                         <input
                           type={showLoginPassword ? 'text' : 'password'}
                           required
+                          disabled={isSubmitting}
                           value={loginPassword}
                           onChange={(e) => setLoginPassword(e.target.value)}
                           placeholder="••••••••"
-                          className="w-full pl-10 pr-10 py-3 bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-600/25 focus:border-emerald-600 transition-all"
+                          className="w-full pl-10 pr-10 py-3 bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-600 transition-all disabled:opacity-60"
                         />
                         <button
                           type="button"
                           onClick={() => setShowLoginPassword(!showLoginPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 cursor-pointer"
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 cursor-pointer transition-colors"
+                          aria-label={showLoginPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
                         >
-                          {showLoginPassword ? (
-                            <EyeOff className="w-4 h-4" />
-                          ) : (
-                            <Eye className="w-4 h-4" />
-                          )}
+                          {showLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
                       </div>
                     </div>
@@ -679,41 +876,43 @@ export const LoginView: React.FC = () => {
                           type="checkbox"
                           checked={rememberMe}
                           onChange={(e) => setRememberMe(e.target.checked)}
-                          className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                          className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
                         />
                         <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">
-                          Mantener sesión iniciada
+                          {t('auth.rememberMe')}
                         </span>
                       </label>
                     </div>
 
+                    {/* Submit Button with STATE 1: CARGA */}
                     <button
                       type="submit"
                       disabled={isSubmitting}
-                      className="w-full py-3.5 bg-[#1B4332] hover:bg-emerald-900 disabled:opacity-60 text-white font-bold rounded-xl shadow-md shadow-emerald-950/15 transition-all flex items-center justify-center gap-2 cursor-pointer text-sm"
+                      className="w-full py-3.5 bg-[#1B4332] hover:bg-emerald-900 active:bg-emerald-950 disabled:opacity-60 text-white font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer text-sm hover:scale-[1.01] active:scale-[0.99] group"
                     >
                       {isSubmitting ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          Verificando credenciales...
+                          <span>{isEn ? 'Verifying credentials...' : 'Verificando credenciales...'}</span>
                         </>
                       ) : (
                         <>
-                          Iniciar Sesión
-                          <ArrowRight className="w-4 h-4" />
+                          <span>{t('auth.loginBtn')}</span>
+                          <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                         </>
                       )}
                     </button>
                   </form>
                 )}
 
-                {/* REGISTER FORM */}
+                {/* 2. REGISTER FORM */}
                 {mode === 'register' && (
-                  <form onSubmit={handleRegisterSubmit} className="space-y-4">
-                    {/* Role Selection: Comprador o Vendedor (Requirement 1 & 2) */}
+                  <form onSubmit={handleRegisterSubmit} className="space-y-4 animate-fade-in">
+                    
+                    {/* Role Selection: Comprador (buyer) o Vendedor (seller) */}
                     <div>
                       <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
-                        Selecciona tu rol en la plataforma
+                        {t('auth.selectRole')}
                       </label>
                       <div className="grid grid-cols-2 gap-2.5">
                         <button
@@ -721,19 +920,19 @@ export const LoginView: React.FC = () => {
                           onClick={() => setRegRole('buyer')}
                           className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-2.5 ${
                             regRole === 'buyer'
-                              ? 'border-emerald-600 bg-emerald-50/70 dark:bg-emerald-950/40 text-emerald-950 dark:text-emerald-200 ring-2 ring-emerald-600/15'
+                              ? 'border-emerald-600 bg-emerald-50/80 dark:bg-emerald-950/40 text-emerald-950 dark:text-emerald-200 ring-2 ring-emerald-600/20'
                               : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400'
                           }`}
                         >
                           <ShoppingBag
                             className={`w-5 h-5 shrink-0 mt-0.5 ${
-                              regRole === 'buyer' ? 'text-emerald-600' : 'text-slate-400'
+                              regRole === 'buyer' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'
                             }`}
                           />
                           <div>
-                            <p className="text-xs font-bold">Comprador</p>
+                            <p className="text-xs font-bold">{t('role.buyer')}</p>
                             <p className="text-[10px] opacity-75 leading-tight mt-0.5">
-                              Explorar y adquirir alimentos
+                              {t('auth.roleBuyerDesc')}
                             </p>
                           </div>
                         </button>
@@ -743,19 +942,19 @@ export const LoginView: React.FC = () => {
                           onClick={() => setRegRole('seller')}
                           className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-2.5 ${
                             regRole === 'seller'
-                              ? 'border-emerald-600 bg-emerald-50/70 dark:bg-emerald-950/40 text-emerald-950 dark:text-emerald-200 ring-2 ring-emerald-600/15'
+                              ? 'border-emerald-600 bg-emerald-50/80 dark:bg-emerald-950/40 text-emerald-950 dark:text-emerald-200 ring-2 ring-emerald-600/20'
                               : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400'
                           }`}
                         >
                           <Store
                             className={`w-5 h-5 shrink-0 mt-0.5 ${
-                              regRole === 'seller' ? 'text-emerald-600' : 'text-slate-400'
+                              regRole === 'seller' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'
                             }`}
                           />
                           <div>
-                            <p className="text-xs font-bold">Vendedor</p>
+                            <p className="text-xs font-bold">{t('role.seller')}</p>
                             <p className="text-[10px] opacity-75 leading-tight mt-0.5">
-                              Publicar y vender excedentes
+                              {t('auth.roleSellerDesc')}
                             </p>
                           </div>
                         </button>
@@ -765,16 +964,17 @@ export const LoginView: React.FC = () => {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                          Nombre Completo *
+                          {t('auth.fullName')} *
                         </label>
                         <div className="relative">
                           <User className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                           <input
                             type="text"
                             required
+                            disabled={isSubmitting}
                             value={regName}
                             onChange={(e) => setRegName(e.target.value)}
-                            placeholder="Ej. Carlos Mendoza"
+                            placeholder="Ej. Carolina Montoya"
                             className="w-full pl-9 pr-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:border-emerald-600"
                           />
                         </div>
@@ -782,18 +982,19 @@ export const LoginView: React.FC = () => {
 
                       <div>
                         <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                          Organización / Entidad
+                          {t('auth.orgName')}
                         </label>
                         <div className="relative">
                           <Building2 className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                           <input
                             type="text"
+                            disabled={isSubmitting}
                             value={regOrg}
                             onChange={(e) => setRegOrg(e.target.value)}
                             placeholder={
                               regRole === 'seller'
-                                ? 'Ej. Supermercados El Sol'
-                                : 'Ej. Fundación Semillas'
+                                ? 'Ej. Fruver Valle del Sol'
+                                : 'Ej. Fundación San Vicente'
                             }
                             className="w-full pl-9 pr-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:border-emerald-600"
                           />
@@ -804,12 +1005,13 @@ export const LoginView: React.FC = () => {
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                       <div>
                         <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
-                          NIT o Documento
+                          {t('auth.nit')}
                         </label>
                         <div className="relative">
                           <FileText className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                           <input
                             type="text"
+                            disabled={isSubmitting}
                             value={regNit}
                             onChange={(e) => setRegNit(e.target.value)}
                             placeholder="900.123.456-1"
@@ -820,15 +1022,16 @@ export const LoginView: React.FC = () => {
 
                       <div>
                         <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
-                          Teléfono / Celular
+                          {t('auth.phone')}
                         </label>
                         <div className="relative">
                           <Phone className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                           <input
                             type="tel"
+                            disabled={isSubmitting}
                             value={regPhone}
                             onChange={(e) => setRegPhone(e.target.value)}
-                            placeholder="+57 300 000 0000"
+                            placeholder="+57 304 526 3106"
                             className="w-full pl-8 pr-2.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:border-emerald-600"
                           />
                         </div>
@@ -836,22 +1039,26 @@ export const LoginView: React.FC = () => {
 
                       <div>
                         <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
-                          Ciudad Principal
+                          {t('auth.city')}
                         </label>
                         <div className="relative">
                           <MapPin className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
                           <select
+                            disabled={isSubmitting}
                             value={regCity}
                             onChange={(e) => setRegCity(e.target.value)}
-                            className="w-full pl-7 pr-2 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:border-emerald-600"
+                            className="w-full pl-7 pr-2 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:border-emerald-600 cursor-pointer"
                           >
-                            <option value="Bogotá D.C.">Bogotá D.C.</option>
                             <option value="Medellín">Medellín</option>
-                            <option value="Cali">Cali</option>
-                            <option value="Barranquilla">Barranquilla</option>
-                            <option value="Bucaramanga">Bucaramanga</option>
-                            <option value="Cartagena">Cartagena</option>
-                            <option value="Pereira">Pereira</option>
+                            <option value="Bello">Bello</option>
+                            <option value="Itagüí">Itagüí</option>
+                            <option value="Envigado">Envigado</option>
+                            <option value="Sabaneta">Sabaneta</option>
+                            <option value="La Estrella">La Estrella</option>
+                            <option value="Caldas">Caldas</option>
+                            <option value="Copacabana">Copacabana</option>
+                            <option value="Girardota">Girardota</option>
+                            <option value="Barbosa">Barbosa</option>
                           </select>
                         </div>
                       </div>
@@ -859,13 +1066,14 @@ export const LoginView: React.FC = () => {
 
                     <div>
                       <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                        Correo Electrónico *
+                        {t('auth.email')} *
                       </label>
                       <div className="relative">
                         <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                         <input
                           type="email"
                           required
+                          disabled={isSubmitting}
                           value={regEmail}
                           onChange={(e) => setRegEmail(e.target.value)}
                           placeholder="contacto@organizacion.co"
@@ -877,16 +1085,17 @@ export const LoginView: React.FC = () => {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                          Contraseña *
+                          {t('auth.password')} *
                         </label>
                         <div className="relative">
                           <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                           <input
                             type={showRegPassword ? 'text' : 'password'}
                             required
+                            disabled={isSubmitting}
                             value={regPassword}
                             onChange={(e) => setRegPassword(e.target.value)}
-                            placeholder="Mín. 8 caracteres"
+                            placeholder={isEn ? 'Min. 8 characters' : 'Mín. 8 caracteres'}
                             className="w-full pl-9 pr-8 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:border-emerald-600"
                           />
                           <button
@@ -894,27 +1103,24 @@ export const LoginView: React.FC = () => {
                             onClick={() => setShowRegPassword(!showRegPassword)}
                             className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
                           >
-                            {showRegPassword ? (
-                              <EyeOff className="w-3.5 h-3.5" />
-                            ) : (
-                              <Eye className="w-3.5 h-3.5" />
-                            )}
+                            {showRegPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                           </button>
                         </div>
                       </div>
 
                       <div>
                         <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                          Confirmar Contraseña *
+                          {t('auth.confirmPassword')} *
                         </label>
                         <div className="relative">
                           <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                           <input
                             type={showRegPassword ? 'text' : 'password'}
                             required
+                            disabled={isSubmitting}
                             value={regConfirmPassword}
                             onChange={(e) => setRegConfirmPassword(e.target.value)}
-                            placeholder="Repite la contraseña"
+                            placeholder={isEn ? 'Repeat password' : 'Repite la contraseña'}
                             className={`w-full pl-9 pr-8 py-2.5 bg-slate-50 dark:bg-slate-800 border rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none ${
                               passwordsMismatch
                                 ? 'border-red-400 focus:border-red-500'
@@ -930,68 +1136,67 @@ export const LoginView: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Password Strength Meter */}
+                    {/* Password Strength Indicator */}
                     {regPassword.length > 0 && (
-                      <div className="bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-200/70 dark:border-slate-700/70 space-y-2">
+                      <div className="space-y-1.5 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
                         <div className="flex items-center justify-between text-[11px]">
-                          <span className="text-slate-500 dark:text-slate-400 font-medium">
-                            Seguridad de contraseña:
-                          </span>
+                          <span className="text-slate-500">{t('auth.strength')}:</span>
                           <span
                             className={`font-bold ${
-                              pwdStrength.score <= 1
-                                ? 'text-red-500'
-                                : pwdStrength.score === 2
+                              pwdStrength.score >= 3
+                                ? 'text-emerald-600 dark:text-emerald-400'
+                                : pwdStrength.score >= 2
                                 ? 'text-amber-500'
-                                : 'text-emerald-600 dark:text-emerald-400'
+                                : 'text-red-500'
                             }`}
                           >
                             {pwdStrength.label}
                           </span>
                         </div>
-                        <div className="grid grid-cols-4 gap-1.5 h-1.5">
+                        <div className="w-full bg-slate-200 dark:bg-slate-750 h-1.5 rounded-full overflow-hidden flex gap-1">
                           {[1, 2, 3, 4].map((step) => (
                             <div
                               key={step}
-                              className={`rounded-full transition-colors ${
+                              className={`h-full flex-1 rounded-full transition-all duration-300 ${
                                 pwdStrength.score >= step
-                                  ? pwdStrength.score <= 1
-                                    ? 'bg-red-500'
-                                    : pwdStrength.score === 2
-                                    ? 'bg-amber-500'
-                                    : 'bg-emerald-500'
-                                  : 'bg-slate-200 dark:bg-slate-700'
+                                  ? pwdStrength.score >= 3
+                                    ? 'bg-emerald-500'
+                                    : pwdStrength.score >= 2
+                                    ? 'bg-amber-400'
+                                    : 'bg-red-400'
+                                  : 'bg-transparent'
                               }`}
                             />
                           ))}
                         </div>
-                        <div className="grid grid-cols-3 gap-1 text-[10px] text-slate-500 dark:text-slate-400 pt-0.5">
+                        <div className="grid grid-cols-2 gap-1 text-[10px] text-slate-400 pt-1">
                           <span
                             className={`flex items-center gap-1 ${
-                              pwdStrength.hasMinLength
-                                ? 'text-emerald-600 dark:text-emerald-400 font-semibold'
-                                : ''
+                              pwdStrength.hasMinLength ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : ''
                             }`}
                           >
-                            <Check className="w-3 h-3" /> 8+ caracteres
+                            <Check className="w-3 h-3" /> {t('auth.hasMinLength')}
                           </span>
                           <span
                             className={`flex items-center gap-1 ${
-                              pwdStrength.hasNumber
-                                ? 'text-emerald-600 dark:text-emerald-400 font-semibold'
-                                : ''
+                              pwdStrength.hasNumber ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : ''
                             }`}
                           >
-                            <Check className="w-3 h-3" /> 1+ número
+                            <Check className="w-3 h-3" /> {t('auth.hasNumber')}
                           </span>
                           <span
                             className={`flex items-center gap-1 ${
-                              pwdStrength.hasSymbol
-                                ? 'text-emerald-600 dark:text-emerald-400 font-semibold'
-                                : ''
+                              pwdStrength.hasMixedCase ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : ''
                             }`}
                           >
-                            <Check className="w-3 h-3" /> 1+ símbolo
+                            <Check className="w-3 h-3" /> {t('auth.hasMixedCase')}
+                          </span>
+                          <span
+                            className={`flex items-center gap-1 ${
+                              pwdStrength.hasSymbol ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : ''
+                            }`}
+                          >
+                            <Check className="w-3 h-3" /> {t('auth.hasSymbol')}
                           </span>
                         </div>
                       </div>
@@ -1002,46 +1207,49 @@ export const LoginView: React.FC = () => {
                         type="checkbox"
                         checked={acceptTerms}
                         onChange={(e) => setAcceptTerms(e.target.checked)}
-                        className="mt-0.5 w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                        className="mt-0.5 w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
                       />
                       <span className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
-                        Acepto los Términos de Uso, Política de Tratamiento de Datos e Inocuidad
-                        Alimentaria de FoodLink Solidario Colombia.
+                        {t('auth.termsAccept')}
                       </span>
                     </label>
 
+                    {/* Register Submit Button with STATE 1: CARGA */}
                     <button
                       type="submit"
                       disabled={isSubmitting}
-                      className="w-full py-3.5 bg-[#1B4332] hover:bg-emerald-900 disabled:opacity-60 text-white font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer text-sm"
+                      className="w-full py-3.5 bg-[#1B4332] hover:bg-emerald-900 active:bg-emerald-950 disabled:opacity-60 text-white font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer text-sm hover:scale-[1.01] active:scale-[0.99] group"
                     >
                       {isSubmitting ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          Creando cuenta...
+                          <span>{t('auth.creatingAccount')}</span>
                         </>
                       ) : (
                         <>
-                          Registrarme como {regRole === 'seller' ? 'Vendedor' : 'Comprador'}
-                          <ArrowRight className="w-4 h-4" />
+                          <span>
+                            {regRole === 'seller' ? t('auth.registerAsSeller') : t('auth.registerAsBuyer')}
+                          </span>
+                          <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                         </>
                       )}
                     </button>
                   </form>
                 )}
 
-                {/* FORGOT PASSWORD FORM */}
+                {/* 3. FORGOT PASSWORD FORM */}
                 {mode === 'forgot' && (
-                  <form onSubmit={handleForgotSubmit} className="space-y-4">
+                  <form onSubmit={handleForgotSubmit} className="space-y-4 animate-fade-in">
                     <div>
                       <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                        Correo Electrónico Registrado
+                        {t('auth.email')} ({isEn ? 'Registered' : 'Registrado'})
                       </label>
                       <div className="relative">
                         <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                         <input
                           type="email"
                           required
+                          disabled={isSubmitting}
                           value={resetEmail}
                           onChange={(e) => setResetEmail(e.target.value)}
                           placeholder="ejemplo@organizacion.co"
@@ -1053,16 +1261,16 @@ export const LoginView: React.FC = () => {
                     <button
                       type="submit"
                       disabled={isSubmitting}
-                      className="w-full py-3.5 bg-[#1B4332] hover:bg-emerald-900 disabled:opacity-60 text-white font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer text-sm"
+                      className="w-full py-3.5 bg-[#1B4332] hover:bg-emerald-900 disabled:opacity-60 text-white font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer text-sm hover:scale-[1.01] active:scale-[0.99]"
                     >
                       {isSubmitting ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          Enviando enlace...
+                          <span>{t('auth.sendingLink')}</span>
                         </>
                       ) : (
                         <>
-                          Enviar enlace de recuperación
+                          <span>{t('auth.sendResetLink')}</span>
                           <ArrowRight className="w-4 h-4" />
                         </>
                       )}
@@ -1070,13 +1278,13 @@ export const LoginView: React.FC = () => {
                   </form>
                 )}
 
-                {/* Google Sign-In Section (Requirement 6) */}
+                {/* Google Sign-In Section */}
                 {mode !== 'forgot' && (
                   <div className="mt-6">
                     <div className="relative flex items-center justify-center mb-4">
                       <div className="border-t border-slate-200 dark:border-slate-800 w-full" />
                       <span className="bg-white dark:bg-slate-900 px-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider shrink-0">
-                        O continuar con
+                        {t('auth.orContinueWith')}
                       </span>
                       <div className="border-t border-slate-200 dark:border-slate-800 w-full" />
                     </div>
@@ -1085,13 +1293,16 @@ export const LoginView: React.FC = () => {
                       type="button"
                       onClick={handleGoogleSignIn}
                       disabled={socialLoading}
-                      className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/70 text-slate-700 dark:text-slate-200 font-bold text-xs transition-all cursor-pointer shadow-2xs"
+                      className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-200 font-bold text-xs transition-all cursor-pointer shadow-2xs hover:scale-[1.01] active:scale-[0.99]"
                     >
                       {socialLoading ? (
-                        <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+                          <span>{isEn ? 'Connecting to Google...' : 'Conectando con Google...'}</span>
+                        </>
                       ) : (
                         <>
-                          <svg className="w-4 h-4" viewBox="0 0 24 24">
+                          <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
                             <path
                               fill="#EA4335"
                               d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.4l3.7 2.8C6.2 7.2 8.9 5 12 5z"
@@ -1109,17 +1320,21 @@ export const LoginView: React.FC = () => {
                               d="M12 24c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.1-6.7-5l-3.7 2.8C3.5 20.9 7.4 24 12 24z"
                             />
                           </svg>
-                          <span>Continuar con Google</span>
+                          <span>{t('auth.googleSignIn')}</span>
                         </>
                       )}
                     </button>
                   </div>
                 )}
+
               </div>
             </>
           )}
+
         </div>
+
       </div>
+
     </div>
   );
 };
