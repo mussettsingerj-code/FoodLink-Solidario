@@ -24,6 +24,7 @@ import {
 import {
   auth,
   db,
+  isFirebaseConfigured,
   getFirebaseAuthErrorMessage,
   handleFirestoreError,
   OperationType,
@@ -116,7 +117,7 @@ interface AppContextType {
   checkEmailExists: (email: string) => Promise<EmailCheckResult>;
   evaluatePasswordStrength: (password: string) => PasswordStrength;
   toggle2FA: (enabled?: boolean) => void;
-  logout: () => void;
+  logout: () => Promise<{ success: boolean; error?: string }>;
 
   // Preferences (Dark Mode & Language)
   themeMode: ThemeMode;
@@ -720,6 +721,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     (view: string) => {
       if (view === 'landing') {
         setShowLanding(true);
+        setActiveTabState('home');
+        return;
+      }
+      if (view === 'catalog' || view === 'explore') {
+        setActiveTab(view);
+        return;
+      }
+      if (view === 'login' || view === 'register') {
+        setShowLanding(false);
+        setActiveTabState('home');
         return;
       }
       setShowLanding(false);
@@ -752,10 +763,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         'profile',
       ]);
 
-      if (!isAuthenticated && protectedRoutes.has(requestedRoute)) {
+      if (!isAuthenticated && (protectedRoutes.has(requestedRoute) || rawHash)) {
         setShowLanding(false);
         setActiveTabState('home');
-        window.history.replaceState(null, '', '/');
+        if (typeof window !== 'undefined') {
+          window.history.replaceState(null, '', '/');
+        }
         return;
       }
 
@@ -1417,18 +1430,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const logout = () => {
-    signOut(auth).catch((e) => console.warn('Error cerrando sesión en Firebase:', e));
-    setIsAuthenticated(false);
-    setEmailVerificationPending(false);
-    setPendingVerificationEmail('');
-    setUserProfile(EMPTY_USER_PROFILE);
-    setCurrentRoleState('buyer');
-    setShowLanding(true);
-    setActiveTabState('home');
-    localStorage.removeItem('foodlink_is_auth_v3');
-    if (typeof window !== 'undefined') {
-      window.history.replaceState(null, '', '/');
+  const logout = async (): Promise<{ success: boolean; error?: string }> => {
+    try {
+      await signOut(auth);
+      setIsAuthenticated(false);
+      setEmailVerificationPending(false);
+      setPendingVerificationEmail('');
+      setUserProfile(EMPTY_USER_PROFILE);
+      setCurrentRoleState('buyer');
+      setShowLanding(false); // Redirige directamente al inicio de sesión (LoginView)
+      setActiveTabState('home');
+      localStorage.removeItem('foodlink_is_auth_v3');
+      if (typeof window !== 'undefined') {
+        window.history.replaceState(null, '', '/');
+      }
+      return { success: true };
+    } catch (e: unknown) {
+      console.error('Error cerrando sesión en Firebase:', e);
+      const msg =
+        e instanceof Error
+          ? e.message
+          : 'Ocurrió un error al comunicarse con Firebase Authentication. Por favor, intenta de nuevo.';
+      return { success: false, error: msg };
     }
   };
 
@@ -1542,8 +1565,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     const now = new Date();
-    const expires = new Date(now.getTime() + productData.durationDays * 24 * 60 * 60 * 1000);
-    const commission = getCommissionForDuration(productData.durationDays);
+    // Expiration date defines visibility: active until expirationDate
+    let expiresAtIso: string;
+    if (productData.expirationDate) {
+      expiresAtIso = new Date(`${productData.expirationDate}T23:59:59.999Z`).toISOString();
+    } else {
+      const fallbackDays = productData.durationDays || 30;
+      expiresAtIso = new Date(now.getTime() + fallbackDays * 24 * 60 * 60 * 1000).toISOString();
+    }
+
     const newId = `prod-${Date.now()}`;
 
     const newProduct: FoodProduct = {
@@ -1552,33 +1582,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       sellerId: userProfile.id,
       sellerName: userProfile.organizationName || userProfile.name,
       publishedAt: now.toISOString(),
-      expiresAt: expires.toISOString(),
+      expiresAt: expiresAtIso,
       status: 'activa',
-      commissionPaid: commission,
+      commissionPaid: 0,
       offersCount: 0,
       viewsCount: 1,
     };
 
     setAllProducts((prev) => [newProduct, ...prev]);
 
-    const newCommission: CommissionRecord = {
-      id: `com-${Date.now()}`,
-      sellerId: userProfile.id,
-      productName: `${newProduct.name} (${newProduct.quantity} ${newProduct.unit})`,
-      durationDays: newProduct.durationDays,
-      commission,
-      date: now.toISOString().split('T')[0],
-      status: 'Activa',
-      paymentMethod: 'PSE Empresarial',
-      transactionRef: `PSE-${Math.floor(100000 + Math.random() * 900000)}`,
-    };
-    setAllCommissions((prev) => [newCommission, ...prev]);
+    // Optional Firestore sync
+    try {
+      if (isFirebaseConfigured && db) {
+        setDoc(doc(db, 'products', newProduct.id), newProduct).catch((err) => {
+          console.warn('Firestore product persist notice:', err);
+        });
+      }
+    } catch {
+      // Non-blocking
+    }
 
     dispatchNotificationEvent({
       userId: userProfile.id,
       type: 'publicacion_activada',
-      title: 'Publicación activada y pago confirmado',
-      message: `Tu publicación "${newProduct.name}" estará visible por ${newProduct.durationDays} día(s). Comisión pagada: ${formatCOP(commission)}.`,
+      title: 'Producto publicado correctamente',
+      message: `Tu producto "${newProduct.name}" se encuentra activo en el catálogo hasta el ${newProduct.expirationDate}.`,
       relatedProductId: newProduct.id,
       productName: newProduct.name,
       recipientEmail: userProfile.email,
@@ -2039,7 +2067,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         activeTab,
         setActiveTab,
         currentView: activeTab,
-        setCurrentView: setActiveTab,
+        setCurrentView: navigateWithGuard,
         navigateWithGuard,
         emailVerificationPending,
         pendingVerificationEmail,

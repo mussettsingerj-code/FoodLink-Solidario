@@ -45,9 +45,18 @@ export const DashboardHomeView: React.FC = () => {
     offers.filter((o) => o.sellerId === userProfile.id && o.status === 'aceptada').length;
 
   // Buyer metrics (strictly real data for the authenticated buyer)
-  const availableCatalogProducts = products.filter(
-    (p) => p.status === 'activa' || p.status === 'proxima_a_finalizar'
-  );
+  const availableCatalogProducts = products.filter((p) => {
+    if (p.status !== 'activa' && p.status !== 'proxima_a_finalizar') return false;
+    const expTime = p.expirationDate
+      ? new Date(`${p.expirationDate}T23:59:59`).getTime()
+      : p.expiresAt
+      ? new Date(p.expiresAt).getTime()
+      : NaN;
+    if (!isNaN(expTime) && expTime < Date.now()) {
+      return false;
+    }
+    return true;
+  });
   const mySentOffers = offers.filter((o) => o.buyerId === userProfile.id);
   const acceptedOffersCount = mySentOffers.filter((o) => o.status === 'aceptada').length;
   const activeNegotiationsCount = mySentOffers.filter(

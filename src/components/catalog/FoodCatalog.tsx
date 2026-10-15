@@ -78,6 +78,16 @@ export const FoodCatalog: React.FC = () => {
       .filter((p) => {
         if (p.status === 'vendida' || p.status === 'finalizada' || p.status === 'pausada') return false;
 
+        // Regla: La publicación debe estar activa mientras siga siendo válida; dejar de mostrar al vencer
+        const expTime = p.expirationDate
+          ? new Date(`${p.expirationDate}T23:59:59`).getTime()
+          : p.expiresAt
+          ? new Date(p.expiresAt).getTime()
+          : NaN;
+        if (!isNaN(expTime) && expTime < Date.now()) {
+          return false;
+        }
+
         if (searchTerm.trim()) {
           const term = searchTerm.toLowerCase();
           const match =

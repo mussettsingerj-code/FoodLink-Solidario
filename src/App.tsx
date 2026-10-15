@@ -20,8 +20,12 @@ import { ProductDetailModal } from './components/catalog/ProductDetailModal';
 import { MakeOfferModal } from './components/catalog/MakeOfferModal';
 import { PublishFoodModal } from './components/publishing/PublishFoodModal';
 import { NegotiationChatModal } from './components/negotiation/NegotiationChatModal';
+import { APIProvider } from '@vis.gl/react-google-maps';
 import { AuthModal } from './components/auth/AuthModal';
 import { LoginView } from './components/auth/LoginView';
+
+const GOOGLE_MAPS_API_KEY =
+  import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyBeFNrci5vszqWYISuOfXzSViUWR-FBCxs';
 
 const MainLayout: React.FC = () => {
   const {
@@ -32,6 +36,8 @@ const MainLayout: React.FC = () => {
     userProfile,
     selectedOfferIdForNegotiation,
     setSelectedOfferIdForNegotiation,
+    isPublishModalOpen,
+    setIsPublishModalOpen,
   } = useApp();
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
@@ -53,7 +59,13 @@ const MainLayout: React.FC = () => {
       <div className="min-h-screen bg-[#FAF8F5] dark:bg-slate-950 flex flex-col text-slate-900 dark:text-slate-100 font-sans selection:bg-emerald-600 selection:text-white transition-colors duration-200">
         <LandingHeader />
         <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-          <LandingPage />
+          <div key={activeTab === 'catalog' || activeTab === 'explore' ? 'catalog' : 'landing'} className="animate-fade-in">
+            {activeTab === 'catalog' || activeTab === 'explore' ? (
+              <FoodCatalog />
+            ) : (
+              <LandingPage />
+            )}
+          </div>
         </main>
         <Footer />
         <ProductDetailModal />
@@ -136,7 +148,11 @@ const MainLayout: React.FC = () => {
       <div className="flex-1 flex flex-col min-w-0">
         <Header onOpenMobileMenu={() => setIsMobileSidebarOpen(true)} />
 
-        <main className="flex-1">{renderModule()}</main>
+        <main className="flex-1">
+          <div key={activeTab} className="animate-fade-in">
+            {renderModule()}
+          </div>
+        </main>
 
         <Footer />
       </div>
@@ -144,7 +160,12 @@ const MainLayout: React.FC = () => {
       {/* Modals */}
       <ProductDetailModal />
       <MakeOfferModal />
-      {isSeller && <PublishFoodModal />}
+      {isSeller && (
+        <PublishFoodModal
+          isOpen={isPublishModalOpen}
+          onClose={() => setIsPublishModalOpen(false)}
+        />
+      )}
       <NegotiationChatModal
         offerId={selectedOfferIdForNegotiation}
         onClose={() => setSelectedOfferIdForNegotiation(null)}
@@ -157,11 +178,13 @@ const MainLayout: React.FC = () => {
 
 export function App() {
   return (
-    <I18nProvider>
-      <AppProvider>
-        <MainLayout />
-      </AppProvider>
-    </I18nProvider>
+    <APIProvider apiKey={GOOGLE_MAPS_API_KEY} libraries={['places']}>
+      <I18nProvider>
+        <AppProvider>
+          <MainLayout />
+        </AppProvider>
+      </I18nProvider>
+    </APIProvider>
   );
 }
 

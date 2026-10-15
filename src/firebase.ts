@@ -44,8 +44,21 @@ function createFirestoreInstance(): Firestore {
   }
 }
 
+import { getStorage, FirebaseStorage } from 'firebase/storage';
+
 export const db: Firestore = createFirestoreInstance();
 export const auth: Auth = getAuth(app);
+
+export const storage: FirebaseStorage | null = (() => {
+  try {
+    if (firebaseConfig.storageBucket) {
+      return getStorage(app);
+    }
+    return null;
+  } catch {
+    return null;
+  }
+})();
 
 export enum OperationType {
   CREATE = 'create',
