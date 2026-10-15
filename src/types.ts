@@ -105,7 +105,6 @@ export interface FoodProduct {
   
   // Establishment details
   sellerId: string;
-  sellerRole?: 'seller';
   sellerName: string;
   sellerType: 'Supermercado' | 'Restaurante' | 'Panadería' | 'Distribuidor' | 'Fruver' | 'Tienda';
   sellerVerified: boolean;

@@ -20,17 +20,7 @@
     color-scheme: dark;
   }
 
-  html {
-    overflow-x: clip;
-    max-width: 100vw;
-    scroll-behavior: smooth;
-    -webkit-text-size-adjust: 100%;
-  }
-
-  body {
-    overflow-x: clip;
-    max-width: 100vw;
-    min-height: 100vh;
+  html, body {
     transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
     background-color: var(--bg-primary);
     color: var(--text-primary);
@@ -45,7 +35,6 @@
   h1, h2, h3, h4, h5, h6, .font-display {
     font-family: 'Outfit', 'Plus Jakarta Sans', system-ui, sans-serif;
     letter-spacing: -0.025em;
-    text-wrap: balance;
   }
 
   /* Improve button & input baseline readability */
@@ -54,32 +43,9 @@
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 
-  /* Accessible focus indicators for keyboard navigation */
-  :focus-visible {
-    outline: 2px solid #059669;
-    outline-offset: 2px;
-  }
-
   /* Optical adjustment for dark mode text contrast */
   html.dark body {
     text-rendering: optimizeLegibility;
-  }
-
-  /* Touch optimization on coarse pointer devices */
-  @media (pointer: coarse) {
-    button, a, input, select, textarea {
-      touch-action: manipulation;
-    }
-  }
-
-  /* Respect user motion preferences */
-  @media (prefers-reduced-motion: reduce) {
-    *, ::before, ::after {
-      animation-duration: 0.01ms !important;
-      animation-iteration-count: 1 !important;
-      transition-duration: 0.01ms !important;
-      scroll-behavior: auto !important;
-    }
   }
 }
 

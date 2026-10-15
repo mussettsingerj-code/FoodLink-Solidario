@@ -226,33 +226,19 @@ export const FooterInfoModal: React.FC<FooterInfoModalProps> = ({ type, onClose 
 
   const content = getContent();
 
-  React.useEffect(() => {
-    if (!type) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [type, onClose]);
-
   return (
-    <div
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs overflow-y-auto"
-    >
-      <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full p-5 sm:p-7 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4 sm:space-y-5 relative my-auto max-h-[92vh] flex flex-col animate-in fade-in zoom-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs overflow-y-auto">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-5 relative my-auto animate-in fade-in zoom-in duration-200">
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-emerald-600"
+          className="absolute top-4 right-4 p-2 rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
           aria-label={isEn ? 'Close modal' : 'Cerrar ventana'}
         >
           <X className="w-5 h-5" />
         </button>
 
-        <div className="flex items-center gap-3.5 shrink-0">
+        <div className="flex items-center gap-3.5">
           <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center shrink-0">
             {content.icon}
           </div>
@@ -266,15 +252,15 @@ export const FooterInfoModal: React.FC<FooterInfoModalProps> = ({ type, onClose 
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto pr-1 custom-scroll max-h-[60vh]">
+        <div className="max-h-[60vh] overflow-y-auto pr-1 custom-scroll">
           {content.body}
         </div>
 
-        <div className="pt-2 flex justify-end shrink-0 border-t border-slate-100 dark:border-slate-800">
+        <div className="pt-2 flex justify-end">
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2.5 rounded-xl bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-white font-bold text-xs sm:text-sm transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-emerald-600"
+            className="px-5 py-2.5 rounded-xl bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-white font-bold text-xs sm:text-sm transition-colors cursor-pointer"
           >
             {isEn ? 'Close' : 'Entendido'}
           </button>

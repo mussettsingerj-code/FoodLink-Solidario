@@ -6,34 +6,15 @@ import { ProductImage } from '../common/ProductImage';
 import { X, Send, Sparkles } from 'lucide-react';
 
 interface MakeOfferModalProps {
-  product?: FoodProduct | null;
+  product: FoodProduct | null;
   isOpen?: boolean;
-  onClose?: () => void;
+  onClose: () => void;
   onSuccess?: () => void;
 }
 
-export const MakeOfferModal: React.FC<MakeOfferModalProps> = ({
-  product: propProduct,
-  isOpen = true,
-  onClose: propOnClose,
-  onSuccess,
-}) => {
-  const {
-    currentUser,
-    createOffer,
-    setSelectedOfferIdForNegotiation,
-    showToast,
-    makingOfferProduct,
-    setMakingOfferProduct,
-  } = useApp();
+export const MakeOfferModal: React.FC<MakeOfferModalProps> = ({ product, isOpen = true, onClose, onSuccess }) => {
+  const { currentUser, createOffer, setSelectedOfferIdForNegotiation, showToast } = useApp();
   const { t } = useI18n();
-
-  const activeProduct = propProduct !== undefined ? propProduct : makingOfferProduct;
-
-  const handleClose = () => {
-    if (propOnClose) propOnClose();
-    setMakingOfferProduct(null);
-  };
 
   const [requestedQuantity, setRequestedQuantity] = useState<number>(1);
   const [offeredPricePerUnit, setOfferedPricePerUnit] = useState<number>(1000);
@@ -45,15 +26,13 @@ export const MakeOfferModal: React.FC<MakeOfferModalProps> = ({
   const [proposedDate, setProposedDate] = useState<string>(tomorrow);
 
   useEffect(() => {
-    if (activeProduct) {
-      setRequestedQuantity(Math.min(activeProduct.quantity, Math.max(activeProduct.minPurchaseQuantity, 20)));
-      setOfferedPricePerUnit(activeProduct.requestedPrice);
+    if (product) {
+      setRequestedQuantity(Math.min(product.quantity, Math.max(product.minPurchaseQuantity, 20)));
+      setOfferedPricePerUnit(product.requestedPrice);
     }
-  }, [activeProduct]);
+  }, [product]);
 
-  if (!isOpen || !activeProduct) return null;
-
-  const product = activeProduct;
+  if (!isOpen || !product) return null;
 
   // Auto calculated total
   const totalOffered = requestedQuantity * offeredPricePerUnit;
@@ -82,41 +61,27 @@ export const MakeOfferModal: React.FC<MakeOfferModalProps> = ({
     });
 
     showToast(t('offer.successToast'), 'success');
-    handleClose();
+    onClose();
     if (onSuccess) onSuccess();
     // Open negotiation view
     setSelectedOfferIdForNegotiation(newOffer.id);
   };
 
-  useEffect(() => {
-    if (!isOpen || !activeProduct) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') handleClose();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, activeProduct]);
-
   return (
-    <div
-      onClick={(e) => {
-        if (e.target === e.currentTarget) handleClose();
-      }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-slate-950/75 backdrop-blur-xs overflow-y-auto"
-    >
-      <div className="bg-white dark:bg-slate-900 rounded-2xl sm:rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 transition-colors my-auto max-h-[92vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs overflow-y-auto">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 transition-colors my-auto">
         
         {/* Header */}
-        <div className="p-4 sm:p-5 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800 shrink-0">
+        <div className="p-5 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-emerald-400 shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-emerald-400">
               <Sparkles className="w-5 h-5" />
             </div>
-            <div className="min-w-0">
-              <span className="text-[10px] uppercase tracking-wider font-bold text-emerald-400 block truncate">
+            <div>
+              <span className="text-[10px] uppercase tracking-wider font-bold text-emerald-400">
                 {t('offer.modalTag')}
               </span>
-              <h3 className="text-base sm:text-lg font-bold font-display text-white truncate">
+              <h3 className="text-lg font-bold font-display text-white">
                 {t('offer.modalTitle')}
               </h3>
             </div>
@@ -124,16 +89,16 @@ export const MakeOfferModal: React.FC<MakeOfferModalProps> = ({
           <button
             type="button"
             id="btn-close-make-offer-modal"
-            onClick={handleClose}
+            onClick={onClose}
             aria-label="Cerrar modal"
-            className="p-2 min-w-[38px] min-h-[38px] flex items-center justify-center rounded-xl bg-slate-800/80 hover:bg-rose-600 text-slate-300 hover:text-white transition-all cursor-pointer border border-slate-700/60 shrink-0 focus-visible:ring-2 focus-visible:ring-emerald-600"
+            className="p-2 rounded-xl bg-slate-800/80 hover:bg-rose-600 text-slate-300 hover:text-white transition-all cursor-pointer border border-slate-700/60"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Content */}
-        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 flex-1 overflow-y-auto custom-scroll">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
           
           {/* Target Product Summary */}
           <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 flex items-center gap-3">
@@ -141,20 +106,20 @@ export const MakeOfferModal: React.FC<MakeOfferModalProps> = ({
               src={product.imageUrl}
               alt={product.name}
               category={product.category}
-              className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg object-cover border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 shrink-0"
+              className="w-14 h-14 rounded-lg object-cover border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 shrink-0"
             />
             <div className="flex-1 min-w-0">
-              <h4 className="font-bold text-slate-900 dark:text-slate-100 text-xs sm:text-sm truncate">{product.name}</h4>
-              <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">
+              <h4 className="font-bold text-slate-900 dark:text-slate-100 text-sm truncate">{product.name}</h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 {t('offer.seller')}: <span className="font-semibold text-slate-700 dark:text-slate-200">{product.sellerName}</span> • {t('offer.suggestedPrice')}: <span className="font-bold text-emerald-700 dark:text-emerald-400">${product.requestedPrice.toLocaleString('es-CO')}/{product.unit}</span>
               </p>
-              <p className="text-[10px] sm:text-[11px] text-slate-400 truncate">
+              <p className="text-[11px] text-slate-400">
                 {t('publish.quantityLabel')}: {product.quantity} {product.unit} • {t('product.minPurchase')}: {product.minPurchaseQuantity} {product.unit}
               </p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 xs:grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             {/* Cantidad solicitada */}
             <div>
               <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
@@ -167,7 +132,7 @@ export const MakeOfferModal: React.FC<MakeOfferModalProps> = ({
                 max={product.quantity}
                 value={requestedQuantity}
                 onChange={(e) => setRequestedQuantity(Number(e.target.value))}
-                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-base sm:text-sm text-slate-900 dark:text-slate-100 focus:outline-emerald-600 focus:bg-white dark:focus:bg-slate-900 font-semibold transition-all"
+                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-emerald-600 focus:bg-white dark:focus:bg-slate-900 font-semibold transition-all"
               />
             </div>
 
@@ -182,7 +147,7 @@ export const MakeOfferModal: React.FC<MakeOfferModalProps> = ({
                 min="100"
                 value={offeredPricePerUnit}
                 onChange={(e) => setOfferedPricePerUnit(Number(e.target.value))}
-                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-base sm:text-sm text-slate-900 dark:text-slate-100 focus:outline-emerald-600 focus:bg-white dark:focus:bg-slate-900 font-semibold transition-all"
+                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-emerald-600 focus:bg-white dark:focus:bg-slate-900 font-semibold transition-all"
               />
             </div>
           </div>
@@ -254,18 +219,18 @@ export const MakeOfferModal: React.FC<MakeOfferModalProps> = ({
           </div>
 
           {/* Submit */}
-          <div className="pt-2 flex flex-col-reverse xs:flex-row justify-end gap-2.5 sm:gap-3">
+          <div className="pt-2 flex justify-end gap-3">
             <button
               type="button"
-              onClick={handleClose}
-              className="w-full xs:w-auto px-4 py-2.5 min-h-[42px] text-slate-600 dark:text-slate-300 font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all text-xs sm:text-sm border border-slate-200 dark:border-slate-700 cursor-pointer flex items-center justify-center focus-visible:ring-2 focus-visible:ring-emerald-600"
+              onClick={onClose}
+              className="px-4 py-2 text-slate-600 dark:text-slate-300 font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all text-xs sm:text-sm border border-slate-200 dark:border-slate-700 cursor-pointer"
             >
               {t('offer.cancelBtn')}
             </button>
             <button
               type="submit"
               id="btn-send-offer-submit"
-              className="w-full xs:w-auto px-5 py-2.5 min-h-[42px] bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-xs transition-all text-xs sm:text-sm flex items-center justify-center gap-2 cursor-pointer focus-visible:ring-2 focus-visible:ring-emerald-600"
+              className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-sm transition-all text-xs sm:text-sm flex items-center gap-2 cursor-pointer"
             >
               <Send className="w-4 h-4" />
               <span>{t('offer.sendOfferBtn')}</span>

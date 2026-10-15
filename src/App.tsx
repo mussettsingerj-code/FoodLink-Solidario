@@ -68,8 +68,6 @@ const MainLayout: React.FC = () => {
           </div>
         </main>
         <Footer />
-        <ProductDetailModal />
-        <MakeOfferModal />
         <AuthModal />
         <ToastContainer />
       </div>
@@ -77,32 +75,12 @@ const MainLayout: React.FC = () => {
   }
 
   if (!isAuthenticated) {
-    const isExploringCatalog = activeTab === 'explore' || activeTab === 'catalog';
-
-    if (isExploringCatalog) {
-      return (
-        <div className="min-h-screen bg-[#FAF8F5] dark:bg-slate-950 flex flex-col text-slate-900 dark:text-slate-100 font-sans selection:bg-emerald-600 selection:text-white transition-colors duration-200">
-          <LandingHeader />
-          <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-            <FoodCatalog />
-          </main>
-          <Footer />
-          <ProductDetailModal />
-          <MakeOfferModal />
-          <AuthModal />
-          <ToastContainer />
-        </div>
-      );
-    }
-
     return (
       <div className="min-h-screen bg-[#FAF8F5] dark:bg-slate-950 flex flex-col text-slate-900 dark:text-slate-100 font-sans selection:bg-emerald-600 selection:text-white transition-colors duration-200">
         <main className="flex-1">
           <LoginView />
         </main>
         <Footer />
-        <ProductDetailModal />
-        <MakeOfferModal />
         <AuthModal />
         <ToastContainer />
       </div>

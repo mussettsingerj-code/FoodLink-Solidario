@@ -3,6 +3,8 @@ import { useApp } from '../../context/AppContext';
 import { FoodProduct, FOOD_CATEGORIES, FOOD_CONDITIONS } from '../../types';
 import { ProductCard } from './ProductCard';
 import { ProductCardSkeleton } from './ProductCardSkeleton';
+import { ProductDetailModal } from './ProductDetailModal';
+import { MakeOfferModal } from './MakeOfferModal';
 import { EmptyState } from '../common/EmptyState';
 import {
   Search,
@@ -27,7 +29,6 @@ export const FoodCatalog: React.FC = () => {
     globalSearchQuery,
     setGlobalSearchQuery,
     userProfile,
-    setMakingOfferProduct,
     t,
   } = useApp();
 
@@ -55,6 +56,9 @@ export const FoodCatalog: React.FC = () => {
     }
   }, [globalSearchQuery]);
 
+  // Quick offer modal
+  const [productForOffer, setProductForOffer] = useState<FoodProduct | null>(null);
+
   const handleMakeOffer = (p: FoodProduct) => {
     if (!isAuthenticated) {
       setAuthModalTab('login');
@@ -63,7 +67,7 @@ export const FoodCatalog: React.FC = () => {
       showToast('Inicia sesión para negociar este lote de alimentos', 'info');
       return;
     }
-    setMakingOfferProduct(p);
+    setProductForOffer(p);
   };
 
   // Available cities in data
@@ -375,6 +379,18 @@ export const FoodCatalog: React.FC = () => {
           ))}
         </div>
       )}
+
+      {/* Modal de Detalles del Producto */}
+      <ProductDetailModal
+        productId={selectedProductIdForDetail}
+        onClose={() => setSelectedProductIdForDetail(null)}
+      />
+
+      {/* Modal para Realizar Oferta */}
+      <MakeOfferModal
+        product={productForOffer}
+        onClose={() => setProductForOffer(null)}
+      />
     </div>
   );
 };

@@ -88,14 +88,8 @@ export const AuthModal: React.FC = () => {
       setErrorMsg(null);
       setErrorCode(null);
       setSuccessMsg(null);
-
-      const handleKeyDown = (e: KeyboardEvent) => {
-        if (e.key === 'Escape') setIsAuthModalOpen(false);
-      };
-      window.addEventListener('keydown', handleKeyDown);
-      return () => window.removeEventListener('keydown', handleKeyDown);
     }
-  }, [isAuthModalOpen, authModalInitialMode, setIsAuthModalOpen]);
+  }, [isAuthModalOpen, authModalInitialMode]);
 
   if (!isAuthModalOpen) return null;
 
@@ -297,13 +291,8 @@ export const AuthModal: React.FC = () => {
   const passwordsMismatch = regConfirmPassword.length > 0 && regPassword !== regConfirmPassword;
 
   return (
-    <div
-      onClick={(e) => {
-        if (e.target === e.currentTarget) setIsAuthModalOpen(false);
-      }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-sm animate-fadeIn overflow-y-auto"
-    >
-      <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800 relative my-auto max-h-[92vh] flex flex-col transition-colors">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm animate-fadeIn overflow-y-auto">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800 relative my-8 transition-colors">
         {/* Top Banner */}
         <div className="bg-[#1B4332] px-6 py-5 text-white relative overflow-hidden">
           <div className="absolute -right-8 -top-8 w-36 h-36 bg-emerald-500/15 rounded-full blur-2xl pointer-events-none" />

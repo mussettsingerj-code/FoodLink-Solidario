@@ -677,20 +677,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Role-protected navigation & URL route protection (Requirement 9)
   const setActiveTab = useCallback(
     (tab: string) => {
-      if (tab === 'landing') {
-        setShowLanding(true);
-        setActiveTabState('home');
-        if (typeof window !== 'undefined') {
-          window.history.replaceState(null, '', '#landing');
-        }
-        return;
-      }
       if (tab === 'login') {
         setShowLanding(false);
-        setActiveTabState('login');
-        if (typeof window !== 'undefined') {
-          window.history.replaceState(null, '', '#login');
-        }
         return;
       }
       const viewAliases: Record<string, string> = {
