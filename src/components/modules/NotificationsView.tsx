@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { useApp } from '../../context/AppContext';
 import { NotificationItem, NotificationType } from '../../types';
 import { ProductDetailModal } from '../catalog/ProductDetailModal';
@@ -224,8 +225,34 @@ export const NotificationsView: React.FC = () => {
     return 'Ver operación';
   };
 
+  const shouldReduceMotion = useReducedMotion();
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: shouldReduceMotion ? 0 : 0.05,
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: shouldReduceMotion ? 0 : 12 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] },
+    },
+  };
+
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <motion.div
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className="max-w-5xl mx-auto space-y-6"
+    >
       {/* Cabecera y Acciones del Sistema de Alertas */}
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
         <div>
@@ -521,7 +548,7 @@ export const NotificationsView: React.FC = () => {
                 <div className="flex justify-between gap-2">
                   <span className="text-slate-500">Asunto:</span>
                   <span className="font-semibold text-slate-900 dark:text-slate-100">
-                    {previewNotif.emailSubject || `[Publik Solidario] ${previewNotif.title}`}
+                    {previewNotif.emailSubject || `[FoodLink Solidario] ${previewNotif.title}`}
                   </span>
                 </div>
                 <div className="flex justify-between gap-2">
@@ -533,12 +560,12 @@ export const NotificationsView: React.FC = () => {
               </div>
 
               {/* Cuerpo del correo */}
-              <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden bg-white text-slate-900">
-                <div className="bg-slate-900 p-4 text-white">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 block">
-                    Publik Solidario · Alerta Automática
+              <div className="rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden bg-white text-slate-900">
+                <div className="bg-[#0B2117] p-4 text-white">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400 block">
+                    FoodLink Solidario · Alerta Automática
                   </span>
-                  <h4 className="text-base font-bold mt-1">{previewNotif.title}</h4>
+                  <h4 className="text-base font-bold mt-1 text-white">{previewNotif.title}</h4>
                 </div>
                 <div className="p-5 space-y-4 text-sm">
                   <p className="text-slate-700">
@@ -645,6 +672,6 @@ export const NotificationsView: React.FC = () => {
         productId={selectedProductIdForDetail}
         onClose={() => setSelectedProductIdForDetail(null)}
       />
-    </div>
+    </motion.div>
   );
 };

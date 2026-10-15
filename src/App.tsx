@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { AppProvider, useApp } from './context/AppContext';
 import { I18nProvider } from './i18n/I18nContext';
 import { LandingPage } from './components/landing/LandingPage';
@@ -126,10 +127,18 @@ const MainLayout: React.FC = () => {
       <div className="flex-1 flex flex-col min-w-0">
         <Header onOpenMobileMenu={() => setIsMobileSidebarOpen(true)} />
 
-        <main className="flex-1">
-          <div key={activeTab} className="animate-fade-in">
-            {renderModule()}
-          </div>
+        <main className="flex-1 overflow-x-hidden">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            >
+              {renderModule()}
+            </motion.div>
+          </AnimatePresence>
         </main>
 
         <Footer />

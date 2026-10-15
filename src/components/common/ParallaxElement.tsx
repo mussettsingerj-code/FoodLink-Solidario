@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React from 'react';
 import { motion, useScroll, useTransform, useReducedMotion } from 'motion/react';
 
 interface ParallaxElementProps {
@@ -19,13 +19,10 @@ export const ParallaxElement: React.FC<ParallaxElementProps> = ({
   className = '',
   maxOffset = 30,
 }) => {
-  const ref = useRef<HTMLDivElement>(null);
   const shouldReduceMotion = useReducedMotion();
 
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ['start end', 'end start'],
-  });
+  // Se usa scroll global sin target ref para evitar errores de hidratación
+  const { scrollYProgress } = useScroll();
 
   // Mueve de -maxOffset * speed a +maxOffset * speed
   const y = useTransform(
@@ -39,7 +36,7 @@ export const ParallaxElement: React.FC<ParallaxElementProps> = ({
   }
 
   return (
-    <motion.div ref={ref} style={{ y }} className={`will-change-transform ${className}`}>
+    <motion.div style={{ y }} className={`will-change-transform ${className}`}>
       {children}
     </motion.div>
   );

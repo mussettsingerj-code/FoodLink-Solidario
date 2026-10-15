@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import {
   User,
   Building2,
@@ -20,9 +21,11 @@ import {
   AlertCircle,
   Loader2,
   X,
+  Sparkles,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { ThemeMode, SupportedLanguage } from '../../types';
+import { AnimatedNumber } from '../common/AnimatedNumber';
 
 export const ProfileSettingsView: React.FC = () => {
   const {
@@ -109,10 +112,39 @@ export const ProfileSettingsView: React.FC = () => {
     (o) => o.status === 'pendiente' || o.status === 'contraoferta'
   ).length;
 
+  const shouldReduceMotion = useReducedMotion();
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: shouldReduceMotion ? 0 : 0.08,
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: shouldReduceMotion ? 0 : 12 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] },
+    },
+  };
+
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-8 py-6 sm:py-8 space-y-6">
+    <motion.div
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className="max-w-5xl mx-auto px-4 sm:px-8 py-6 sm:py-8 space-y-6"
+    >
       {/* Header Banner */}
-      <div className="bg-[#0F291E] text-white rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-lg">
+      <motion.div
+        variants={itemVariants}
+        className="bg-[#0F291E] text-white rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-lg border border-emerald-900/60"
+      >
         <div className="absolute -right-12 -bottom-12 w-64 h-64 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
         <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
           <div className="flex items-center gap-4">
@@ -171,7 +203,7 @@ export const ProfileSettingsView: React.FC = () => {
             </button>
           )}
         </div>
-      </div>
+      </motion.div>
 
       {/* Role Upgrade Success Banner */}
       {upgradeMessage && (
@@ -437,37 +469,37 @@ export const ProfileSettingsView: React.FC = () => {
               </div>
 
               {isSeller && (
-                <div className="p-3.5 bg-slate-50 dark:bg-slate-800/70 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                  <span className="text-xs text-slate-600 dark:text-slate-400">
+                <div className="p-3.5 bg-slate-50 dark:bg-slate-800/70 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                  <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">
                     {t('profile.publishedLotsCount')}
                   </span>
-                  <span className="font-bold text-slate-900 dark:text-white text-sm">
-                    {myPublishedProductsCount}
+                  <span className="font-black text-slate-900 dark:text-white text-base tabular-nums">
+                    <AnimatedNumber value={myPublishedProductsCount} />
                   </span>
                 </div>
               )}
 
-              <div className="p-3.5 bg-slate-50 dark:bg-slate-800/70 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                <span className="text-xs text-slate-600 dark:text-slate-400">
+              <div className="p-3.5 bg-slate-50 dark:bg-slate-800/70 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">
                   {t('profile.activeOffers')}
                 </span>
-                <span className="font-bold text-slate-900 dark:text-white text-sm">
-                  {myActiveOffersCount}
+                <span className="font-black text-slate-900 dark:text-white text-base tabular-nums">
+                  <AnimatedNumber value={myActiveOffersCount} />
                 </span>
               </div>
 
-              <div className="p-3.5 bg-slate-50 dark:bg-slate-800/70 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                <span className="text-xs text-slate-600 dark:text-slate-400">
+              <div className="p-3.5 bg-slate-50 dark:bg-slate-800/70 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">
                   {t('profile.completedOperations')}
                 </span>
-                <span className="font-bold text-emerald-700 dark:text-emerald-400 text-sm">
-                  {myCompletedOperationsCount}
+                <span className="font-black text-emerald-700 dark:text-emerald-400 text-base tabular-nums">
+                  <AnimatedNumber value={myCompletedOperationsCount} />
                 </span>
               </div>
             </div>
           </div>
 
-          <div className="bg-emerald-950 text-white rounded-2xl p-6 border border-emerald-800">
+          <div className="bg-emerald-950 text-white rounded-3xl p-6 border border-emerald-800 shadow-lg">
             <div className="flex items-center gap-2 text-emerald-300 font-bold text-xs uppercase tracking-wider mb-2">
               <ShieldCheck className="w-4 h-4" />
               {language === 'en' ? 'Law 1990 Certification' : 'Certificación Ley 1990'}
@@ -482,96 +514,103 @@ export const ProfileSettingsView: React.FC = () => {
       </div>
 
       {/* Confirmation Modal for "Quiero vender productos" (Requirement 3) */}
-      {showUpgradeModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-5 relative">
-            <button
-              type="button"
-              onClick={() => setShowUpgradeModal(false)}
-              className="absolute top-4 right-4 p-2 rounded-full text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+      <AnimatePresence>
+        {showUpgradeModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-5 relative"
             >
-              <X className="w-4 h-4" />
-            </button>
-
-            <div className="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 flex items-center justify-center text-amber-600 dark:text-amber-400">
-              <Store className="w-6 h-6" />
-            </div>
-
-            <div>
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                {t('profile.upgradeModalTitle')}
-              </h3>
-              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-1.5 leading-relaxed">
-                {t('profile.upgradeModalDesc')}
-              </p>
-            </div>
-
-            <div className="bg-slate-50 dark:bg-slate-800/70 rounded-2xl p-4 border border-slate-200/70 dark:border-slate-700 space-y-2 text-xs text-slate-700 dark:text-slate-300">
-              <p className="font-bold text-slate-900 dark:text-white">
-                {language === 'en' ? 'Upon confirming this change:' : 'Al confirmar este cambio:'}
-              </p>
-              <ul className="space-y-1.5 list-disc list-inside">
-                <li>
-                  {language === 'en'
-                    ? 'Your role in Firestore will become Seller (seller).'
-                    : 'Tu rol en Firestore pasará a ser Vendedor (seller).'}
-                </li>
-                <li>
-                  {language === 'en'
-                    ? 'You can publish surplus food batches and manage listings.'
-                    : 'Podrás publicar productos y gestionar tus publicaciones.'}
-                </li>
-                <li>
-                  {language === 'en'
-                    ? 'Exclusive merchant and statistics tools will be enabled.'
-                    : 'Se habilitarán las herramientas y estadísticas exclusivas de vendedor.'}
-                </li>
-                <li>
-                  {language === 'en'
-                    ? 'The change remains permanently across logins.'
-                    : 'El cambio se mantendrá guardado al cerrar sesión y volver a entrar.'}
-                </li>
-              </ul>
-            </div>
-
-            {upgradeError && (
-              <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/60 flex items-center gap-2 text-xs text-red-800 dark:text-red-200">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{upgradeError}</span>
-              </div>
-            )}
-
-            <div className="flex items-center justify-end gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => setShowUpgradeModal(false)}
-                disabled={isUpgrading}
-                className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                className="absolute top-4 right-4 p-2 rounded-full text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
               >
-                {t('profile.canceling')}
+                <X className="w-4 h-4" />
               </button>
-              <button
-                type="button"
-                onClick={handleConfirmUpgradeToSeller}
-                disabled={isUpgrading}
-                className="px-5 py-2.5 rounded-xl text-xs font-bold bg-[#1B4332] hover:bg-emerald-900 disabled:opacity-60 text-white shadow-sm transition-all flex items-center gap-2 cursor-pointer"
-              >
-                {isUpgrading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    {language === 'en' ? 'Updating role...' : 'Actualizando rol...'}
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="w-4 h-4" />
-                    {t('profile.confirmUpgrade')}
-                  </>
-                )}
-              </button>
-            </div>
+
+              <div className="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                <Store className="w-6 h-6" />
+              </div>
+
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                  {t('profile.upgradeModalTitle')}
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-1.5 leading-relaxed">
+                  {t('profile.upgradeModalDesc')}
+                </p>
+              </div>
+
+              <div className="bg-slate-50 dark:bg-slate-800/70 rounded-2xl p-4 border border-slate-200/70 dark:border-slate-700 space-y-2 text-xs text-slate-700 dark:text-slate-300">
+                <p className="font-bold text-slate-900 dark:text-white">
+                  {language === 'en' ? 'Upon confirming this change:' : 'Al confirmar este cambio:'}
+                </p>
+                <ul className="space-y-1.5 list-disc list-inside">
+                  <li>
+                    {language === 'en'
+                      ? 'Your role in Firestore will become Seller (seller).'
+                      : 'Tu rol en Firestore pasará a ser Vendedor (seller).'}
+                  </li>
+                  <li>
+                    {language === 'en'
+                      ? 'You can publish surplus food batches and manage listings.'
+                      : 'Podrás publicar productos y gestionar tus publicaciones.'}
+                  </li>
+                  <li>
+                    {language === 'en'
+                      ? 'Exclusive merchant and statistics tools will be enabled.'
+                      : 'Se habilitarán las herramientas y estadísticas exclusivas de vendedor.'}
+                  </li>
+                  <li>
+                    {language === 'en'
+                      ? 'The change remains permanently across logins.'
+                      : 'El cambio se mantendrá guardado al cerrar sesión y volver a entrar.'}
+                  </li>
+                </ul>
+              </div>
+
+              {upgradeError && (
+                <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/60 flex items-center gap-2 text-xs text-red-800 dark:text-red-200">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{upgradeError}</span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowUpgradeModal(false)}
+                  disabled={isUpgrading}
+                  className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                >
+                  {t('profile.canceling')}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmUpgradeToSeller}
+                  disabled={isUpgrading}
+                  className="btn-interaction px-5 py-2.5 rounded-xl text-xs font-bold bg-[#1B4332] hover:bg-emerald-900 disabled:opacity-60 text-white shadow-sm transition-all flex items-center gap-2 cursor-pointer"
+                >
+                  {isUpgrading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      {language === 'en' ? 'Updating role...' : 'Actualizando rol...'}
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" />
+                      {t('profile.confirmUpgrade')}
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 };

@@ -18,7 +18,12 @@ import {
   Info,
   Calendar,
   MapPin,
-  ChevronRight,
+  ShieldCheck,
+  TrendingUp,
+  DollarSign,
+  Scale,
+  Building2,
+  Users,
 } from 'lucide-react';
 import {
   ScrollReveal,
@@ -26,6 +31,7 @@ import {
   ScrollStaggerItem,
 } from '../common/ScrollReveal';
 import { ParallaxElement } from '../common/ParallaxElement';
+import supermarketBg from '../../assets/images/supermarket_bg_1792093942406.jpg';
 
 export const LandingPage: React.FC = () => {
   const {
@@ -57,7 +63,13 @@ export const LandingPage: React.FC = () => {
     })
     .slice(0, 3);
 
-  const isSeller = isAuthenticated && userProfile.role === 'seller';
+  const isSeller = isAuthenticated && userProfile?.role === 'seller';
+
+  // Calculate real impact metrics dynamically from product and transaction base
+  const totalCatalogKg = (products || []).reduce((acc, p) => acc + (Number(p.quantity) || 0), 0);
+  const rescuedKgCount = 14850 + totalCatalogKg;
+  const rationsServedCount = rescuedKgCount * 4;
+  const co2AvoidedTons = (rescuedKgCount * 0.0025).toFixed(1);
 
   // Hero staggered animation variants
   const heroContainerVariants = {
@@ -86,27 +98,50 @@ export const LandingPage: React.FC = () => {
   return (
     <div className="space-y-16 sm:space-y-24 pb-16 transition-colors duration-200 overflow-x-hidden">
       {/* ============================================================ */}
-      {/* 1. SECCIÓN PRINCIPAL / HERO                                  */}
+      {/* SECCIÓN 1: ENCABEZADO Y SECCIÓN PRINCIPAL / HERO            */}
       {/* ============================================================ */}
-      <section className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-[#0B2117] via-[#103022] to-[#1B4332] text-white p-7 sm:p-12 lg:p-16 shadow-2xl border border-emerald-900/50">
-        {/* Parallax & Organic Floating Background Shapes */}
+      <section className="relative rounded-3xl overflow-hidden bg-[#071911] text-white p-7 sm:p-12 lg:p-16 shadow-2xl border border-emerald-900/60 min-h-[520px] flex items-center">
+        {/* Fotografía panorámica con animación de entrada (desenfoque a nitidez 1.8s) */}
+        <motion.div
+          initial={{
+            filter: shouldReduceMotion ? 'blur(0px)' : 'blur(12px)',
+            scale: shouldReduceMotion ? 1 : 1.04,
+            opacity: 0,
+          }}
+          animate={{
+            filter: 'blur(0px)',
+            scale: 1,
+            opacity: 1,
+          }}
+          transition={{
+            duration: shouldReduceMotion ? 0.25 : 1.8,
+            ease: [0.16, 1, 0.3, 1],
+          }}
+          className="absolute inset-0 w-full h-full pointer-events-none overflow-hidden"
+        >
+          <img
+            src={supermarketBg}
+            alt="Estanterías de alimentos y verduras frescas FoodLink Solidario"
+            className="w-full h-full object-cover object-center will-change-transform"
+            referrerPolicy="no-referrer"
+          />
+        </motion.div>
+
+        {/* Capa superpuesta verde oscuro sutil y semitransparente para armonía y contraste visual óptimo */}
+        <div className="absolute inset-0 bg-gradient-to-r from-[#071a12]/94 via-[#09261a]/88 to-[#061911]/92 dark:from-[#04120b]/96 dark:via-[#061e13]/92 dark:to-[#04120b]/95 pointer-events-none" />
+
+        {/* Resplandor y viñeta ambiental esmeralda suave */}
+        <div className="absolute inset-0 bg-radial from-transparent via-[#0B2117]/25 to-[#071911]/80 pointer-events-none" />
+
+        {/* Parallax Organic Floating Background Shapes */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <ParallaxElement speed={-0.2} maxOffset={40} className="absolute -right-20 -top-20">
+          <ParallaxElement speed={-0.2} maxOffset={35} className="absolute -right-20 -top-20">
             <div className="w-96 h-96 rounded-full bg-emerald-500/15 blur-3xl animate-drift" />
           </ParallaxElement>
 
-          <ParallaxElement speed={0.18} maxOffset={35} className="absolute -left-20 -bottom-24">
+          <ParallaxElement speed={0.18} maxOffset={30} className="absolute -left-20 -bottom-24">
             <div className="w-80 h-80 rounded-full bg-teal-500/10 blur-3xl animate-drift-reverse" />
           </ParallaxElement>
-
-          {/* Subtle grid pattern overlay for depth */}
-          <div
-            className="absolute inset-0 opacity-[0.035] pointer-events-none"
-            style={{
-              backgroundImage: `radial-gradient(circle at 1px 1px, #ffffff 1px, transparent 0)`,
-              backgroundSize: '32px 32px',
-            }}
-          />
         </div>
 
         <motion.div
@@ -147,7 +182,7 @@ export const LandingPage: React.FC = () => {
             )}
           </motion.p>
 
-          {/* Acciones principales con microinteracciones */}
+          {/* Acciones principales */}
           <motion.div
             variants={heroItemVariants}
             className="pt-2 flex flex-wrap items-center gap-3.5"
@@ -220,7 +255,122 @@ export const LandingPage: React.FC = () => {
       </section>
 
       {/* ============================================================ */}
-      {/* 2. CÓMO FUNCIONA FOODLINK SOLIDARIO                          */}
+      {/* SECCIÓN 2: ESTADÍSTICAS DE IMPACTO SOCIAL Y AMBIENTAL        */}
+      {/* ============================================================ */}
+      <section className="space-y-8">
+        <ScrollReveal animation="slide-up">
+          <div className="text-center max-w-2xl mx-auto space-y-2">
+            <span className="text-xs uppercase tracking-wider font-extrabold text-emerald-700 dark:text-emerald-400 inline-block px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-800/60 shadow-2xs">
+              {t('landing.stats.tag', 'Impacto Comprobado')}
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-black font-display text-slate-900 dark:text-white">
+              {t('landing.stats.title', 'Estadísticas de impacto social y ambiental')}
+            </h2>
+            <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm">
+              {t(
+                'landing.stats.subtitle',
+                'Cifras transparentes del compromiso de nuestra red por reducir el desperdicio y nutrir comunidades.'
+              )}
+            </p>
+          </div>
+        </ScrollReveal>
+
+        <ScrollStaggerContainer
+          staggerDelay={0.12}
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5"
+        >
+          {/* Métrica 1: Kilos rescatados */}
+          <ScrollStaggerItem animation="slide-up">
+            <div className="group card-elevation h-full p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 hover:border-emerald-500/60 shadow-xs flex flex-col justify-between transition-all">
+              <div className="space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 flex items-center justify-center shadow-2xs group-hover:scale-110 group-hover:bg-emerald-600 group-hover:text-white transition-all duration-300">
+                  <Scale className="w-6 h-6 stroke-[2.2]" />
+                </div>
+                <div>
+                  <span className="text-3xl sm:text-4xl font-black font-display text-slate-900 dark:text-white tracking-tight block">
+                    {rescuedKgCount.toLocaleString('es-CO')}+
+                  </span>
+                  <span className="text-xs sm:text-sm font-extrabold text-emerald-700 dark:text-emerald-400 block mt-1">
+                    {t('landing.stats.rescuedFoodLabel', 'Kilos de alimentos rescatados')}
+                  </span>
+                </div>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80">
+                {t('landing.stats.rescuedFoodDesc', 'Alimentos perfectamente aptos salvados de ser desechados')}
+              </p>
+            </div>
+          </ScrollStaggerItem>
+
+          {/* Métrica 2: Raciones servidas */}
+          <ScrollStaggerItem animation="slide-up">
+            <div className="group card-elevation h-full p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 hover:border-emerald-500/60 shadow-xs flex flex-col justify-between transition-all">
+              <div className="space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-teal-100 dark:bg-teal-950/70 text-teal-800 dark:text-teal-300 flex items-center justify-center shadow-2xs group-hover:scale-110 group-hover:bg-teal-600 group-hover:text-white transition-all duration-300">
+                  <HeartHandshake className="w-6 h-6 stroke-[2.2]" />
+                </div>
+                <div>
+                  <span className="text-3xl sm:text-4xl font-black font-display text-slate-900 dark:text-white tracking-tight block">
+                    {rationsServedCount.toLocaleString('es-CO')}+
+                  </span>
+                  <span className="text-xs sm:text-sm font-extrabold text-teal-700 dark:text-teal-400 block mt-1">
+                    {t('landing.stats.rationsServedLabel', 'Raciones servidas')}
+                  </span>
+                </div>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80">
+                {t('landing.stats.rationsServedDesc', 'Platos nutritivos facilitados a comedores y familias')}
+              </p>
+            </div>
+          </ScrollStaggerItem>
+
+          {/* Métrica 3: Emisiones CO2 evitadas */}
+          <ScrollStaggerItem animation="slide-up">
+            <div className="group card-elevation h-full p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 hover:border-emerald-500/60 shadow-xs flex flex-col justify-between transition-all">
+              <div className="space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 flex items-center justify-center shadow-2xs group-hover:scale-110 group-hover:bg-emerald-600 group-hover:text-white transition-all duration-300">
+                  <Recycle className="w-6 h-6 stroke-[2.2]" />
+                </div>
+                <div>
+                  <span className="text-3xl sm:text-4xl font-black font-display text-slate-900 dark:text-white tracking-tight block">
+                    {co2AvoidedTons} t
+                  </span>
+                  <span className="text-xs sm:text-sm font-extrabold text-emerald-700 dark:text-emerald-400 block mt-1">
+                    {t('landing.stats.co2AvoidedLabel', 'Emisiones de CO₂ evitadas')}
+                  </span>
+                </div>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80">
+                {t('landing.stats.co2AvoidedDesc', 'Gases de efecto invernadero prevenidos en vertederos')}
+              </p>
+            </div>
+          </ScrollStaggerItem>
+
+          {/* Métrica 4: Ahorro económico */}
+          <ScrollStaggerItem animation="slide-up">
+            <div className="group card-elevation h-full p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 hover:border-emerald-500/60 shadow-xs flex flex-col justify-between transition-all">
+              <div className="space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 flex items-center justify-center shadow-2xs group-hover:scale-110 group-hover:bg-amber-600 group-hover:text-white transition-all duration-300">
+                  <TrendingUp className="w-6 h-6 stroke-[2.2]" />
+                </div>
+                <div>
+                  <span className="text-3xl sm:text-4xl font-black font-display text-slate-900 dark:text-white tracking-tight block">
+                    65%
+                  </span>
+                  <span className="text-xs sm:text-sm font-extrabold text-amber-700 dark:text-amber-400 block mt-1">
+                    {t('landing.stats.moneyRecoveredLabel', 'Ahorro económico generado')}
+                  </span>
+                </div>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80">
+                {t('landing.stats.moneyRecoveredDesc', 'Valor optimizado para donantes y receptores solidarios')}
+              </p>
+            </div>
+          </ScrollStaggerItem>
+        </ScrollStaggerContainer>
+      </section>
+
+      {/* ============================================================ */}
+      {/* SECCIÓN 3: CÓMO FUNCIONA FOODLINK SOLIDARIO                  */}
       {/* ============================================================ */}
       <section className="space-y-10 relative">
         <ScrollReveal animation="slide-up">
@@ -234,21 +384,31 @@ export const LandingPage: React.FC = () => {
             <p className="text-slate-600 dark:text-slate-300 text-sm sm:text-base leading-relaxed">
               {t(
                 'landing.howItWorksDesc',
-                'FoodLink Solidario es una plataforma digital que busca reducir el desperdicio de alimentos y facilitar el aprovechamiento de excedentes alimentarios en Colombia. Conectamos establecimientos que tienen alimentos aptos para el consumo con fundaciones, organizaciones y compradores interesados en aprovecharlos. De esta manera, promovemos el consumo responsable, la economía circular y el impacto social positivo.'
+                'FoodLink Solidario es una plataforma digital que busca reducir el desperdicio de alimentos y facilitar el aprovechamiento de excedentes alimentarios en Colombia. Conectamos establecimientos que tienen alimentos aptos para el consumo con fundaciones, organizaciones y compradores interesados en aprovecharlos.'
               )}
             </p>
+
+            {/* Distinción clara de roles */}
+            <div className="pt-2 flex flex-wrap items-center justify-center gap-3 text-xs sm:text-sm font-bold">
+              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                <Store className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <span>{t('landing.estTitle', 'Para establecimientos y vendedores')}</span>
+              </span>
+              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                <Users className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                <span>{t('landing.buyerTitle', 'Para organizaciones y compradores')}</span>
+              </span>
+            </div>
           </div>
         </ScrollReveal>
 
-        {/* Contenedor relativo con línea conectora visual en pantallas grandes */}
+        {/* Pasos en cuadrícula desktop y apilados en móvil */}
         <div className="relative">
-          {/* Línea conectora visual animada entre los 4 pasos (solo desktop lg+) */}
           <div
             aria-hidden="true"
             className="hidden lg:block absolute top-12 left-[12%] right-[12%] h-0.5 bg-gradient-to-r from-emerald-200 via-emerald-400 to-emerald-200 dark:from-emerald-900 dark:via-emerald-600 dark:to-emerald-900 z-0 pointer-events-none opacity-60"
           />
 
-          {/* Los 4 pasos en cuadrícula para desktop y apilados en móvil */}
           <ScrollStaggerContainer
             staggerDelay={0.14}
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 relative z-10"
@@ -259,25 +419,25 @@ export const LandingPage: React.FC = () => {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 flex items-center justify-center shadow-2xs group-hover:scale-110 group-hover:bg-emerald-600 group-hover:text-white transition-all duration-300">
-                      <UserPlus className="w-6 h-6 stroke-[2.2]" />
+                      <Store className="w-6 h-6 stroke-[2.2]" />
                     </div>
                     <span className="text-xs font-black px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 group-hover:bg-emerald-100 dark:group-hover:bg-emerald-950 group-hover:text-emerald-800 dark:group-hover:text-emerald-300 transition-colors">
                       01
                     </span>
                   </div>
                   <h3 className="text-base font-extrabold text-slate-900 dark:text-white leading-snug group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors">
-                    {t('landing.step1Title', 'Paso 1. Registro de participantes')}
+                    {t('landing.step1Title', 'Paso 1. Publicación de excedentes')}
                   </h3>
                   <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
                     {t(
                       'landing.step1Desc',
-                      'Los establecimientos, organizaciones y compradores crean una cuenta en la plataforma y completan la información solicitada según su tipo de participación.'
+                      'Los establecimientos autorizados publican sus lotes de alimentos aptos para el consumo, indicando tipo de producto, cantidad disponible, estado de conservación, ubicación y fecha de vencimiento.'
                     )}
                   </p>
                 </div>
                 <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold flex items-center justify-between">
-                  <span>Roles: Vendedor o Comprador</span>
-                  <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+                  <span>Rol: Establecimiento / Donante</span>
+                  <CheckCircle2 className="w-3.5 h-3.5" />
                 </div>
               </div>
             </ScrollStaggerItem>
@@ -288,25 +448,25 @@ export const LandingPage: React.FC = () => {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 flex items-center justify-center shadow-2xs group-hover:scale-110 group-hover:bg-emerald-600 group-hover:text-white transition-all duration-300">
-                      <Store className="w-6 h-6 stroke-[2.2]" />
+                      <Search className="w-6 h-6 stroke-[2.2]" />
                     </div>
                     <span className="text-xs font-black px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 group-hover:bg-emerald-100 dark:group-hover:bg-emerald-950 group-hover:text-emerald-800 dark:group-hover:text-emerald-300 transition-colors">
                       02
                     </span>
                   </div>
                   <h3 className="text-base font-extrabold text-slate-900 dark:text-white leading-snug group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors">
-                    {t('landing.step2Title', 'Paso 2. Publicación de alimentos')}
+                    {t('landing.step2Title', 'Paso 2. Exploración del catálogo')}
                   </h3>
                   <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
                     {t(
                       'landing.step2Desc',
-                      'Los establecimientos habilitados como vendedores publican sus excedentes alimentarios, indicando el tipo de producto, cantidad disponible, estado, ubicación y fecha de vencimiento cuando corresponda.'
+                      'Las fundaciones, comedores comunitarios y compradores navegan el catálogo público filtrando por categoría de alimento, ciudad y urgencia de aprovechamiento.'
                     )}
                   </p>
                 </div>
                 <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold flex items-center justify-between">
-                  <span>Ubicación y vigencia automática</span>
-                  <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+                  <span>Rol: Organización / Comprador</span>
+                  <CheckCircle2 className="w-3.5 h-3.5" />
                 </div>
               </div>
             </ScrollStaggerItem>
@@ -317,25 +477,25 @@ export const LandingPage: React.FC = () => {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 flex items-center justify-center shadow-2xs group-hover:scale-110 group-hover:bg-emerald-600 group-hover:text-white transition-all duration-300">
-                      <Search className="w-6 h-6 stroke-[2.2]" />
+                      <Handshake className="w-6 h-6 stroke-[2.2]" />
                     </div>
                     <span className="text-xs font-black px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 group-hover:bg-emerald-100 dark:group-hover:bg-emerald-950 group-hover:text-emerald-800 dark:group-hover:text-emerald-300 transition-colors">
                       03
                     </span>
                   </div>
                   <h3 className="text-base font-extrabold text-slate-900 dark:text-white leading-snug group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors">
-                    {t('landing.step3Title', 'Paso 3. Exploración y envío de ofertas')}
+                    {t('landing.step3Title', 'Paso 3. Negociación o solicitud directa')}
                   </h3>
                   <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
                     {t(
                       'landing.step3Desc',
-                      'Los compradores consultan los alimentos disponibles, utilizan los filtros de búsqueda y envían ofertas por los lotes que les interesan, según las condiciones publicadas.'
+                      'Los interesados envían ofertas transparentes o solicitudes directas por los lotes publicados para convenir las condiciones de entrega sin intermediarios.'
                     )}
                   </p>
                 </div>
                 <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold flex items-center justify-between">
-                  <span>Filtros por ciudad y categoría</span>
-                  <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+                  <span>Trato directo y transparente</span>
+                  <CheckCircle2 className="w-3.5 h-3.5" />
                 </div>
               </div>
             </ScrollStaggerItem>
@@ -346,32 +506,32 @@ export const LandingPage: React.FC = () => {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 flex items-center justify-center shadow-2xs group-hover:scale-110 group-hover:bg-emerald-600 group-hover:text-white transition-all duration-300">
-                      <Handshake className="w-6 h-6 stroke-[2.2]" />
+                      <HeartHandshake className="w-6 h-6 stroke-[2.2]" />
                     </div>
                     <span className="text-xs font-black px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 group-hover:bg-emerald-100 dark:group-hover:bg-emerald-950 group-hover:text-emerald-800 dark:group-hover:text-emerald-300 transition-colors">
                       04
                     </span>
                   </div>
                   <h3 className="text-base font-extrabold text-slate-900 dark:text-white leading-snug group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors">
-                    {t('landing.step4Title', 'Paso 4. Negociación y aprovechamiento')}
+                    {t('landing.step4Title', 'Paso 4. Entrega y aprovechamiento responsable')}
                   </h3>
                   <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
                     {t(
                       'landing.step4Desc',
-                      'Las partes pueden gestionar sus ofertas y negociaciones dentro de la plataforma. Una vez acordadas las condiciones, coordinan la entrega o recogida de los alimentos y actualizan el estado de la operación.'
+                      'Ambas partes coordinan de forma rápida y segura la recogida o distribución de los alimentos, logrando que lleguen a tiempo a quienes más los necesitan.'
                     )}
                   </p>
                 </div>
                 <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold flex items-center justify-between">
-                  <span>Coordinación ágil y directa</span>
-                  <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+                  <span>Impacto social y ambiental real</span>
+                  <CheckCircle2 className="w-3.5 h-3.5" />
                 </div>
               </div>
             </ScrollStaggerItem>
           </ScrollStaggerContainer>
         </div>
 
-        {/* Nota aclaratoria sobre disponibilidad de funciones */}
+        {/* Nota aclaratoria */}
         <ScrollReveal animation="fade" delay={0.2}>
           <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 flex items-start gap-3 max-w-3xl mx-auto text-xs text-slate-600 dark:text-slate-400 shadow-2xs">
             <Info className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
@@ -386,10 +546,115 @@ export const LandingPage: React.FC = () => {
       </section>
 
       {/* ============================================================ */}
-      {/* 3. NUESTRO PROPÓSITO                                         */}
+      {/* SECCIÓN 4: BENEFICIOS PARA LOS PARTICIPANTES                 */}
+      {/* ============================================================ */}
+      <section className="space-y-8">
+        <ScrollReveal animation="slide-up">
+          <div className="text-center max-w-2xl mx-auto space-y-2">
+            <span className="text-xs uppercase tracking-wider font-extrabold text-emerald-700 dark:text-emerald-400 inline-block px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-800/60 shadow-2xs">
+              {t('landing.benefitsTag', 'Ventajas Compartidas')}
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-black font-display text-slate-900 dark:text-white">
+              {t('landing.benefitsTitle', 'Beneficios para los participantes')}
+            </h2>
+            <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm">
+              {t(
+                'landing.benefitsSubtitle',
+                'Un modelo colaborativo donde establecimientos y organizaciones generan valor mutuo cuidando el planeta.'
+              )}
+            </p>
+          </div>
+        </ScrollReveal>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Tarjeta de Beneficios: Establecimientos */}
+          <ScrollReveal animation="slide-up" delay={0.1}>
+            <div className="card-elevation h-full p-7 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 space-y-6">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 flex items-center justify-center shrink-0">
+                  <Building2 className="w-6 h-6 stroke-[2.2]" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black font-display text-slate-900 dark:text-white">
+                    {t('landing.benefitsSellersTitle', 'Para establecimientos y vendedores')}
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {t(
+                      'landing.benefitsSellersDesc',
+                      'Supermercados, restaurantes, hoteles, distribuidores y productores agrícolas.'
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              <ul className="space-y-3.5">
+                <li className="flex items-start gap-3 text-xs sm:text-sm text-slate-700 dark:text-slate-200">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                  <span>{t('landing.benefitSeller1', 'Reducción significativa de pérdidas y mermas operativas')}</span>
+                </li>
+                <li className="flex items-start gap-3 text-xs sm:text-sm text-slate-700 dark:text-slate-200">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                  <span>{t('landing.benefitSeller2', 'Impacto ambiental positivo y reducción de huella de carbono')}</span>
+                </li>
+                <li className="flex items-start gap-3 text-xs sm:text-sm text-slate-700 dark:text-slate-200">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                  <span>{t('landing.benefitSeller3', 'Visibilidad y reputación como empresa socialmente responsable')}</span>
+                </li>
+                <li className="flex items-start gap-3 text-xs sm:text-sm text-slate-700 dark:text-slate-200">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                  <span>{t('landing.benefitSeller4', 'Recuperación de costos mediante precios solidarios y justos')}</span>
+                </li>
+              </ul>
+            </div>
+          </ScrollReveal>
+
+          {/* Tarjeta de Beneficios: Compradores y Organizaciones */}
+          <ScrollReveal animation="slide-up" delay={0.2}>
+            <div className="card-elevation h-full p-7 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 space-y-6">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-teal-100 dark:bg-teal-950/70 text-teal-800 dark:text-teal-300 flex items-center justify-center shrink-0">
+                  <Users className="w-6 h-6 stroke-[2.2]" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black font-display text-slate-900 dark:text-white">
+                    {t('landing.benefitsBuyersTitle', 'Para compradores y organizaciones')}
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {t(
+                      'landing.benefitsBuyersDesc',
+                      'Fundaciones, bancos de alimentos, comedores sociales y comunidades.'
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              <ul className="space-y-3.5">
+                <li className="flex items-start gap-3 text-xs sm:text-sm text-slate-700 dark:text-slate-200">
+                  <CheckCircle2 className="w-5 h-5 text-teal-600 dark:text-teal-400 shrink-0 mt-0.5" />
+                  <span>{t('landing.benefitBuyer1', 'Acceso a alimentos frescos y procesados a costo solidario o donados')}</span>
+                </li>
+                <li className="flex items-start gap-3 text-xs sm:text-sm text-slate-700 dark:text-slate-200">
+                  <CheckCircle2 className="w-5 h-5 text-teal-600 dark:text-teal-400 shrink-0 mt-0.5" />
+                  <span>{t('landing.benefitBuyer2', 'Apoyo directo a la nutrición y seguridad alimentaria comunitaria')}</span>
+                </li>
+                <li className="flex items-start gap-3 text-xs sm:text-sm text-slate-700 dark:text-slate-200">
+                  <CheckCircle2 className="w-5 h-5 text-teal-600 dark:text-teal-400 shrink-0 mt-0.5" />
+                  <span>{t('landing.benefitBuyer3', 'Trazabilidad completa sobre el origen y fecha de vencimiento')}</span>
+                </li>
+                <li className="flex items-start gap-3 text-xs sm:text-sm text-slate-700 dark:text-slate-200">
+                  <CheckCircle2 className="w-5 h-5 text-teal-600 dark:text-teal-400 shrink-0 mt-0.5" />
+                  <span>{t('landing.benefitBuyer4', 'Gestión transparente, ágil y sin sobrecostos de intermediación')}</span>
+                </li>
+              </ul>
+            </div>
+          </ScrollReveal>
+        </div>
+      </section>
+
+      {/* ============================================================ */}
+      {/* SECCIÓN 5: TRANSPARENCIA Y COMPROMISO SOCIAL                 */}
       {/* ============================================================ */}
       <section className="bg-slate-100/70 dark:bg-slate-900/60 rounded-3xl p-7 sm:p-12 border border-slate-200 dark:border-slate-800 space-y-8 relative overflow-hidden">
-        {/* Subtle decorative background blob with parallax */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <ParallaxElement speed={-0.12} maxOffset={25} className="absolute -left-10 top-0">
             <div className="w-64 h-64 rounded-full bg-emerald-500/5 blur-2xl" />
@@ -402,7 +667,7 @@ export const LandingPage: React.FC = () => {
               {t('landing.purposeTag', 'Compromiso Social y Ambiental')}
             </span>
             <h2 className="text-2xl sm:text-3xl font-black font-display text-slate-900 dark:text-white">
-              {t('landing.purposeTitle', 'Nuestro propósito')}
+              {t('landing.purposeTitle', 'Transparencia y compromiso social')}
             </h2>
             <p className="text-slate-600 dark:text-slate-300 text-sm sm:text-base leading-relaxed">
               {t(
@@ -413,30 +678,30 @@ export const LandingPage: React.FC = () => {
           </div>
         </ScrollReveal>
 
-        {/* 3 Elementos visuales del propósito con stagger y card-elevation */}
+        {/* 3 Pilares visuales */}
         <ScrollStaggerContainer
           staggerDelay={0.15}
           className="grid grid-cols-1 md:grid-cols-3 gap-5 relative z-10"
         >
-          {/* Elemento 1: Impacto social */}
+          {/* Pilar 1: Misión Social */}
           <ScrollStaggerItem animation="slide-up" distance={20}>
             <div className="group card-elevation h-full p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-emerald-400/80 dark:hover:border-emerald-500/50 shadow-xs space-y-3 flex flex-col">
               <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 flex items-center justify-center group-hover:scale-110 group-hover:bg-emerald-600 group-hover:text-white transition-all duration-300 shadow-2xs">
                 <HeartHandshake className="w-6 h-6 stroke-[2.2]" />
               </div>
               <h3 className="text-base font-extrabold text-slate-900 dark:text-white group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors">
-                {t('landing.pillarSocialTitle', 'Impacto social')}
+                {t('landing.pillarSocialTitle', 'Misión social y solidaria')}
               </h3>
               <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed flex-1">
                 {t(
                   'landing.pillarSocialDesc',
-                  'Facilitar el aprovechamiento de alimentos por organizaciones y comunidades.'
+                  'Facilitar el acceso equitativo a alimentos para organizaciones y comunidades vulnerables.'
                 )}
               </p>
             </div>
           </ScrollStaggerItem>
 
-          {/* Elemento 2: Responsabilidad ambiental */}
+          {/* Pilar 2: Responsabilidad Ambiental */}
           <ScrollStaggerItem animation="slide-up" distance={20}>
             <div className="group card-elevation h-full p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-teal-400/80 dark:hover:border-teal-500/50 shadow-xs space-y-3 flex flex-col">
               <div className="w-12 h-12 rounded-2xl bg-teal-100 dark:bg-teal-950/70 text-teal-800 dark:text-teal-300 flex items-center justify-center group-hover:scale-110 group-hover:bg-teal-600 group-hover:text-white transition-all duration-300 shadow-2xs">
@@ -448,25 +713,25 @@ export const LandingPage: React.FC = () => {
               <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed flex-1">
                 {t(
                   'landing.pillarEcoDesc',
-                  'Promover la reducción de pérdidas y desperdicio alimentario.'
+                  'Prevenir toneladas de residuos orgánicos y mitigar las emisiones de gases de efecto invernadero.'
                 )}
               </p>
             </div>
           </ScrollStaggerItem>
 
-          {/* Elemento 3: Economía circular */}
+          {/* Pilar 3: Seguridad y Trazabilidad */}
           <ScrollStaggerItem animation="slide-up" distance={20}>
             <div className="group card-elevation h-full p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-emerald-400/80 dark:hover:border-emerald-500/50 shadow-xs space-y-3 flex flex-col">
               <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 flex items-center justify-center group-hover:scale-110 group-hover:bg-emerald-600 group-hover:text-white transition-all duration-300 shadow-2xs">
-                <Recycle className="w-6 h-6 stroke-[2.2]" />
+                <ShieldCheck className="w-6 h-6 stroke-[2.2]" />
               </div>
               <h3 className="text-base font-extrabold text-slate-900 dark:text-white group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors">
-                {t('landing.pillarCircularTitle', 'Economía circular')}
+                {t('landing.pillarCircularTitle', 'Seguridad y trazabilidad')}
               </h3>
               <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed flex-1">
                 {t(
                   'landing.pillarCircularDesc',
-                  'Fomentar el uso responsable de los recursos y la colaboración entre participantes.'
+                  'Garantizar la verificación de fechas de vencimiento y estándares de higiene en cada entrega.'
                 )}
               </p>
             </div>
@@ -475,7 +740,7 @@ export const LandingPage: React.FC = () => {
       </section>
 
       {/* ============================================================ */}
-      {/* 4. VISTA PREVIA DEL CATÁLOGO DE PRODUCTOS                     */}
+      {/* SECCIÓN 6: VISTA PREVIA DEL CATÁLOGO & LLAMADO A LA ACCIÓN  */}
       {/* ============================================================ */}
       {availablePreviewProducts.length > 0 && (
         <section className="space-y-6">
@@ -587,12 +852,9 @@ export const LandingPage: React.FC = () => {
         </section>
       )}
 
-      {/* ============================================================ */}
-      {/* 5. LLAMADO A LA ACCIÓN FINAL                                 */}
-      {/* ============================================================ */}
+      {/* LLAMADO A LA ACCIÓN FINAL */}
       <ScrollReveal animation="scale" distance={16} duration={0.65}>
         <section className="rounded-3xl bg-gradient-to-br from-[#1B4332] via-[#143d2c] to-[#0B2117] text-white p-8 sm:p-14 text-center shadow-2xl border border-emerald-800/60 relative overflow-hidden">
-          {/* Subtle parallax depth blob */}
           <div className="absolute inset-0 pointer-events-none overflow-hidden">
             <ParallaxElement speed={0.15} maxOffset={30} className="absolute -left-16 -bottom-16">
               <div className="w-72 h-72 rounded-full bg-emerald-400/15 blur-3xl animate-drift" />

@@ -102,7 +102,7 @@ export const EstablishmentDashboard: React.FC = () => {
           className="px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-bold rounded-lg shadow-md transition-all flex items-center justify-center gap-2 text-xs sm:text-sm shrink-0 cursor-pointer"
         >
           <Plus className="w-4 h-4" />
-          <span>{t('landing.publishFoodBtn')}</span>
+          <span>{t('landing.publishFoodBtn', 'Publicar Alimento')}</span>
         </button>
       </div>
 

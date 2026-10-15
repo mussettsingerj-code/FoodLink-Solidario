@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { motion, useReducedMotion } from 'motion/react';
 import { useApp } from '../../context/AppContext';
 import { FoodProduct, FOOD_CATEGORIES, FOOD_CONDITIONS } from '../../types';
 import { ProductCard } from './ProductCard';
@@ -13,6 +14,9 @@ import {
   ShoppingBag,
   Plus,
   RotateCcw,
+  Sparkles,
+  X,
+  SlidersHorizontal,
 } from 'lucide-react';
 
 export const FoodCatalog: React.FC = () => {
@@ -31,6 +35,7 @@ export const FoodCatalog: React.FC = () => {
     userProfile,
     t,
   } = useApp();
+  const shouldReduceMotion = useReducedMotion();
 
   const isSeller = isAuthenticated && userProfile.role === 'seller';
 
@@ -38,7 +43,7 @@ export const FoodCatalog: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 200);
+    const timer = setTimeout(() => setIsLoading(false), 180);
     return () => clearTimeout(timer);
   }, []);
 
@@ -72,7 +77,7 @@ export const FoodCatalog: React.FC = () => {
 
   // Available cities in data
   const cities = useMemo(() => {
-    const set = new Set(products.map((p) => p.locationCity));
+    const set = new Set(products.map((p) => p.locationCity).filter(Boolean));
     return ['todas', ...Array.from(set)];
   }, [products]);
 
@@ -82,7 +87,7 @@ export const FoodCatalog: React.FC = () => {
       .filter((p) => {
         if (p.status === 'vendida' || p.status === 'finalizada' || p.status === 'pausada') return false;
 
-        // Regla: La publicación debe estar activa mientras siga siendo válida; dejar de mostrar al vencer
+        // Ocultar lotes vencidos automáticamente
         const expTime = p.expirationDate
           ? new Date(`${p.expirationDate}T23:59:59`).getTime()
           : p.expiresAt
@@ -97,10 +102,10 @@ export const FoodCatalog: React.FC = () => {
           const match =
             p.name.toLowerCase().includes(term) ||
             p.category.toLowerCase().includes(term) ||
-            p.brand.toLowerCase().includes(term) ||
-            p.sellerName.toLowerCase().includes(term) ||
-            p.locationCity.toLowerCase().includes(term) ||
-            p.condition.toLowerCase().includes(term);
+            (p.brand && p.brand.toLowerCase().includes(term)) ||
+            (p.sellerName && p.sellerName.toLowerCase().includes(term)) ||
+            (p.locationCity && p.locationCity.toLowerCase().includes(term)) ||
+            (p.condition && p.condition.toLowerCase().includes(term));
           if (!match) return false;
         }
 
@@ -159,14 +164,18 @@ export const FoodCatalog: React.FC = () => {
     urgencyFilter !== 'todas';
 
   return (
-    <div className="space-y-6">
-      {/* Encabezado de Sección */}
+    <div className="space-y-6 sm:space-y-8">
+      {/* Encabezado del Catálogo */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
+        <div className="space-y-1">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-300 text-xs font-bold shadow-2xs">
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>{t('catalog.verifiedSurplus', 'Excedentes Verificados')}</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight font-display">
             {t('catalog.title')}
           </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-2xl">
             {t('catalog.subtitle')}
           </p>
         </div>
@@ -174,21 +183,22 @@ export const FoodCatalog: React.FC = () => {
         {isSeller && (
           <button
             type="button"
+            id="catalog-btn-publish"
             onClick={() => setCurrentView('publish')}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition-colors inline-flex items-center gap-2 whitespace-nowrap self-start sm:self-auto cursor-pointer"
+            className="btn-interaction px-5 py-3 bg-emerald-500 hover:bg-emerald-400 text-emerald-950 text-xs sm:text-sm font-black rounded-2xl shadow-md shadow-emerald-950/20 inline-flex items-center gap-2 whitespace-nowrap self-start sm:self-auto cursor-pointer"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4 stroke-[2.8]" />
             <span>{t('catalog.publishProduct')}</span>
           </button>
         )}
       </div>
 
       {/* Barra de Búsqueda y Filtros */}
-      <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-          {/* Buscador */}
+      <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-xs space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5">
+          {/* Buscador de texto con botón de borrado rápido */}
           <div className="md:col-span-5 relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               id="catalog-search-input"
@@ -198,18 +208,31 @@ export const FoodCatalog: React.FC = () => {
                 setSearchTerm(e.target.value);
                 setGlobalSearchQuery(e.target.value);
               }}
-              className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:bg-white dark:focus:bg-slate-900 focus:outline-emerald-600 transition-colors"
+              className="modern-input w-full pl-11 pr-10 py-3 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs sm:text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:bg-white dark:focus:bg-slate-900 transition-colors"
             />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchTerm('');
+                  setGlobalSearchQuery('');
+                }}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                aria-label="Borrar búsqueda"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
 
           {/* Filtro Ubicación */}
-          <div className="md:col-span-2 flex items-center gap-2 bg-slate-50 dark:bg-slate-800/80 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-xs">
-            <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+          <div className="md:col-span-2 flex items-center gap-2 bg-slate-50 dark:bg-slate-800/80 px-3.5 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs">
+            <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
             <select
               value={selectedCity}
               onChange={(e) => setSelectedCity(e.target.value)}
               aria-label="Filtrar por ciudad"
-              className="w-full bg-transparent font-medium text-slate-800 dark:text-slate-200 focus:outline-hidden cursor-pointer truncate"
+              className="w-full bg-transparent font-semibold text-slate-800 dark:text-slate-200 focus:outline-hidden cursor-pointer truncate"
             >
               {cities.map((c) => (
                 <option key={c} value={c} className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">
@@ -220,12 +243,13 @@ export const FoodCatalog: React.FC = () => {
           </div>
 
           {/* Filtro Estado del Producto */}
-          <div className="md:col-span-3 flex items-center gap-2 bg-slate-50 dark:bg-slate-800/80 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-xs">
+          <div className="md:col-span-3 flex items-center gap-2 bg-slate-50 dark:bg-slate-800/80 px-3.5 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs">
+            <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             <select
               value={selectedCondition}
               onChange={(e) => setSelectedCondition(e.target.value)}
               aria-label="Filtrar por estado del producto"
-              className="w-full bg-transparent font-medium text-slate-800 dark:text-slate-200 focus:outline-hidden cursor-pointer truncate"
+              className="w-full bg-transparent font-semibold text-slate-800 dark:text-slate-200 focus:outline-hidden cursor-pointer truncate"
             >
               <option value="todas" className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">
                 {t('catalog.allConditions')}
@@ -239,13 +263,13 @@ export const FoodCatalog: React.FC = () => {
           </div>
 
           {/* Ordenar por */}
-          <div className="md:col-span-2 flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/80 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-xs">
+          <div className="md:col-span-2 flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/80 px-3.5 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs">
             <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
               aria-label="Ordenar productos"
-              className="w-full bg-transparent font-medium text-slate-800 dark:text-slate-200 focus:outline-hidden cursor-pointer truncate"
+              className="w-full bg-transparent font-semibold text-slate-800 dark:text-slate-200 focus:outline-hidden cursor-pointer truncate"
             >
               <option value="urgency" className="bg-white dark:bg-slate-800">{t('catalog.sortUrgent')}</option>
               <option value="recent" className="bg-white dark:bg-slate-800">{t('catalog.sortRecent')}</option>
@@ -256,15 +280,15 @@ export const FoodCatalog: React.FC = () => {
           </div>
         </div>
 
-        {/* Categorías y Urgencia (controles interactivos segmentados) */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 custom-scroll">
+        {/* Categorías y Urgencia */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 custom-scroll max-w-full">
             <button
               type="button"
               onClick={() => setSelectedCategory('todas')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors cursor-pointer ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
                 selectedCategory === 'todas'
-                  ? 'bg-slate-900 dark:bg-emerald-600 text-white'
+                  ? 'bg-slate-900 dark:bg-emerald-600 text-white shadow-xs'
                   : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
@@ -280,9 +304,9 @@ export const FoodCatalog: React.FC = () => {
                   key={cat}
                   type="button"
                   onClick={() => setSelectedCategory(cat)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
                     selectedCategory === cat
-                      ? 'bg-slate-900 dark:bg-emerald-600 text-white'
+                      ? 'bg-slate-900 dark:bg-emerald-600 text-white shadow-xs font-bold'
                       : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
@@ -293,13 +317,13 @@ export const FoodCatalog: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg text-xs">
+            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs">
               <button
                 type="button"
                 onClick={() => setUrgencyFilter('todas')}
-                className={`px-2.5 py-1 rounded-md font-medium transition-colors whitespace-nowrap cursor-pointer ${
+                className={`px-2.5 py-1 rounded-lg font-bold transition-all whitespace-nowrap cursor-pointer text-xs ${
                   urgencyFilter === 'todas'
-                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-2xs'
+                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
                 }`}
               >
@@ -308,9 +332,9 @@ export const FoodCatalog: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setUrgencyFilter('urgente')}
-                className={`px-2.5 py-1 rounded-md font-medium transition-colors whitespace-nowrap cursor-pointer ${
+                className={`px-2.5 py-1 rounded-lg font-bold transition-all whitespace-nowrap cursor-pointer text-xs ${
                   urgencyFilter === 'urgente'
-                    ? 'bg-amber-600 text-white'
+                    ? 'bg-amber-600 text-white shadow-xs'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
                 }`}
               >
@@ -319,9 +343,9 @@ export const FoodCatalog: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setUrgencyFilter('moderada')}
-                className={`px-2.5 py-1 rounded-md font-medium transition-colors whitespace-nowrap cursor-pointer ${
+                className={`px-2.5 py-1 rounded-lg font-bold transition-all whitespace-nowrap cursor-pointer text-xs ${
                   urgencyFilter === 'moderada'
-                    ? 'bg-emerald-600 text-white'
+                    ? 'bg-emerald-600 text-white shadow-xs'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
                 }`}
               >
@@ -333,7 +357,7 @@ export const FoodCatalog: React.FC = () => {
               <button
                 type="button"
                 onClick={resetFilters}
-                className="px-2.5 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400 hover:underline inline-flex items-center gap-1 whitespace-nowrap cursor-pointer"
+                className="btn-interaction px-3 py-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 inline-flex items-center gap-1 whitespace-nowrap cursor-pointer"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 <span>{t('catalog.clearFilters')}</span>
@@ -346,11 +370,14 @@ export const FoodCatalog: React.FC = () => {
       {/* Contador de resultados */}
       <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 px-1">
         <span>
-          <strong className="text-slate-900 dark:text-slate-100 tabular-nums">{filteredProducts.length}</strong> {t('catalog.available')}
+          <strong className="text-slate-900 dark:text-slate-100 tabular-nums text-sm font-black">
+            {filteredProducts.length}
+          </strong>{' '}
+          {t('catalog.available')}
         </span>
       </div>
 
-      {/* Grilla de Productos / Estados */}
+      {/* Grilla de Productos */}
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
           {Array.from({ length: 8 }).map((_, i) => (
@@ -358,7 +385,7 @@ export const FoodCatalog: React.FC = () => {
           ))}
         </div>
       ) : filteredProducts.length === 0 ? (
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-8">
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-dashed border-slate-250 dark:border-slate-800 p-10 sm:p-14 text-center">
           <EmptyState
             icon={ShoppingBag}
             title={t('catalog.emptyTitle')}
@@ -368,16 +395,37 @@ export const FoodCatalog: React.FC = () => {
           />
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+        <motion.div
+          key={`${selectedCategory}-${selectedCity}-${selectedCondition}-${urgencyFilter}-${sortBy}-${searchTerm}`}
+          variants={{
+            hidden: { opacity: 0 },
+            visible: {
+              opacity: 1,
+              transition: {
+                staggerChildren: shouldReduceMotion ? 0 : 0.04,
+              },
+            },
+          }}
+          initial="hidden"
+          animate="visible"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5"
+        >
           {filteredProducts.map((product) => (
-            <ProductCard
+            <motion.div
               key={product.id}
-              product={product}
-              onSelect={(p) => setSelectedProductIdForDetail(p.id)}
-              onMakeOffer={handleMakeOffer}
-            />
+              variants={{
+                hidden: { opacity: 0, y: shouldReduceMotion ? 0 : 14 },
+                visible: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.22, 1, 0.36, 1] } },
+              }}
+            >
+              <ProductCard
+                product={product}
+                onSelect={(p) => setSelectedProductIdForDetail(p.id)}
+                onMakeOffer={handleMakeOffer}
+              />
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       )}
 
       {/* Modal de Detalles del Producto */}
