@@ -25,6 +25,7 @@ export const NegotiationsView: React.FC = () => {
   const {
     offers,
     currentUser,
+    userProfile,
     respondToOffer,
     sendMessageToOffer,
     selectedOfferIdForNegotiation,
@@ -356,7 +357,7 @@ export const NegotiationsView: React.FC = () => {
               className="flex-1 p-4 sm:p-5 space-y-4 overflow-y-auto max-h-[380px] custom-scroll bg-slate-50/30 dark:bg-slate-950/20"
             >
               {activeOffer.messages.map((msg) => {
-                const isMe = msg.senderRole === 'vendedor' || msg.senderRole === 'seller';
+                const isMe = currentUser ? msg.senderId === currentUser.id : (msg.senderRole === userProfile.role);
                 return (
                   <div
                     key={msg.id}
