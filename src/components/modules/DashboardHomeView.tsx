@@ -33,6 +33,7 @@ export const DashboardHomeView: React.FC = () => {
     setSelectedProductIdForDetail,
     setSelectedOfferIdForNegotiation,
     formatCOP,
+    setGlobalSearchQuery,
     t,
   } = useApp();
   const shouldReduceMotion = useReducedMotion();
@@ -146,7 +147,6 @@ export const DashboardHomeView: React.FC = () => {
                   <span>{t('dashboard.buyerPanel')}</span>
                 </>
               )}
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse ml-1" />
             </div>
 
             <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-white font-display">
@@ -457,8 +457,12 @@ export const DashboardHomeView: React.FC = () => {
               return (
                 <div
                   key={item.category}
-                  className="space-y-1.5 group cursor-pointer"
-                  onClick={() => setActiveTab('explore')}
+                  className="space-y-1.5 group cursor-pointer p-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                  onClick={() => {
+                    setGlobalSearchQuery(item.category);
+                    setActiveTab('explore');
+                  }}
+                  title={`Filtrar alimentos de categoría ${item.category}`}
                 >
                   <div className="flex items-center justify-between text-xs font-bold">
                     <span className="text-slate-700 dark:text-slate-300 group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors flex items-center gap-2">

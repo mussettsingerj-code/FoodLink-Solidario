@@ -13,22 +13,13 @@ interface MakeOfferModalProps {
 }
 
 export const MakeOfferModal: React.FC<MakeOfferModalProps> = ({ product, isOpen = true, onClose, onSuccess }) => {
-  const {
-    currentUser,
-    userProfile,
-    isAuthenticated,
-    createOffer,
-    setSelectedOfferIdForNegotiation,
-    setActiveTab,
-    showToast,
-  } = useApp();
+  const { currentUser, createOffer, setSelectedOfferIdForNegotiation, showToast } = useApp();
   const { t } = useI18n();
 
   const [requestedQuantity, setRequestedQuantity] = useState<number>(1);
   const [offeredPricePerUnit, setOfferedPricePerUnit] = useState<number>(1000);
   const [message, setMessage] = useState<string>('');
   const [pickupMethod, setPickupMethod] = useState<'Recogida en sede del vendedor' | 'Transporte solidario contratado' | 'Envío acordado'>('Recogida en sede del vendedor');
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Default date tomorrow
   const tomorrow = new Date(Date.now() + 24 * 3600 * 1000).toISOString().split('T')[0];
@@ -46,55 +37,34 @@ export const MakeOfferModal: React.FC<MakeOfferModalProps> = ({ product, isOpen 
   // Auto calculated total
   const totalOffered = requestedQuantity * offeredPricePerUnit;
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (requestedQuantity <= 0 || offeredPricePerUnit <= 0) return;
 
-    const currentUserId = userProfile?.id || currentUser?.id;
-    if (!isAuthenticated || !currentUserId) {
-      showToast('Debes iniciar sesión para realizar una oferta', 'warning');
-      setActiveTab('auth');
-      onClose();
-      return;
-    }
+    const newOffer = createOffer({
+      productId: product.id,
+      productName: product.name,
+      productImageUrl: product.imageUrl,
+      sellerId: product.sellerId,
+      sellerName: product.sellerName,
+      buyerId: currentUser ? currentUser.id : 'anon-buyer',
+      buyerName: currentUser ? currentUser.name : 'Fundación Compradora',
+      buyerOrganization: currentUser ? currentUser.organizationName : 'Organización Social',
+      buyerType: 'Fundación',
+      requestedQuantity,
+      offeredPricePerUnit,
+      totalOfferedPrice: totalOffered,
+      unit: product.unit,
+      message,
+      pickupMethod,
+      proposedDate,
+    });
 
-    if (product.sellerId === currentUserId) {
-      showToast('No puedes realizar ofertas a tus propias publicaciones', 'warning');
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const newOffer = await createOffer({
-        productId: product.id,
-        productName: product.name,
-        productImageUrl: product.imageUrl,
-        sellerId: product.sellerId,
-        sellerName: product.sellerName,
-        buyerId: currentUserId,
-        buyerName: userProfile?.name || currentUser?.name || 'Comprador Solidario',
-        buyerOrganization: userProfile?.organizationName || currentUser?.organizationName || 'Organización Social',
-        buyerType: (userProfile?.role === 'buyer' ? 'Fundación' : 'Organización') as any,
-        requestedQuantity,
-        offeredPricePerUnit,
-        totalOfferedPrice: totalOffered,
-        unit: product.unit,
-        message,
-        pickupMethod,
-        proposedDate,
-      });
-
-      showToast(t('offer.successToast'), 'success');
-      onClose();
-      if (onSuccess) onSuccess();
-      // Open negotiation view in negotiations tab
-      setSelectedOfferIdForNegotiation(newOffer.id);
-      setActiveTab('negotiations');
-    } catch (err: any) {
-      showToast(err?.message || 'Error al enviar la oferta a Firebase', 'error');
-    } finally {
-      setIsSubmitting(false);
-    }
+    showToast(t('offer.successToast'), 'success');
+    onClose();
+    if (onSuccess) onSuccess();
+    // Open negotiation view
+    setSelectedOfferIdForNegotiation(newOffer.id);
   };
 
   return (
@@ -260,11 +230,10 @@ export const MakeOfferModal: React.FC<MakeOfferModalProps> = ({ product, isOpen 
             <button
               type="submit"
               id="btn-send-offer-submit"
-              disabled={isSubmitting}
-              className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-sm transition-all text-xs sm:text-sm flex items-center gap-2 cursor-pointer disabled:opacity-60"
+              className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-sm transition-all text-xs sm:text-sm flex items-center gap-2 cursor-pointer"
             >
               <Send className="w-4 h-4" />
-              <span>{isSubmitting ? 'Enviando...' : t('offer.sendOfferBtn')}</span>
+              <span>{t('offer.sendOfferBtn')}</span>
             </button>
           </div>
 

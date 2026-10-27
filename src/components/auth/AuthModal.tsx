@@ -229,17 +229,23 @@ export const AuthModal: React.FC = () => {
   };
 
   const handleGoogleSignIn = async () => {
+    if (socialLoading || isSubmitting) return;
     setErrorMsg(null);
+    setErrorCode(null);
     setSuccessMsg(null);
     setSocialLoading(true);
     try {
       const preferredRole: UserRole = mode === 'register' ? regRole : 'buyer';
       const res = await loginWithSocial('google', preferredRole);
       if (!res.success) {
+        setErrorCode(res.code || null);
         setErrorMsg(res.message);
       } else {
         setSuccessMsg(res.message);
       }
+    } catch (unhandledErr) {
+      console.error('Unhandled Google sign-in modal error:', unhandledErr);
+      setErrorMsg('No se pudo completar el acceso con Google. Intenta nuevamente.');
     } finally {
       setSocialLoading(false);
     }
@@ -886,8 +892,9 @@ export const AuthModal: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleGoogleSignIn}
-                    disabled={socialLoading}
-                    className="w-full flex items-center justify-center gap-2.5 py-2.5 px-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 cursor-pointer"
+                    disabled={socialLoading || isSubmitting}
+                    aria-busy={socialLoading}
+                    className="w-full flex items-center justify-center gap-2.5 py-2.5 px-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {socialLoading ? (
                       <Loader2 className="w-4 h-4 animate-spin" />

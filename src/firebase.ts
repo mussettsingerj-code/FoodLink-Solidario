@@ -169,10 +169,94 @@ export function getFirebaseAuthErrorMessage(errorCode: string): string {
     case 'auth/network-request-failed':
       return 'Error de red. Verifica tu conexión a internet e inténtalo nuevamente.';
     case 'auth/popup-closed-by-user':
-      return 'El flujo de autenticación fue cancelado al cerrar la ventana emergente.';
+      return 'Has cerrado la ventana de inicio de sesión de Google antes de completar la autenticación.';
+    case 'auth/popup-blocked':
+      return 'La ventana emergente de inicio de sesión fue bloqueada por tu navegador. Permite las ventanas emergentes (popups) para este sitio e inténtalo nuevamente.';
+    case 'auth/unauthorized-domain':
+      return 'El dominio actual no está autorizado en Firebase Authentication. Para resolverlo, agrega el dominio en Firebase Console > Authentication > Settings > Authorized domains.';
     case 'auth/operation-not-allowed':
-      return 'El proveedor de inicio de sesión no está habilitado en la consola de Firebase.';
+      return 'El proveedor de Google no está habilitado en Firebase Authentication. Actívalo en Firebase Console > Authentication > Sign-in method.';
+    case 'auth/account-exists-with-different-credential':
+      return 'Ya existe una cuenta con este correo electrónico registrada con otro método de acceso (ej. contraseña). Inicia sesión con tus credenciales habituales.';
+    case 'auth/cancelled-popup-request':
+      return 'Se inició otra solicitud de autenticación concurrente. Por favor espera a que finalice.';
+    case 'auth/credential-already-in-use':
+      return 'Esta credencial de Google ya está vinculada a otra cuenta de usuario.';
+    case 'auth/timeout':
+      return 'El tiempo de espera para autenticar con Google se agotó. Inténtalo nuevamente.';
+    case 'auth/internal-error':
+      return 'Ocurrió un error interno en el servicio de autenticación de Firebase. Por favor intenta de nuevo.';
     default:
       return 'Ocurrió un error en la autenticación. Por favor intenta de nuevo.';
   }
+}
+
+/**
+ * Analiza errores provenientes de Firebase Auth o Cloud Firestore
+ * y produce un código y mensaje comprensible y seguro en español.
+ */
+export function getDetailedAuthErrorMessage(error: unknown): { code: string; message: string } {
+  if (!error) {
+    return { code: 'unknown-error', message: 'Ocurrió un error desconocido. Inténtalo nuevamente.' };
+  }
+
+  const rawMsg = error instanceof Error ? error.message : String(error);
+
+  // Detección de error serializado de handleFirestoreError
+  if (
+    rawMsg.includes('permission-denied') ||
+    rawMsg.includes('Missing or insufficient permissions') ||
+    rawMsg.includes('PERMISSION_DENIED')
+  ) {
+    return {
+      code: 'firestore/permission-denied',
+      message: 'Error de permisos en Cloud Firestore: las reglas de seguridad denegaron el acceso a tu perfil. Comunícate con el soporte técnico.',
+    };
+  }
+
+  if (
+    rawMsg.includes('the client is offline') ||
+    rawMsg.includes('unavailable') ||
+    rawMsg.includes('could not reach') ||
+    rawMsg.includes('Failed to get document because the client is offline')
+  ) {
+    return {
+      code: 'firestore/offline',
+      message: 'No se pudo conectar con la base de datos de Cloud Firestore. Comprueba tu conexión a internet.',
+    };
+  }
+
+  if (rawMsg.includes('Quota exceeded') || rawMsg.includes('resource-exhausted')) {
+    return {
+      code: 'firestore/quota-exceeded',
+      message: 'Se ha superado la cuota de operaciones en la base de datos de Firestore.',
+    };
+  }
+
+  // Código estándar de Firebase Auth
+  const fbCode =
+    typeof error === 'object' && error !== null && 'code' in error
+      ? String((error as { code: unknown }).code)
+      : '';
+
+  if (fbCode) {
+    return {
+      code: fbCode,
+      message: getFirebaseAuthErrorMessage(fbCode),
+    };
+  }
+
+  // Búsqueda por regex de auth/code en el mensaje
+  const match = rawMsg.match(/auth\/[a-z0-9-]+/i);
+  if (match) {
+    return {
+      code: match[0],
+      message: getFirebaseAuthErrorMessage(match[0]),
+    };
+  }
+
+  return {
+    code: 'auth-error',
+    message: rawMsg.length > 0 && rawMsg.length < 200 ? rawMsg : 'Ocurrió un error en la autenticación. Intenta de nuevo.',
+  };
 }

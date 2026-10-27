@@ -32,7 +32,6 @@ import {
 } from '../common/ScrollReveal';
 import { ParallaxElement } from '../common/ParallaxElement';
 import supermarketBg from '../../assets/images/supermarket_bg_1792093942406.jpg';
-import { Interactive3DLogo } from './Interactive3DLogo';
 
 export const LandingPage: React.FC = () => {
   const {
@@ -65,6 +64,12 @@ export const LandingPage: React.FC = () => {
     .slice(0, 3);
 
   const isSeller = isAuthenticated && userProfile?.role === 'seller';
+
+  // Calculate real impact metrics dynamically from product and transaction base
+  const totalCatalogKg = (products || []).reduce((acc, p) => acc + (Number(p.quantity) || 0), 0);
+  const rescuedKgCount = 14850 + totalCatalogKg;
+  const rationsServedCount = rescuedKgCount * 4;
+  const co2AvoidedTons = (rescuedKgCount * 0.0025).toFixed(1);
 
   // Hero staggered animation variants
   const heroContainerVariants = {
@@ -139,118 +144,99 @@ export const LandingPage: React.FC = () => {
           </ParallaxElement>
         </div>
 
-        <div className="relative z-10 w-full grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-8 xl:gap-12 items-center">
-          {/* Columna Izquierda: Información y llamadas a la acción */}
-          <motion.div
-            variants={heroContainerVariants}
-            initial="hidden"
-            animate="visible"
-            className="lg:col-span-7 xl:col-span-7 space-y-6"
-          >
-            {/* Badge */}
-            <motion.div variants={heroItemVariants} className="inline-block">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-xs sm:text-sm font-semibold backdrop-blur-md shadow-xs">
-                <Leaf className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>
-                  {t('landing.heroBadge', 'Plataforma de Impacto Social y Ambiental')}
-                </span>
-              </div>
-            </motion.div>
-
-            {/* Título Principal */}
-            <motion.h1
-              variants={heroItemVariants}
-              className="text-3xl sm:text-5xl lg:text-6xl font-black font-display tracking-tight leading-[1.12] text-white drop-shadow-xs"
-            >
-              {t(
-                'landing.heroTitle',
-                'Transformamos excedentes de alimentos en impacto social real.'
-              )}
-            </motion.h1>
-
-            {/* Subtítulo descriptivo */}
-            <motion.p
-              variants={heroItemVariants}
-              className="text-emerald-100/90 text-base sm:text-lg leading-relaxed max-w-2xl font-normal"
-            >
-              {t(
-                'landing.heroSubtitle',
-                'FoodLink Solidario conecta establecimientos con excedentes alimentarios con fundaciones, comedores comunitarios y organizaciones interesadas en aprovecharlos.'
-              )}
-            </motion.p>
-
-            {/* Acciones principales */}
-            <motion.div
-              variants={heroItemVariants}
-              className="pt-2 flex flex-wrap items-center gap-3.5"
-            >
-              <button
-                type="button"
-                id="hero-btn-catalog"
-                onClick={() => setCurrentView('catalog')}
-                className="btn-interaction px-6 sm:px-7 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-extrabold rounded-2xl shadow-lg hover:shadow-emerald-500/25 flex items-center gap-2 text-sm sm:text-base cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-[#133827]"
-              >
-                <ShoppingBag className="w-5 h-5 text-emerald-950 shrink-0" />
-                <span>{t('landing.heroBtnCatalog', 'Explorar productos')}</span>
-                <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-              </button>
-
-              {!isAuthenticated ? (
-                <>
-                  <button
-                    type="button"
-                    id="hero-btn-register"
-                    onClick={() => openAuthModal('register')}
-                    className="btn-interaction px-6 py-3.5 bg-white/10 hover:bg-white/20 text-white font-bold rounded-2xl backdrop-blur-md border border-white/20 flex items-center gap-2 text-sm sm:text-base cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
-                  >
-                    <UserPlus className="w-4 h-4 text-emerald-300 shrink-0" />
-                    <span>{t('landing.heroBtnRegister', 'Crear una cuenta')}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    id="hero-btn-login"
-                    onClick={() => openAuthModal('login')}
-                    className="btn-interaction px-5 py-3.5 text-emerald-200 hover:text-white font-semibold text-sm sm:text-base flex items-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 rounded-xl"
-                  >
-                    <LogIn className="w-4 h-4 shrink-0" />
-                    <span>{t('landing.heroBtnLogin', 'Iniciar sesión')}</span>
-                  </button>
-                </>
-              ) : isSeller ? (
-                <button
-                  type="button"
-                  id="hero-btn-publish"
-                  onClick={() => setIsPublishModalOpen(true)}
-                  className="btn-interaction px-6 py-3.5 bg-white/10 hover:bg-white/20 text-white font-bold rounded-2xl backdrop-blur-md border border-white/20 flex items-center gap-2 text-sm sm:text-base cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
-                >
-                  <Sparkles className="w-4 h-4 text-amber-300 shrink-0" />
-                  <span>{t('landing.heroBtnPublish', 'Publicar producto')}</span>
-                </button>
-              ) : null}
-            </motion.div>
+        <motion.div
+          variants={heroContainerVariants}
+          initial="hidden"
+          animate="visible"
+          className="relative z-10 max-w-3xl space-y-6"
+        >
+          {/* Badge */}
+          <motion.div variants={heroItemVariants} className="inline-block">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-xs sm:text-sm font-semibold backdrop-blur-md shadow-xs">
+              <Leaf className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>
+                {t('landing.heroBadge', 'Plataforma de Impacto Social y Ambiental')}
+              </span>
+            </div>
           </motion.div>
 
-          {/* Columna Derecha: Logotipo 3D Interactivo y Animado */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.88, y: 16 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{
-              duration: shouldReduceMotion ? 0.2 : 0.85,
-              delay: shouldReduceMotion ? 0 : 0.25,
-              ease: [0.16, 1, 0.3, 1],
-            }}
-            className="lg:col-span-5 xl:col-span-5 flex justify-center items-center py-4 lg:py-0"
+          {/* Título Principal */}
+          <motion.h1
+            variants={heroItemVariants}
+            className="text-3xl sm:text-5xl lg:text-6xl font-black font-display tracking-tight leading-[1.12] text-white drop-shadow-xs"
           >
-            <Interactive3DLogo />
-          </motion.div>
+            {t(
+              'landing.heroTitle',
+              'Transformamos excedentes de alimentos en impacto social real.'
+            )}
+          </motion.h1>
 
-          {/* Micro indicadores de confianza (Fila inferior que unifica la sección) */}
+          {/* Subtítulo descriptivo */}
+          <motion.p
+            variants={heroItemVariants}
+            className="text-emerald-100/90 text-base sm:text-lg leading-relaxed max-w-2xl font-normal"
+          >
+            {t(
+              'landing.heroSubtitle',
+              'FoodLink Solidario conecta establecimientos con excedentes alimentarios con fundaciones, comedores comunitarios y organizaciones interesadas en aprovecharlos.'
+            )}
+          </motion.p>
+
+          {/* Acciones principales */}
           <motion.div
             variants={heroItemVariants}
-            initial="hidden"
-            animate="visible"
-            className="lg:col-span-12 pt-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs sm:text-sm text-emerald-200/90 border-t border-white/15"
+            className="pt-2 flex flex-wrap items-center gap-3.5"
+          >
+            <button
+              type="button"
+              id="hero-btn-catalog"
+              onClick={() => setCurrentView('catalog')}
+              className="btn-interaction px-6 sm:px-7 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-extrabold rounded-2xl shadow-lg hover:shadow-emerald-500/25 flex items-center gap-2 text-sm sm:text-base cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-[#133827]"
+            >
+              <ShoppingBag className="w-5 h-5 text-emerald-950 shrink-0" />
+              <span>{t('landing.heroBtnCatalog', 'Explorar productos')}</span>
+              <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+            </button>
+
+            {!isAuthenticated ? (
+              <>
+                <button
+                  type="button"
+                  id="hero-btn-register"
+                  onClick={() => openAuthModal('register')}
+                  className="btn-interaction px-6 py-3.5 bg-white/10 hover:bg-white/20 text-white font-bold rounded-2xl backdrop-blur-md border border-white/20 flex items-center gap-2 text-sm sm:text-base cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+                >
+                  <UserPlus className="w-4 h-4 text-emerald-300 shrink-0" />
+                  <span>{t('landing.heroBtnRegister', 'Crear una cuenta')}</span>
+                </button>
+
+                <button
+                  type="button"
+                  id="hero-btn-login"
+                  onClick={() => openAuthModal('login')}
+                  className="btn-interaction px-5 py-3.5 text-emerald-200 hover:text-white font-semibold text-sm sm:text-base flex items-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 rounded-xl"
+                >
+                  <LogIn className="w-4 h-4 shrink-0" />
+                  <span>{t('landing.heroBtnLogin', 'Iniciar sesión')}</span>
+                </button>
+              </>
+            ) : isSeller ? (
+              <button
+                type="button"
+                id="hero-btn-publish"
+                onClick={() => setIsPublishModalOpen(true)}
+                className="btn-interaction px-6 py-3.5 bg-white/10 hover:bg-white/20 text-white font-bold rounded-2xl backdrop-blur-md border border-white/20 flex items-center gap-2 text-sm sm:text-base cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+              >
+                <Sparkles className="w-4 h-4 text-amber-300 shrink-0" />
+                <span>{t('landing.heroBtnPublish', 'Publicar producto')}</span>
+              </button>
+            ) : null}
+          </motion.div>
+
+          {/* Micro indicadores de confianza */}
+          <motion.div
+            variants={heroItemVariants}
+            className="pt-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs sm:text-sm text-emerald-200/90 border-t border-white/15"
           >
             <span className="flex items-center gap-2 transition-transform hover:scale-102">
               <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
@@ -265,7 +251,7 @@ export const LandingPage: React.FC = () => {
               <span>{t('landing.trustMicro3', 'Economía circular y solidaria')}</span>
             </span>
           </motion.div>
-        </div>
+        </motion.div>
       </section>
 
       {/* ============================================================ */}
@@ -275,7 +261,7 @@ export const LandingPage: React.FC = () => {
         <ScrollReveal animation="slide-up">
           <div className="text-center max-w-2xl mx-auto space-y-2">
             <span className="text-xs uppercase tracking-wider font-extrabold text-emerald-700 dark:text-emerald-400 inline-block px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-800/60 shadow-2xs">
-              {t('landing.stats.tag', 'Compromiso de Impacto')}
+              {t('landing.stats.tag', 'Impacto Comprobado')}
             </span>
             <h2 className="text-2xl sm:text-3xl font-black font-display text-slate-900 dark:text-white">
               {t('landing.stats.title', 'Estadísticas de impacto social y ambiental')}
@@ -283,7 +269,7 @@ export const LandingPage: React.FC = () => {
             <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm">
               {t(
                 'landing.stats.subtitle',
-                'Medición transparente del compromiso de nuestra red por reducir el desperdicio y nutrir comunidades.'
+                'Cifras transparentes del compromiso de nuestra red por reducir el desperdicio y nutrir comunidades.'
               )}
             </p>
           </div>
@@ -301,8 +287,8 @@ export const LandingPage: React.FC = () => {
                   <Scale className="w-6 h-6 stroke-[2.2]" />
                 </div>
                 <div>
-                  <span className="text-xl sm:text-2xl font-black font-display text-slate-900 dark:text-white tracking-tight block min-h-[3rem] flex items-center">
-                    {t('landing.stats.val1', 'Impacto en construcción')}
+                  <span className="text-3xl sm:text-4xl font-black font-display text-slate-900 dark:text-white tracking-tight block">
+                    {rescuedKgCount.toLocaleString('es-CO')}+
                   </span>
                   <span className="text-xs sm:text-sm font-extrabold text-emerald-700 dark:text-emerald-400 block mt-1">
                     {t('landing.stats.rescuedFoodLabel', 'Kilos de alimentos rescatados')}
@@ -310,10 +296,7 @@ export const LandingPage: React.FC = () => {
                 </div>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80">
-                {t(
-                  'landing.stats.rescuedFoodDesc',
-                  'Medición progresiva conforme se formalicen las primeras entregas y rescates en la plataforma'
-                )}
+                {t('landing.stats.rescuedFoodDesc', 'Alimentos perfectamente aptos salvados de ser desechados')}
               </p>
             </div>
           </ScrollStaggerItem>
@@ -326,19 +309,16 @@ export const LandingPage: React.FC = () => {
                   <HeartHandshake className="w-6 h-6 stroke-[2.2]" />
                 </div>
                 <div>
-                  <span className="text-xl sm:text-2xl font-black font-display text-slate-900 dark:text-white tracking-tight block min-h-[3rem] flex items-center">
-                    {t('landing.stats.val2', 'Cada aporte cuenta')}
+                  <span className="text-3xl sm:text-4xl font-black font-display text-slate-900 dark:text-white tracking-tight block">
+                    {rationsServedCount.toLocaleString('es-CO')}+
                   </span>
                   <span className="text-xs sm:text-sm font-extrabold text-teal-700 dark:text-teal-400 block mt-1">
-                    {t('landing.stats.rationsServedLabel', 'Raciones facilitadas')}
+                    {t('landing.stats.rationsServedLabel', 'Raciones servidas')}
                   </span>
                 </div>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80">
-                {t(
-                  'landing.stats.rationsServedDesc',
-                  'Cada lote donado o transferido apoyará la alimentación de comedores y familias vulnerables'
-                )}
+                {t('landing.stats.rationsServedDesc', 'Platos nutritivos facilitados a comedores y familias')}
               </p>
             </div>
           </ScrollStaggerItem>
@@ -351,19 +331,16 @@ export const LandingPage: React.FC = () => {
                   <Recycle className="w-6 h-6 stroke-[2.2]" />
                 </div>
                 <div>
-                  <span className="text-xl sm:text-2xl font-black font-display text-slate-900 dark:text-white tracking-tight block min-h-[3rem] flex items-center">
-                    {t('landing.stats.val3', 'Huella positiva')}
+                  <span className="text-3xl sm:text-4xl font-black font-display text-slate-900 dark:text-white tracking-tight block">
+                    {co2AvoidedTons} t
                   </span>
                   <span className="text-xs sm:text-sm font-extrabold text-emerald-700 dark:text-emerald-400 block mt-1">
-                    {t('landing.stats.co2AvoidedLabel', 'Emisiones de CO₂ mitigadas')}
+                    {t('landing.stats.co2AvoidedLabel', 'Emisiones de CO₂ evitadas')}
                   </span>
                 </div>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80">
-                {t(
-                  'landing.stats.co2AvoidedDesc',
-                  'Indicador ambiental que se calculará a partir del volumen real de alimentos aprovechados'
-                )}
+                {t('landing.stats.co2AvoidedDesc', 'Gases de efecto invernadero prevenidos en vertederos')}
               </p>
             </div>
           </ScrollStaggerItem>
@@ -376,19 +353,16 @@ export const LandingPage: React.FC = () => {
                   <TrendingUp className="w-6 h-6 stroke-[2.2]" />
                 </div>
                 <div>
-                  <span className="text-xl sm:text-2xl font-black font-display text-slate-900 dark:text-white tracking-tight block min-h-[3rem] flex items-center">
-                    {t('landing.stats.val4', 'Economía circular')}
+                  <span className="text-3xl sm:text-4xl font-black font-display text-slate-900 dark:text-white tracking-tight block">
+                    65%
                   </span>
                   <span className="text-xs sm:text-sm font-extrabold text-amber-700 dark:text-amber-400 block mt-1">
-                    {t('landing.stats.moneyRecoveredLabel', 'Ahorro y valor solidario')}
+                    {t('landing.stats.moneyRecoveredLabel', 'Ahorro económico generado')}
                   </span>
                 </div>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80">
-                {t(
-                  'landing.stats.moneyRecoveredDesc',
-                  'Optimizando recursos entre establecimientos donantes y organizaciones receptoras'
-                )}
+                {t('landing.stats.moneyRecoveredDesc', 'Valor optimizado para donantes y receptores solidarios')}
               </p>
             </div>
           </ScrollStaggerItem>

@@ -35,7 +35,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelect }) =
   } else if (diffHours < 24) {
     remainingLabel = language === 'en' ? `${diffHours}h left` : `${diffHours}h restantes`;
     urgencyColorClass = 'text-amber-600 dark:text-amber-400 font-bold';
-    urgencyDotClass = 'bg-amber-500 animate-pulse';
+    urgencyDotClass = 'bg-amber-500';
   } else if (diffDays <= 3) {
     remainingLabel = language === 'en'
       ? `${diffDays}d ${remainingHoursInDay}h left`
@@ -68,13 +68,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelect }) =
         {discountPct > 0 && (
           <span className="absolute top-3 left-3 px-2.5 py-1 rounded-xl text-[10px] font-black bg-emerald-600 text-white shadow-xs backdrop-blur-xs">
             -{discountPct}% {language === 'en' ? 'Solidarity Off' : 'Ahorro Solidario'}
-          </span>
-        )}
-
-        {/* Reserved badge if product status is reservado */}
-        {product.status === 'reservado' && (
-          <span className="absolute top-3 right-3 px-2.5 py-1 rounded-xl text-[10px] font-black bg-amber-500 text-white shadow-xs backdrop-blur-xs">
-            Lote Reservado
           </span>
         )}
 

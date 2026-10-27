@@ -55,9 +55,6 @@ service cloud.firestore {
           'nitOrId',
           'phone',
           'city',
-          'comuna',
-          'barrio',
-          'operationZones',
           'verified',
           'authProvider',
           'createdAt',
@@ -93,231 +90,13 @@ service cloud.firestore {
         data.updatedAt is timestamp;
     }
 
-    // 4. Entity Validation Blueprint: Product (/products/{productId})
-    function isValidProduct(data) {
-      return data.keys().hasAll([
-          'id',
-          'name',
-          'category',
-          'description',
-          'imageUrl',
-          'quantity',
-          'unit',
-          'condition',
-          'expirationDate',
-          'locationCity',
-          'locationAddress',
-          'requestedPrice',
-          'status',
-          'sellerId',
-          'sellerName',
-          'createdAt',
-          'updatedAt'
-        ]) &&
-        data.keys().hasOnly([
-          'id',
-          'name',
-          'category',
-          'brand',
-          'description',
-          'imageUrl',
-          'images',
-          'quantity',
-          'unit',
-          'condition',
-          'expirationDate',
-          'recommendedConsumptionDate',
-          'locationCity',
-          'locationAddress',
-          'comuna',
-          'barrio',
-          'locationReference',
-          'coordinates',
-          'placeId',
-          'requestedPrice',
-          'originalPrice',
-          'minPurchaseQuantity',
-          'deliveryConditions',
-          'publishedAt',
-          'expiresAt',
-          'status',
-          'sellerId',
-          'sellerName',
-          'sellerType',
-          'sellerVerified',
-          'sellerPhone',
-          'offersCount',
-          'viewsCount',
-          'durationDays',
-          'commissionPaid',
-          'createdAt',
-          'updatedAt'
-        ]) &&
-        data.id is string &&
-        data.id.size() >= 1 &&
-        data.id.size() <= 128 &&
-        data.name is string &&
-        data.name.size() >= 1 &&
-        data.name.size() <= 180 &&
-        data.category is string &&
-        data.category.size() <= 60 &&
-        data.description is string &&
-        data.description.size() <= 2000 &&
-        data.imageUrl is string &&
-        data.imageUrl.size() <= 2048 &&
-        data.quantity is number &&
-        data.quantity > 0 &&
-        data.unit is string &&
-        data.unit.size() <= 40 &&
-        data.condition is string &&
-        data.condition.size() <= 80 &&
-        data.expirationDate is string &&
-        data.expirationDate.size() <= 40 &&
-        data.locationCity is string &&
-        data.locationCity.size() <= 80 &&
-        data.locationAddress is string &&
-        data.locationAddress.size() <= 200 &&
-        (!('comuna' in data) || (data.comuna is string && data.comuna.size() <= 80)) &&
-        (!('barrio' in data) || (data.barrio is string && data.barrio.size() <= 60)) &&
-        (!('locationReference' in data) || (data.locationReference is string && data.locationReference.size() <= 250)) &&
-        data.requestedPrice is number &&
-        data.requestedPrice >= 0 &&
-        data.status is string &&
-        (data.status == 'activa' || data.status == 'proxima_a_finalizar' || data.status == 'finalizada' || data.status == 'pausada' || data.status == 'vendida') &&
-        data.sellerId is string &&
-        data.sellerId.size() >= 1 &&
-        data.sellerId.size() <= 128 &&
-        data.sellerName is string &&
-        data.sellerName.size() <= 160 &&
-        data.createdAt is timestamp &&
-        data.updatedAt is timestamp;
-    }
-
-    // 5. Entity Validation Blueprint: Conversation (/conversations/{conversationId})
-    function isValidConversation(data) {
-      return data.keys().hasAll([
-          'id',
-          'productId',
-          'productName',
-          'sellerId',
-          'sellerName',
-          'buyerId',
-          'buyerName',
-          'participants',
-          'status',
-          'createdAt',
-          'updatedAt'
-        ]) &&
-        data.keys().hasOnly([
-          'id',
-          'productId',
-          'productName',
-          'productImageUrl',
-          'sellerId',
-          'sellerName',
-          'buyerId',
-          'buyerName',
-          'buyerOrganization',
-          'buyerType',
-          'participants',
-          'status',
-          'requestedQuantity',
-          'offeredPricePerUnit',
-          'totalOfferedPrice',
-          'unit',
-          'pickupMethod',
-          'proposedDate',
-          'lastMessageText',
-          'lastMessageAt',
-          'lastMessageSenderId',
-          'unreadCountBuyer',
-          'unreadCountSeller',
-          'createdAt',
-          'updatedAt'
-        ]) &&
-        data.id is string &&
-        data.id.size() >= 1 &&
-        data.id.size() <= 128 &&
-        data.productId is string &&
-        data.productId.size() >= 1 &&
-        data.productId.size() <= 128 &&
-        data.productName is string &&
-        data.productName.size() <= 180 &&
-        data.sellerId is string &&
-        data.sellerId.size() >= 1 &&
-        data.sellerId.size() <= 128 &&
-        data.sellerName is string &&
-        data.sellerName.size() <= 160 &&
-        data.buyerId is string &&
-        data.buyerId.size() >= 1 &&
-        data.buyerId.size() <= 128 &&
-        data.buyerName is string &&
-        data.buyerName.size() <= 160 &&
-        data.participants is list &&
-        data.participants.size() == 2 &&
-        data.participants.hasAll([data.buyerId, data.sellerId]) &&
-        data.status is string &&
-        (data.status == 'pendiente' || data.status == 'en_conversacion' || data.status == 'contraoferta' || data.status == 'aceptada' || data.status == 'rechazada' || data.status == 'finalizada') &&
-        data.createdAt is timestamp &&
-        data.updatedAt is timestamp;
-    }
-
-    // 6. Entity Validation Blueprint: Message
-    function isValidMessage(data) {
-      return data.keys().hasAll([
-          'id',
-          'conversationId',
-          'senderId',
-          'senderName',
-          'senderRole',
-          'text',
-          'type',
-          'read',
-          'createdAt'
-        ]) &&
-        data.keys().hasOnly([
-          'id',
-          'conversationId',
-          'senderId',
-          'senderName',
-          'senderRole',
-          'text',
-          'type',
-          'proposedPrice',
-          'proposedQuantity',
-          'unit',
-          'read',
-          'createdAt'
-        ]) &&
-        data.id is string &&
-        data.id.size() >= 1 &&
-        data.id.size() <= 128 &&
-        data.conversationId is string &&
-        data.conversationId.size() >= 1 &&
-        data.conversationId.size() <= 128 &&
-        data.senderId is string &&
-        data.senderId.size() >= 1 &&
-        data.senderId.size() <= 128 &&
-        data.senderName is string &&
-        data.senderName.size() <= 160 &&
-        data.senderRole is string &&
-        (data.senderRole == 'buyer' || data.senderRole == 'seller') &&
-        data.text is string &&
-        data.text.size() >= 1 &&
-        data.text.size() <= 2000 &&
-        data.type is string &&
-        (data.type == 'text' || data.type == 'offer' || data.type == 'counteroffer' || data.type == 'acceptance' || data.type == 'rejection') &&
-        data.read is bool &&
-        data.createdAt is timestamp;
-    }
-
-    // ==========================================
-    // 7. Collection Rules: /users/{userId}
-    // ==========================================
+    // 4. Collection Rules: /users/{userId}
     match /users/{userId} {
+      // Strictly isolated PII: Only the authenticated document owner can read their own profile
       allow get: if isSignedIn() && isValidId(userId) && isOwner(userId);
       allow list: if false;
 
+      // Creation during registration (email or Google Sign-In)
       allow create: if isSignedIn() &&
         isValidId(userId) &&
         isValidUser(incoming()) &&
@@ -325,6 +104,7 @@ service cloud.firestore {
         incoming().createdAt == request.time &&
         incoming().updatedAt == request.time;
 
+      // Action-based updates with strict key allowlists and immutable field preservation
       allow update: if isSignedIn() &&
         isValidId(userId) &&
         isValidUser(incoming()) &&
@@ -334,11 +114,13 @@ service cloud.firestore {
         incoming().createdAt == existing().createdAt &&
         incoming().authProvider == existing().authProvider &&
         incoming().updatedAt == request.time && (
+          // Action 1: Upgrade Role from Buyer to Seller ("Quiero vender productos")
           (
             existing().role == 'buyer' &&
             incoming().role == 'seller' &&
             incoming().diff(existing()).affectedKeys().hasOnly(['role', 'verified', 'updatedAt'])
           ) ||
+          // Action 2: Update User Profile Metadata while keeping role unchanged
           (
             incoming().role == existing().role &&
             incoming().diff(existing()).affectedKeys().hasOnly([
@@ -355,158 +137,6 @@ service cloud.firestore {
         );
 
       allow delete: if false;
-    }
-
-    // ==========================================
-    // 8. Collection Rules: /products/{productId}
-    // ==========================================
-    match /products/{productId} {
-      // Catálogo público: cualquier usuario (incluso visitante) puede consultar productos activos
-      allow get, list: if true;
-
-      // Publicar producto: Solo usuario autenticado, asignando su propio sellerId
-      allow create: if isSignedIn() &&
-        isValidId(productId) &&
-        isValidProduct(incoming()) &&
-        incoming().sellerId == request.auth.uid &&
-        incoming().createdAt == request.time &&
-        incoming().updatedAt == request.time;
-
-      // Actualizar producto:
-      // Caso 1: El vendedor propietario actualiza detalles, estado, o renueva el lote
-      // Caso 2: Interacciones del catálogo (incremento de viewsCount u offersCount)
-      allow update: if isSignedIn() &&
-        isValidId(productId) &&
-        isValidProduct(incoming()) &&
-        incoming().sellerId == existing().sellerId &&
-        incoming().createdAt == existing().createdAt &&
-        incoming().updatedAt == request.time && (
-          (
-            isOwner(existing().sellerId) &&
-            incoming().diff(existing()).affectedKeys().hasOnly([
-              'name',
-              'category',
-              'brand',
-              'description',
-              'imageUrl',
-              'images',
-              'quantity',
-              'unit',
-              'condition',
-              'expirationDate',
-              'recommendedConsumptionDate',
-              'locationCity',
-              'locationAddress',
-              'coordinates',
-              'placeId',
-              'requestedPrice',
-              'originalPrice',
-              'minPurchaseQuantity',
-              'deliveryConditions',
-              'publishedAt',
-              'expiresAt',
-              'status',
-              'sellerName',
-              'sellerType',
-              'sellerVerified',
-              'sellerPhone',
-              'offersCount',
-              'viewsCount',
-              'durationDays',
-              'commissionPaid',
-              'updatedAt'
-            ])
-          ) ||
-          (
-            incoming().diff(existing()).affectedKeys().hasOnly([
-              'viewsCount',
-              'offersCount',
-              'status',
-              'updatedAt'
-            ])
-          )
-        );
-
-      // Eliminar producto: Únicamente el vendedor propietario
-      allow delete: if isSignedIn() &&
-        isValidId(productId) &&
-        isOwner(existing().sellerId);
-    }
-
-    // ==========================================
-    // 9. Collection Rules: /conversations/{conversationId}
-    // ==========================================
-    match /conversations/{conversationId} {
-      // Solo participantes de la negociación pueden consultar la conversación
-      allow get: if isSignedIn() &&
-        isValidId(conversationId) &&
-        (request.auth.uid in existing().participants);
-
-      allow list: if isSignedIn() &&
-        (request.auth.uid in existing().participants);
-
-      // Crear conversación: El comprador interesado inicia la negociación con el vendedor
-      allow create: if isSignedIn() &&
-        isValidId(conversationId) &&
-        isValidConversation(incoming()) &&
-        (request.auth.uid in incoming().participants) &&
-        incoming().buyerId == request.auth.uid &&
-        incoming().createdAt == request.time &&
-        incoming().updatedAt == request.time;
-
-      // Actualizar conversación: Ambos participantes autorizados pueden cambiar estado u oferta
-      allow update: if isSignedIn() &&
-        isValidId(conversationId) &&
-        isValidConversation(incoming()) &&
-        (request.auth.uid in existing().participants) &&
-        incoming().createdAt == existing().createdAt &&
-        incoming().buyerId == existing().buyerId &&
-        incoming().sellerId == existing().sellerId &&
-        incoming().productId == existing().productId &&
-        incoming().participants == existing().participants &&
-        incoming().updatedAt == request.time &&
-        incoming().diff(existing()).affectedKeys().hasOnly([
-          'status',
-          'lastMessageText',
-          'lastMessageAt',
-          'lastMessageSenderId',
-          'unreadCountBuyer',
-          'unreadCountSeller',
-          'requestedQuantity',
-          'offeredPricePerUnit',
-          'totalOfferedPrice',
-          'pickupMethod',
-          'proposedDate',
-          'updatedAt'
-        ]);
-
-      allow delete: if false;
-
-      // ==========================================
-      // 10. Subcolección: /conversations/{conversationId}/messages/{messageId}
-      // ==========================================
-      match /messages/{messageId} {
-        allow get, list: if isSignedIn() &&
-          isValidId(conversationId) &&
-          (request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants);
-
-        allow create: if isSignedIn() &&
-          isValidId(conversationId) &&
-          isValidId(messageId) &&
-          (request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants) &&
-          isValidMessage(incoming()) &&
-          incoming().conversationId == conversationId &&
-          incoming().senderId == request.auth.uid &&
-          incoming().createdAt == request.time;
-
-        allow update: if isSignedIn() &&
-          isValidId(conversationId) &&
-          isValidId(messageId) &&
-          (request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants) &&
-          incoming().diff(existing()).affectedKeys().hasOnly(['read']);
-
-        allow delete: if false;
-      }
     }
   }
 }

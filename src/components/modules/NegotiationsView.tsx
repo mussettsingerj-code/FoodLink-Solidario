@@ -1,14 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useApp } from '../../context/AppContext';
-import { ProductOffer, OfferMessage } from '../../types';
+import { ProductOffer } from '../../types';
 import { ProductImage } from '../common/ProductImage';
 import { DeliveryCertificateModal } from '../common/DeliveryCertificateModal';
 import { EmptyState } from '../common/EmptyState';
-import {
-  subscribeToConversationMessages,
-  markConversationAsReadInFirestore,
-} from '../../services/firestoreService';
 import {
   MessageSquare,
   Send,
@@ -23,14 +19,12 @@ import {
   ShoppingBag,
   DollarSign,
   Package,
-  Check,
 } from 'lucide-react';
 
 export const NegotiationsView: React.FC = () => {
   const {
     offers,
     currentUser,
-    userProfile,
     respondToOffer,
     sendMessageToOffer,
     selectedOfferIdForNegotiation,
@@ -43,7 +37,6 @@ export const NegotiationsView: React.FC = () => {
   );
   const [mobileShowList, setMobileShowList] = useState<boolean>(!selectedOfferIdForNegotiation);
   const [messageText, setMessageText] = useState('');
-  const [liveMessages, setLiveMessages] = useState<OfferMessage[]>([]);
   const [isCounterOpen, setIsCounterOpen] = useState(false);
   const [counterPrice, setCounterPrice] = useState<number>(0);
   const [counterQty, setCounterQty] = useState<number>(0);
@@ -61,38 +54,11 @@ export const NegotiationsView: React.FC = () => {
 
   const activeOffer = offers.find((o) => o.id === activeOfferId) || offers[0] || null;
 
-  // Suscripción en tiempo real a los mensajes de la subcolección de Firestore
-  useEffect(() => {
-    if (!activeOffer?.id) {
-      setLiveMessages([]);
-      return;
-    }
-
-    const unsubscribe = subscribeToConversationMessages(
-      activeOffer.id,
-      (msgs) => {
-        setLiveMessages(msgs);
-      },
-      (err) => {
-        console.warn('Suscripción a mensajes de negociación:', err);
-      }
-    );
-
-    const userRole: 'buyer' | 'seller' = userProfile?.role === 'seller' ? 'seller' : 'buyer';
-    markConversationAsReadInFirestore(activeOffer.id, userRole);
-
-    return () => {
-      unsubscribe();
-    };
-  }, [activeOffer?.id, userProfile?.id, currentUser?.id]);
-
-  const displayedMessages = liveMessages.length > 0 ? liveMessages : (activeOffer?.messages || []);
-
   useEffect(() => {
     if (messagesContainerRef.current) {
       messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
     }
-  }, [activeOffer?.id, displayedMessages.length]);
+  }, [activeOffer?.id, activeOffer?.messages.length]);
 
   const handleSelectThread = (id: string) => {
     setActiveOfferId(id);
@@ -101,18 +67,11 @@ export const NegotiationsView: React.FC = () => {
     setMobileShowList(false);
   };
 
-  const handleSendMessage = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
+  const handleSendMessage = (e: React.FormEvent) => {
+    e.preventDefault();
     if (!activeOffer || !messageText.trim()) return;
     sendMessageToOffer(activeOffer.id, messageText.trim());
     setMessageText('');
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
   };
 
   const handleSendCounter = (e: React.FormEvent) => {
@@ -193,8 +152,8 @@ export const NegotiationsView: React.FC = () => {
                   onClick={() => handleSelectThread(thread.id)}
                   className={`w-full p-4 text-left flex items-start gap-3.5 transition-all cursor-pointer ${
                     isSelected
-                      ? 'bg-emerald-50 dark:bg-emerald-950/40 border-l-4 border-l-emerald-500 shadow-2xs'
-                      : 'hover:bg-slate-100/70 dark:hover:bg-slate-800/50'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-500/40 shadow-xs'
+                      : 'hover:bg-slate-100/70 dark:hover:bg-slate-800/50 border border-transparent'
                   }`}
                 >
                   <div className="w-12 h-12 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 shrink-0 bg-slate-100">
@@ -396,159 +355,57 @@ export const NegotiationsView: React.FC = () => {
               ref={messagesContainerRef}
               className="flex-1 p-4 sm:p-5 space-y-4 overflow-y-auto max-h-[380px] custom-scroll bg-slate-50/30 dark:bg-slate-950/20"
             >
-              {displayedMessages.length === 0 ? (
-                <div className="text-center py-8 text-slate-400 dark:text-slate-500 text-xs">
-                  Inicia la conversación para acordar detalles con la contraparte.
-                </div>
-              ) : (
-                displayedMessages.map((msg) => {
-                  const currentUserId = userProfile?.id || currentUser?.id;
-                  const isMe = currentUserId ? msg.senderId === currentUserId : (msg.senderRole === userProfile?.role);
-                  const isCounterparty = !isMe;
-                  const canActOnProposal = isCounterparty && (activeOffer.status === 'pendiente' || activeOffer.status === 'contraoferta');
-
-                  return (
-                    <div
-                      key={msg.id}
-                      className={`flex items-start gap-2.5 ${isMe ? 'justify-end' : 'justify-start'}`}
-                    >
-                      {!isMe && (
-                        <div className="w-8 h-8 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs flex items-center justify-center shrink-0">
-                          {msg.senderName.charAt(0).toUpperCase()}
-                        </div>
-                      )}
-                      <div
-                        className={`max-w-[85%] sm:max-w-[78%] p-3.5 rounded-2xl shadow-2xs space-y-2 ${
-                          isMe
-                            ? 'bg-emerald-600 text-white rounded-tr-xs'
-                            : 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-200/80 dark:border-slate-700 rounded-tl-xs'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-3 text-[10px] opacity-80">
-                          <span className="font-bold">
-                            {isMe ? 'Tú' : msg.senderName} ({msg.senderRole === 'seller' ? 'Vendedor' : 'Comprador'})
-                          </span>
-                          <span className="font-mono tabular-nums">{msg.timestamp}</span>
-                        </div>
-
-                        {/* Texto del mensaje */}
-                        {msg.text && (
-                          <p className="text-xs sm:text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>
-                        )}
-
-                        {/* Tarjeta de propuesta económica estructurada */}
-                        {(msg.isOfferProposal || msg.proposedPrice) && msg.proposedPrice && (
-                          <div
-                            className={`p-3 rounded-xl border mt-2 space-y-2 text-xs ${
-                              isMe
-                                ? 'bg-emerald-700/80 border-emerald-500/50 text-white'
-                                : 'bg-slate-50 dark:bg-slate-900/80 border-emerald-200 dark:border-emerald-800/80 text-slate-900 dark:text-slate-100'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between font-bold">
-                              <span className="flex items-center gap-1.5 text-xs">
-                                <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
-                                <span>Propuesta Solidaria</span>
-                              </span>
-                              <span
-                                className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
-                                  activeOffer.status === 'aceptada'
-                                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                                    : activeOffer.status === 'rechazada'
-                                    ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
-                                    : 'bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-300'
-                                }`}
-                              >
-                                {activeOffer.status}
-                              </span>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-2 text-[11px]">
-                              <div className="p-2 rounded-lg bg-black/10 dark:bg-black/25">
-                                <span className="opacity-75 block text-[10px]">Precio unitario:</span>
-                                <span className="font-bold">${msg.proposedPrice.toLocaleString('es-CO')} COP/{activeOffer.unit}</span>
-                              </div>
-                              <div className="p-2 rounded-lg bg-black/10 dark:bg-black/25">
-                                <span className="opacity-75 block text-[10px]">Cantidad:</span>
-                                <span className="font-bold">{msg.proposedQuantity || activeOffer.requestedQuantity} {activeOffer.unit}</span>
-                              </div>
-                            </div>
-
-                            <div className="p-2 rounded-lg bg-emerald-900/20 dark:bg-emerald-900/40 flex items-center justify-between text-xs font-bold">
-                              <span className="opacity-80 text-[11px]">Total propuesto:</span>
-                              <span className="text-sm font-black text-emerald-400 dark:text-emerald-300">
-                                ${(msg.proposedPrice * (msg.proposedQuantity || activeOffer.requestedQuantity)).toLocaleString('es-CO')} COP
-                              </span>
-                            </div>
-
-                            {/* Botones de acción directa si la propuesta está pendiente y el usuario es la contraparte */}
-                            {canActOnProposal && (
-                              <div className="flex items-center gap-2 pt-1 border-t border-emerald-200/40 dark:border-emerald-800/60">
-                                <button
-                                  type="button"
-                                  onClick={() => respondToOffer(activeOffer.id, 'aceptada')}
-                                  className="flex-1 py-1.5 px-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer shadow-xs"
-                                >
-                                  <CheckCircle2 className="w-3.5 h-3.5" />
-                                  <span>Aceptar</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setCounterPrice(msg.proposedPrice || 0);
-                                    setCounterQty(msg.proposedQuantity || activeOffer.requestedQuantity);
-                                    setIsCounterOpen(true);
-                                  }}
-                                  className="flex-1 py-1.5 px-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer shadow-xs"
-                                >
-                                  <RefreshCw className="w-3.5 h-3.5" />
-                                  <span>Contraofertar</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => respondToOffer(activeOffer.id, 'rechazada')}
-                                  title="Rechazar propuesta"
-                                  className="py-1.5 px-2.5 bg-rose-600/90 hover:bg-rose-600 text-white font-bold text-xs rounded-lg transition-colors cursor-pointer"
-                                >
-                                  <XCircle className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        )}
+              {activeOffer.messages.map((msg) => {
+                const isMe = currentUser ? msg.senderId === currentUser.id : msg.senderRole === 'seller';
+                return (
+                  <div
+                    key={msg.id}
+                    className={`flex items-start gap-2.5 ${isMe ? 'justify-end' : 'justify-start'}`}
+                  >
+                    {!isMe && (
+                      <div className="w-8 h-8 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs flex items-center justify-center shrink-0">
+                        {msg.senderName.charAt(0).toUpperCase()}
                       </div>
-                      {isMe && (
-                        <div className="w-8 h-8 rounded-xl bg-emerald-700 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-xs">
-                          Tú
-                        </div>
-                      )}
+                    )}
+                    <div
+                      className={`max-w-[78%] p-3.5 rounded-2xl shadow-2xs space-y-1 ${
+                        isMe
+                          ? 'bg-emerald-600 text-white rounded-tr-xs'
+                          : 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-200/80 dark:border-slate-700 rounded-tl-xs'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-3 text-[10px] opacity-80">
+                        <span className="font-bold">{msg.senderName}</span>
+                        <span className="font-mono tabular-nums">{msg.timestamp}</span>
+                      </div>
+                      <p className="text-xs sm:text-sm leading-relaxed">{msg.text}</p>
                     </div>
-                  );
-                })
-              )}
+                    {isMe && (
+                      <div className="w-8 h-8 rounded-xl bg-emerald-700 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-xs">
+                        Tú
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
-            {/* Input para Enviar Mensaje con soporte Enter y Shift+Enter */}
+            {/* Input para Enviar Mensaje */}
             <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleSendMessage();
-              }}
-              className="p-3 sm:p-4 border-t border-slate-200 dark:border-slate-800 flex items-end gap-2 bg-white dark:bg-slate-900"
+              onSubmit={handleSendMessage}
+              className="p-3 sm:p-4 border-t border-slate-200 dark:border-slate-800 flex items-center gap-2 bg-white dark:bg-slate-900"
             >
-              <textarea
-                rows={1}
+              <input
+                type="text"
                 value={messageText}
                 onChange={(e) => setMessageText(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Escribe un mensaje (Enter para enviar, Shift+Enter para salto de línea)..."
-                className="modern-input flex-1 px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs sm:text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-emerald-600 dark:focus:outline-emerald-500 resize-none max-h-24 transition-all"
+                placeholder="Escribe un mensaje para acordar la recogida o precio..."
+                className="modern-input flex-1 px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs sm:text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
               />
               <button
-                type="button"
-                onClick={() => handleSendMessage()}
+                type="submit"
                 disabled={!messageText.trim()}
-                className="btn-interaction p-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white rounded-2xl cursor-pointer shadow-md shadow-emerald-950/20 disabled:cursor-not-allowed shrink-0"
+                className="btn-interaction p-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white rounded-2xl cursor-pointer shadow-md shadow-emerald-950/20 disabled:cursor-not-allowed"
                 aria-label="Enviar mensaje"
               >
                 <Send className="w-4 h-4" />
