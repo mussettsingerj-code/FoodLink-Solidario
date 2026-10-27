@@ -259,9 +259,9 @@ export const EstablishmentDashboard: React.FC = () => {
                   <div
                     key={prod.id}
                     id={`my-pub-${prod.id}`}
-                    className={`p-5 bg-white dark:bg-slate-900 rounded-2xl border ${
+                    className={`p-5 bg-white dark:bg-slate-900 rounded-xl border ${
                       isNearExpiring
-                        ? 'border-amber-400/80 dark:border-amber-500/70 shadow-amber-500/5'
+                        ? 'border-l-4 border-l-amber-400 border-slate-200 dark:border-slate-800'
                         : 'border-slate-200 dark:border-slate-800'
                     } shadow-xs hover:shadow-md transition-all flex flex-col justify-between gap-4`}
                   >
@@ -658,7 +658,7 @@ export const EstablishmentDashboard: React.FC = () => {
                       : 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800'
                   }`}
                 >
-                  <span className={`w-2 h-2 rounded-full ${currentUser?.twoFactorEnabled ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                  <span className={`w-2 h-2 rounded-full ${currentUser?.twoFactorEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
                   <span>2FA: {currentUser?.twoFactorEnabled ? t('dashboard.activated', 'Activado') : t('dashboard.inactive', 'Inactivo')}</span>
                 </span>
               </div>

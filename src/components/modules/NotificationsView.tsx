@@ -571,7 +571,7 @@ export const NotificationsView: React.FC = () => {
                   <p className="text-slate-700">
                     Hola <strong>{previewNotif.recipientName || 'Usuario Solidario'}</strong>,
                   </p>
-                  <div className="p-4 bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 rounded-2xl text-slate-800 dark:text-slate-200 leading-relaxed">
+                  <div className="p-4 bg-slate-50 border-l-4 border-emerald-600 rounded-r-lg text-slate-800 leading-relaxed">
                     {previewNotif.message}
                   </div>
                   <p className="text-xs text-slate-500">

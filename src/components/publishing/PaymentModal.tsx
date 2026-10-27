@@ -368,7 +368,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 <div className="flex justify-between pt-1">
                   <span className="text-slate-500 dark:text-slate-400">{t('product.condition')}:</span>
                   <span className="inline-flex items-center gap-1 font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full text-xs">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
                     {t('dashboard.active')}
                   </span>
                 </div>

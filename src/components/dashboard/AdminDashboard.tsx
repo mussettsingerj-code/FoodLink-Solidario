@@ -179,6 +179,7 @@ export const AdminDashboard: React.FC = () => {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
             <div>
               <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
                 <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 font-display">
                   {t('dashboard.centralizedCommissionTitle', 'Configuración Centralizada de Comisiones de Publicación')}
                 </h2>

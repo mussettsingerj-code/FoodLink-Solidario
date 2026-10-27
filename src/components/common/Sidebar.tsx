@@ -168,8 +168,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
           <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400/90">
             {language === 'en' ? 'Account Role' : 'Rol de Cuenta'}
           </span>
-          <span className="text-[10px] font-bold text-emerald-300/80">
-            {language === 'en' ? 'Active' : 'Sesión activa'}
+          <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-300/80">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            {language === 'en' ? 'Online' : 'Conectado'}
           </span>
         </div>
         <div className="w-full flex items-center justify-between p-2.5 rounded-2xl bg-emerald-900/30 border border-emerald-800/50 backdrop-blur-xs">
@@ -194,7 +195,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
       </div>
 
       {/* Navigation Links */}
-      <nav className="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto custom-scroll relative z-10">
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto custom-scroll relative z-10">
         {menuItems
           .filter((item) => item.show)
           .map((item) => {
@@ -205,27 +206,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
               <button
                 key={item.id}
                 onClick={() => handleSelectTab(item.id)}
-                className={`w-full group relative flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs sm:text-sm font-semibold transition-colors duration-150 cursor-pointer focus-visible:outline-2 focus-visible:outline-emerald-400 ${
+                className={`w-full group relative flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs sm:text-sm font-semibold transition-all duration-150 cursor-pointer ${
                   isActive
-                    ? 'text-emerald-950 font-bold'
+                    ? 'bg-emerald-500 text-emerald-950 font-bold shadow-lg shadow-emerald-950/50'
                     : item.highlight
                     ? 'bg-emerald-900/30 text-emerald-300 hover:bg-emerald-800/50 hover:text-white border border-emerald-700/30'
                     : 'text-emerald-100/75 hover:bg-emerald-900/30 hover:text-white'
                 }`}
               >
-                {isActive && (
-                  <motion.div
-                    layoutId="sidebarActiveTabIndicator"
-                    className="absolute inset-0 bg-emerald-500 rounded-2xl shadow-lg shadow-emerald-950/50"
-                    transition={{
-                      type: 'spring',
-                      stiffness: 400,
-                      damping: 35,
-                    }}
-                  />
-                )}
-
-                <div className="relative z-10 flex items-center gap-3">
+                <div className="flex items-center gap-3">
                   <Icon
                     className={`w-4 h-4 transition-transform group-hover:scale-110 duration-150 ${
                       isActive
@@ -240,7 +229,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
 
                 {item.badge !== undefined && (
                   <span
-                    className={`relative z-10 text-[10px] font-black px-2 py-0.5 rounded-full tabular-nums transition-transform group-hover:scale-105 ${
+                    className={`text-[10px] font-black px-2 py-0.5 rounded-full tabular-nums transition-transform group-hover:scale-105 ${
                       isActive
                         ? 'bg-emerald-950 text-emerald-300'
                         : item.badgeColor || 'bg-emerald-800/80 text-emerald-200'

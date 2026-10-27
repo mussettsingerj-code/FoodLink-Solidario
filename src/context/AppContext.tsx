@@ -22,11 +22,20 @@ import {
   INITIAL_COMMISSIONS,
 } from '../data/initialData';
 import {
+  subscribeToProducts,
+  createProductInFirestore,
+  updateProductStatusInFirestore,
+  incrementProductViewsInFirestore,
+  subscribeToUserConversations,
+  getOrCreateConversationInFirestore,
+  sendMessageInFirestore,
+  respondToOfferInFirestore,
+} from '../services/firestoreService';
+import {
   auth,
   db,
   isFirebaseConfigured,
   getFirebaseAuthErrorMessage,
-  getDetailedAuthErrorMessage,
   handleFirestoreError,
   OperationType,
 } from '../firebase';
@@ -38,8 +47,6 @@ import {
   sendEmailVerification,
   GoogleAuthProvider,
   signInWithPopup,
-  signInWithRedirect,
-  getRedirectResult,
   onAuthStateChanged,
   updateProfile as updateFirebaseProfile,
   fetchSignInMethodsForEmail,
@@ -187,7 +194,11 @@ interface AppContextType {
       ProductOffer,
       'id' | 'status' | 'createdAt' | 'updatedAt' | 'messages'
     >
-  ) => ProductOffer;
+  ) => Promise<ProductOffer> | ProductOffer;
+  startNegotiationWithSeller: (
+    product: FoodProduct,
+    initialMessage?: string
+  ) => Promise<string>;
   updateOfferStatus: (
     offerId: string,
     status: 'aceptada' | 'rechazada' | 'contraoferta',
@@ -327,24 +338,6 @@ function normalizeRole(rawRole: unknown): UserRole {
   return 'buyer';
 }
 
-function formatTimestamp(raw: unknown): string {
-  if (!raw) return new Date().toISOString();
-  if (
-    typeof raw === 'object' &&
-    raw !== null &&
-    'toDate' in raw &&
-    typeof (raw as { toDate: () => Date }).toDate === 'function'
-  ) {
-    try {
-      return (raw as { toDate: () => Date }).toDate().toISOString();
-    } catch {
-      return new Date().toISOString();
-    }
-  }
-  if (typeof raw === 'string') return raw;
-  return new Date().toISOString();
-}
-
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -406,8 +399,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Lock map to avoid duplicate Firestore user profile creations on concurrent auth events
   const userDocLocksRef = useRef<Map<string, Promise<UserProfile>>>(new Map());
-  // Holds preferred role across concurrent onAuthStateChanged / loginWithSocial calls
-  const pendingPreferredRoleRef = useRef<UserRole | null>(null);
 
   // Preferences: Theme & Language
   const [themeMode, setThemeModeState] = useState<ThemeMode>(() => {
@@ -499,10 +490,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
    * Ensures a Firestore document `users/{uid}` exists for the authenticated Firebase user,
    * preventing duplicate documents and normalizing the profile structure.
    */
-  /**
-   * Ensures a Firestore document `users/{uid}` exists for the authenticated Firebase user,
-   * preventing duplicate documents and normalizing the profile structure.
-   */
   const ensureUserProfileInFirestore = useCallback(
     async (
       firebaseUser: FirebaseUser,
@@ -529,7 +516,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const isGoogleProvider = firebaseUser.providerData.some(p => p.providerId === 'google.com');
         const providerType: 'email' | 'google' = isGoogleProvider ? 'google' : 'email';
 
-        // 1. Existing user in Firestore: preserve all fields, role and permissions without overwriting
         if (snapshot && snapshot.exists()) {
           const data = snapshot.data();
           const role = normalizeRole(data.role);
@@ -550,19 +536,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             preferredLanguage: (data.preferredLanguage as SupportedLanguage) || 'es',
             preferredTheme: (data.preferredTheme as ThemeMode) || 'light',
             authProvider: (data.authProvider as 'email' | 'google') || providerType,
-            createdAt: formatTimestamp(data.createdAt),
-            updatedAt: formatTimestamp(data.updatedAt),
+            createdAt: String(data.createdAt || new Date().toISOString()),
+            updatedAt: String(data.updatedAt || new Date().toISOString()),
           };
           writeCachedUserProfile(loadedProfile);
           await syncUserWithBackend(loadedProfile);
           return loadedProfile;
         }
 
-        // 2. First-time user: create document in Firestore `users/{uid}`
+        const cachedExisting = readCachedUserProfile(uid);
+        if (cachedExisting && !registrationDetails) {
+          const recoveredProfile: UserProfile = {
+            ...cachedExisting,
+            role: normalizeRole(cachedExisting.role),
+            verified: Boolean(firebaseUser.emailVerified || isGoogleProvider || cachedExisting.verified),
+          };
+          writeCachedUserProfile(recoveredProfile);
+          await syncUserWithBackend(recoveredProfile);
+          return recoveredProfile;
+        }
+
+        // First-time user: create document in `users/{uid}`
         const nowIso = new Date().toISOString();
-        const roleCandidate =
-          preferredRole || pendingPreferredRoleRef.current || registrationDetails?.role || 'buyer';
-        const assignedRole: UserRole = normalizeRole(roleCandidate);
+        const assignedRole: UserRole = normalizeRole(preferredRole || registrationDetails?.role || 'buyer');
         const cleanName = (
           registrationDetails?.name ||
           firebaseUser.displayName ||
@@ -649,29 +645,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     [syncUserWithBackend]
   );
 
-  // Listen to Firebase Auth state changes and handle redirect auth result
+  // Listen to Firebase Auth state changes
   useEffect(() => {
-    // 1. Process redirect result from signInWithRedirect (e.g. mobile or popup-blocked fallback)
-    getRedirectResult(auth)
-      .then(async (redirectResult) => {
-        if (redirectResult?.user) {
-          const roleToUse = pendingPreferredRoleRef.current || 'buyer';
-          const profile = await ensureUserProfileInFirestore(redirectResult.user, roleToUse);
-          setUserProfile(profile);
-          setCurrentRoleState(profile.role);
-          setEmailVerificationPending(false);
-          setPendingVerificationEmail('');
-          setIsAuthenticated(true);
-          setShowLanding(false);
-          setIsAuthModalOpen(false);
-          localStorage.setItem('foodlink_is_auth_v3', 'true');
-        }
-      })
-      .catch((redirectErr) => {
-        console.warn('Google redirect check notice:', redirectErr);
-      });
-
-    // 2. Active onAuthStateChanged listener
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (!firebaseUser) {
         setIsAuthenticated(false);
@@ -696,8 +671,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
 
       try {
-        const preferredRole = pendingPreferredRoleRef.current || undefined;
-        const profile = await ensureUserProfileInFirestore(firebaseUser, preferredRole);
+        const profile = await ensureUserProfileInFirestore(firebaseUser);
         setUserProfile(profile);
         setCurrentRoleState(profile.role);
         setEmailVerificationPending(false);
@@ -706,19 +680,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         localStorage.setItem('foodlink_is_auth_v3', 'true');
       } catch (err) {
         console.error('Error loading user profile from Firestore:', err);
-        // Do not grant authenticated access or produce a fake session if Firestore failed
-        setIsAuthenticated(false);
-        setUserProfile(EMPTY_USER_PROFILE);
-        localStorage.removeItem('foodlink_is_auth_v3');
-        const detailed = getDetailedAuthErrorMessage(err);
-        showToast(detailed.message, 'error');
       } finally {
         setIsAuthReady(true);
       }
     });
 
     return () => unsubscribe();
-  }, [ensureUserProfileInFirestore, showToast]);
+  }, [ensureUserProfileInFirestore]);
 
   // Role-protected navigation & URL route protection (Requirement 9)
   const setActiveTab = useCallback(
@@ -838,30 +806,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [userProfile.role, activeTab]);
 
-  // Real Data State (No mock/fake data on first login - Requirement 8)
-  const [allProducts, setAllProducts] = useState<FoodProduct[]>(() => {
-    const saved = localStorage.getItem('foodlink_real_products_v1');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error(e);
-      }
-    }
-    return INITIAL_PRODUCTS;
-  });
-
-  const [allOffers, setAllOffers] = useState<ProductOffer[]>(() => {
-    const saved = localStorage.getItem('foodlink_real_offers_v1');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error(e);
-      }
-    }
-    return INITIAL_OFFERS;
-  });
+  // Estado en tiempo real sincronizado con Cloud Firestore (sin localStorage para datos transaccionales)
+  const [allProducts, setAllProducts] = useState<FoodProduct[]>([]);
+  const [allOffers, setAllOffers] = useState<ProductOffer[]>([]);
 
   const [allNotifications, setAllNotifications] = useState<NotificationItem[]>(() => {
     const saved = localStorage.getItem('foodlink_real_notifications_v1');
@@ -887,13 +834,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return INITIAL_COMMISSIONS;
   });
 
+  // 1. Suscripción en tiempo real a publicaciones en Firestore (Catálogo compartido entre todos los usuarios)
   useEffect(() => {
-    localStorage.setItem('foodlink_real_products_v1', JSON.stringify(allProducts));
-  }, [allProducts]);
+    const unsubscribe = subscribeToProducts((liveProducts) => {
+      setAllProducts(liveProducts);
+    });
+    return () => unsubscribe();
+  }, []);
 
+  // 2. Suscripción en tiempo real a conversaciones y ofertas del usuario autenticado en Firestore
   useEffect(() => {
-    localStorage.setItem('foodlink_real_offers_v1', JSON.stringify(allOffers));
-  }, [allOffers]);
+    if (!isAuthenticated || !userProfile.id) {
+      setAllOffers([]);
+      return;
+    }
+    const unsubscribe = subscribeToUserConversations(userProfile.id, (liveOffers) => {
+      setAllOffers(liveOffers);
+    });
+    return () => unsubscribe();
+  }, [isAuthenticated, userProfile.id]);
 
   useEffect(() => {
     localStorage.setItem('foodlink_real_notifications_v1', JSON.stringify(allNotifications));
@@ -1401,43 +1360,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   /**
    * Requirement 6: Real Google Sign-In + Firebase Authentication + Firestore Profile Creation
    */
-  /**
-   * Requirement 6: Real Google Sign-In + Firebase Authentication + Firestore Profile Creation
-   */
   const loginWithSocial = async (
     _provider: 'google',
     preferredRole?: UserRole
   ): Promise<AuthActionResponse> => {
-    const validRole: UserRole = preferredRole === 'seller' ? 'seller' : 'buyer';
-    pendingPreferredRoleRef.current = validRole;
-
     try {
       const googleProvider = new GoogleAuthProvider();
       googleProvider.setCustomParameters({ prompt: 'select_account' });
+      const result = await signInWithPopup(auth, googleProvider);
 
-      let firebaseUser: FirebaseUser;
-      try {
-        const result = await signInWithPopup(auth, googleProvider);
-        firebaseUser = result.user;
-      } catch (popupErr: unknown) {
-        const popupCode =
-          typeof popupErr === 'object' && popupErr !== null && 'code' in popupErr
-            ? String((popupErr as { code: unknown }).code)
-            : '';
-
-        // Fallback to signInWithRedirect when popup is blocked by mobile or browser security
-        if (popupCode === 'auth/popup-blocked') {
-          console.warn('Popup blocked, attempting signInWithRedirect fallback');
-          await signInWithRedirect(auth, googleProvider);
-          return {
-            success: true,
-            message: 'Redirigiendo a Google para completar el acceso...',
-          };
-        }
-        throw popupErr;
-      }
-
-      const profile = await ensureUserProfileInFirestore(firebaseUser, validRole);
+      const validRole: UserRole = preferredRole === 'seller' ? 'seller' : 'buyer';
+      const profile = await ensureUserProfileInFirestore(result.user, validRole);
 
       setUserProfile(profile);
       setCurrentRoleState(profile.role);
@@ -1453,13 +1386,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         message: `Autenticado con Google como ${profile.name}`,
       };
     } catch (firebaseErr: unknown) {
-      pendingPreferredRoleRef.current = null;
-      const detailed = getDetailedAuthErrorMessage(firebaseErr);
+      const fbCode =
+        firebaseErr && typeof firebaseErr === 'object' && 'code' in firebaseErr
+          ? String((firebaseErr as { code: unknown }).code)
+          : '';
 
       return {
         success: false,
-        code: detailed.code,
-        message: detailed.message,
+        code: fbCode || 'google-auth-error',
+        message: getFirebaseAuthErrorMessage(fbCode),
       };
     }
   };
@@ -1611,75 +1546,53 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     [userProfile.email, userProfile.organizationName, userProfile.name]
   );
 
-  // Security check in addProduct: only authenticated sellers can publish products
-  const addProduct = (
+  // Security check in addProduct: only authenticated sellers can publish products directly to Cloud Firestore
+  const addProduct = async (
     productData: Omit<
       FoodProduct,
       'id' | 'publishedAt' | 'expiresAt' | 'status' | 'commissionPaid' | 'offersCount' | 'viewsCount'
     >
-  ) => {
+  ): Promise<FoodProduct | null> => {
     if (!isAuthenticated || !userProfile.id || userProfile.role !== 'seller') {
-      return;
+      return null;
     }
 
-    const now = new Date();
-    // Expiration date defines visibility: active until expirationDate
-    let expiresAtIso: string;
-    if (productData.expirationDate) {
-      expiresAtIso = new Date(`${productData.expirationDate}T23:59:59.999Z`).toISOString();
-    } else {
-      const fallbackDays = productData.durationDays || 30;
-      expiresAtIso = new Date(now.getTime() + fallbackDays * 24 * 60 * 60 * 1000).toISOString();
-    }
-
-    const newId = `prod-${Date.now()}`;
-
-    const newProduct: FoodProduct = {
-      ...productData,
-      id: newId,
-      sellerId: userProfile.id,
-      sellerName: userProfile.organizationName || userProfile.name,
-      publishedAt: now.toISOString(),
-      expiresAt: expiresAtIso,
-      status: 'activa',
-      commissionPaid: 0,
-      offersCount: 0,
-      viewsCount: 1,
-    };
-
-    setAllProducts((prev) => [newProduct, ...prev]);
-
-    // Optional Firestore sync
     try {
-      if (isFirebaseConfigured && db) {
-        setDoc(doc(db, 'products', newProduct.id), newProduct).catch((err) => {
-          console.warn('Firestore product persist notice:', err);
-        });
-      }
-    } catch {
-      // Non-blocking
-    }
+      const created = await createProductInFirestore(productData, {
+        id: userProfile.id,
+        name: userProfile.organizationName || userProfile.name,
+        type: productData.sellerType || 'Supermercado',
+        verified: userProfile.verified,
+      });
 
-    dispatchNotificationEvent({
-      userId: userProfile.id,
-      type: 'publicacion_activada',
-      title: 'Producto publicado correctamente',
-      message: `Tu producto "${newProduct.name}" se encuentra activo en el catálogo hasta el ${newProduct.expirationDate}.`,
-      relatedProductId: newProduct.id,
-      productName: newProduct.name,
-      recipientEmail: userProfile.email,
-      recipientName: userProfile.organizationName || userProfile.name,
-      actionLabel: 'Ver Mis Publicaciones',
-    });
+      dispatchNotificationEvent({
+        userId: userProfile.id,
+        type: 'publicacion_activada',
+        title: 'Producto publicado correctamente',
+        message: `Tu producto "${created.name}" se encuentra activo en el catálogo hasta el ${created.expirationDate}.`,
+        relatedProductId: created.id,
+        productName: created.name,
+        recipientEmail: userProfile.email,
+        recipientName: userProfile.organizationName || userProfile.name,
+        actionLabel: 'Ver Mis Publicaciones',
+      });
+
+      return created;
+    } catch (err) {
+      console.error('Error publicando producto en Firestore:', err);
+      throw err;
+    }
   };
 
-  const updateProductStatus = (productId: string, status: ProductStatus) => {
-    if (!isAuthenticated || !userProfile.id || userProfile.role !== 'seller') {
+  const updateProductStatus = async (productId: string, status: ProductStatus) => {
+    if (!isAuthenticated || !userProfile.id) {
       return;
     }
-    setAllProducts((prev) =>
-      prev.map((p) => (p.id === productId && p.sellerId === userProfile.id ? { ...p, status } : p))
-    );
+    try {
+      await updateProductStatusInFirestore(productId, status);
+    } catch (err) {
+      console.error('Error actualizando estado del producto en Firestore:', err);
+    }
   };
 
   const republishProduct = (productId: string, durationDays: DurationDays) => {
@@ -1737,57 +1650,95 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const createOffer = (
+  const createOffer = async (
     offerData: Omit<ProductOffer, 'id' | 'status' | 'createdAt' | 'updatedAt' | 'messages'>
-  ): ProductOffer => {
-    const nowIso = new Date().toISOString();
-    const newOffer: ProductOffer = {
-      ...offerData,
-      id: `off-${Date.now()}`,
-      buyerId: userProfile.id || offerData.buyerId,
-      buyerName: userProfile.name || offerData.buyerName,
-      buyerOrganization: userProfile.organizationName || userProfile.name || offerData.buyerOrganization,
-      status: 'pendiente',
-      createdAt: 'Hace un momento',
-      updatedAt: 'Hace un momento',
-      messages: [
-        {
-          id: `msg-${Date.now()}`,
-          senderId: userProfile.id || offerData.buyerId,
-          senderName: `${userProfile.organizationName || userProfile.name} (${userProfile.name})`,
-          senderRole: userProfile.role,
-          timestamp: nowIso.replace('T', ' ').slice(0, 16),
-          text: offerData.message,
-          isOfferProposal: true,
-          proposedPrice: offerData.offeredPricePerUnit,
-          proposedQuantity: offerData.requestedQuantity,
-        },
-      ],
-    };
+  ): Promise<ProductOffer> => {
+    if (!isAuthenticated || !userProfile.id) {
+      throw new Error('Debes iniciar sesión para realizar una oferta.');
+    }
 
-    if (!isAuthenticated || !userProfile.id) return newOffer;
-
-    setAllOffers((prev) => [newOffer, ...prev]);
-    setAllProducts((prev) =>
-      prev.map((p) => (p.id === offerData.productId ? { ...p, offersCount: p.offersCount + 1 } : p))
-    );
+    const { conversationId } = await getOrCreateConversationInFirestore({
+      productId: offerData.productId,
+      productName: offerData.productName,
+      productImageUrl: offerData.productImageUrl,
+      sellerId: offerData.sellerId,
+      sellerName: offerData.sellerName,
+      buyerId: userProfile.id,
+      buyerName: userProfile.name,
+      buyerOrganization: userProfile.organizationName || userProfile.name,
+      buyerType: offerData.buyerType,
+      requestedQuantity: offerData.requestedQuantity,
+      offeredPricePerUnit: offerData.offeredPricePerUnit,
+      totalOfferedPrice: offerData.totalOfferedPrice,
+      unit: offerData.unit,
+      message: offerData.message,
+      pickupMethod: offerData.pickupMethod,
+      proposedDate: offerData.proposedDate,
+    });
 
     dispatchNotificationEvent({
       userId: offerData.sellerId,
       type: 'nueva_oferta',
-      title: `Nueva oferta recibida de ${offerData.buyerOrganization}`,
-      message: `${offerData.buyerOrganization} ha enviado una oferta de ${formatCOP(offerData.totalOfferedPrice)} (${formatCOP(offerData.offeredPricePerUnit)}/${offerData.unit}) por ${offerData.requestedQuantity} ${offerData.unit} de "${offerData.productName}".`,
-      relatedOfferId: newOffer.id,
+      title: `Nueva oferta recibida de ${userProfile.organizationName || userProfile.name}`,
+      message: `${userProfile.organizationName || userProfile.name} ha enviado una oferta de ${formatCOP(offerData.totalOfferedPrice)} (${formatCOP(offerData.offeredPricePerUnit)}/${offerData.unit}) por ${offerData.requestedQuantity} ${offerData.unit} de "${offerData.productName}".`,
+      relatedOfferId: conversationId,
       relatedProductId: offerData.productId,
       productName: offerData.productName,
       recipientName: offerData.sellerName,
       actionLabel: 'Revisar y Responder Oferta',
     });
 
-    return newOffer;
+    return {
+      ...offerData,
+      id: conversationId,
+      status: 'pendiente',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      messages: [],
+    };
   };
 
-  const updateOfferStatus = (
+  const startNegotiationWithSeller = async (
+    product: FoodProduct,
+    initialMessage?: string
+  ): Promise<string> => {
+    if (!isAuthenticated || !userProfile.id) {
+      openAuthModal('login');
+      showToast('Inicia sesión para iniciar una conversación con el vendedor.', 'info');
+      throw new Error('No autenticado');
+    }
+
+    if (userProfile.id === product.sellerId) {
+      setActiveTabState('my-publications');
+      showToast('Estás gestionando tu propia publicación', 'info');
+      return '';
+    }
+
+    const { conversationId } = await getOrCreateConversationInFirestore({
+      productId: product.id,
+      productName: product.name,
+      productImageUrl: product.imageUrl,
+      sellerId: product.sellerId,
+      sellerName: product.sellerName,
+      buyerId: userProfile.id,
+      buyerName: userProfile.name,
+      buyerOrganization: userProfile.organizationName || userProfile.name,
+      buyerType: 'Fundación / Comprador',
+      requestedQuantity: product.minPurchaseQuantity || 1,
+      offeredPricePerUnit: product.requestedPrice,
+      totalOfferedPrice: (product.minPurchaseQuantity || 1) * product.requestedPrice,
+      unit: product.unit,
+      message:
+        initialMessage ||
+        `Hola ${product.sellerName}, me interesa este lote de "${product.name}". ¿Podemos acordar detalles de entrega?`,
+    });
+
+    setSelectedOfferIdForNegotiation(conversationId);
+    setActiveTabState('negotiations');
+    return conversationId;
+  };
+
+  const updateOfferStatus = async (
     offerId: string,
     status: 'aceptada' | 'rechazada' | 'contraoferta',
     counterPrice?: number,
@@ -1796,182 +1747,112 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   ) => {
     if (!isAuthenticated || !userProfile.id) return;
 
-    const targetOffer = allOffers.find((o) => o.id === offerId);
-    const nowStamp = new Date().toISOString().replace('T', ' ').slice(0, 16);
+    try {
+      await respondToOfferInFirestore(
+        offerId,
+        status,
+        {
+          id: userProfile.id,
+          name: userProfile.organizationName || userProfile.name,
+          role: userProfile.role,
+        },
+        counterPrice,
+        counterQuantity,
+        counterMessage
+      );
 
-    setAllOffers((prev) =>
-      prev.map((offer) => {
-        if (offer.id !== offerId) return offer;
+      const targetOffer = allOffers.find((o) => o.id === offerId);
+      if (targetOffer) {
+        const notifType: NotificationType =
+          status === 'aceptada'
+            ? 'oferta_aceptada'
+            : status === 'rechazada'
+            ? 'oferta_rechazada'
+            : 'nueva_contraoferta';
 
-        const updatedMessages = [...offer.messages];
-        if (status === 'contraoferta' && counterPrice && counterQuantity) {
-          updatedMessages.push({
-            id: `msg-${Date.now()}`,
-            senderId: userProfile.id,
-            senderName: userProfile.organizationName || userProfile.name,
-            senderRole: userProfile.role,
-            timestamp: nowStamp,
-            text:
-              counterMessage ||
-              `Contraoferta propuesta: ${formatCOP(counterPrice)} por ${offer.unit} (${counterQuantity} ${offer.unit}).`,
-            isOfferProposal: true,
-            proposedPrice: counterPrice,
-            proposedQuantity: counterQuantity,
-          });
-        } else if (status === 'aceptada') {
-          updatedMessages.push({
-            id: `msg-${Date.now()}`,
-            senderId: userProfile.id,
-            senderName: userProfile.organizationName || userProfile.name,
-            senderRole: userProfile.role,
-            timestamp: nowStamp,
-            text: '¡Oferta ACEPTADA! Procedamos a coordinar la entrega y logística de recogida.',
-          });
-        } else if (status === 'rechazada') {
-          updatedMessages.push({
-            id: `msg-${Date.now()}`,
-            senderId: userProfile.id,
-            senderName: userProfile.organizationName || userProfile.name,
-            senderRole: userProfile.role,
-            timestamp: nowStamp,
-            text: 'Oferta rechazada. Gracias por su interés, en esta ocasión no podemos aceptar las condiciones propuestas.',
-          });
-        }
+        const finalPrice = counterPrice ?? targetOffer.offeredPricePerUnit;
+        const finalQty = counterQuantity ?? targetOffer.requestedQuantity;
 
-        const nextPrice = counterPrice ?? offer.offeredPricePerUnit;
-        const nextQty = counterQuantity ?? offer.requestedQuantity;
+        const notifTitle =
+          status === 'aceptada'
+            ? `¡Oferta aceptada para ${targetOffer.productName}!`
+            : status === 'rechazada'
+            ? `Oferta no aceptada en ${targetOffer.productName}`
+            : `Nueva contraoferta recibida en ${targetOffer.productName}`;
 
-        return {
-          ...offer,
-          status,
-          offeredPricePerUnit: nextPrice,
-          requestedQuantity: nextQty,
-          totalOfferedPrice: nextPrice * nextQty,
-          updatedAt: 'Hace un momento',
-          messages: updatedMessages,
-        };
-      })
-    );
+        const notifMessage =
+          status === 'aceptada'
+            ? `La oferta por ${finalQty} ${targetOffer.unit} de "${targetOffer.productName}" (${formatCOP(finalPrice * finalQty)}) ha sido ACEPTADA. Ingresa a la negociación para coordinar la entrega.`
+            : status === 'rechazada'
+            ? `La propuesta por "${targetOffer.productName}" ha sido rechazada por la contraparte.`
+            : `Se ha propuesto una contraoferta para "${targetOffer.productName}": ${formatCOP(finalPrice)}/${targetOffer.unit} por ${finalQty} ${targetOffer.unit} (Total: ${formatCOP(finalPrice * finalQty)}).`;
 
-    if (targetOffer) {
-      if (status === 'aceptada') {
-        setAllProducts((prev) =>
-          prev.map((p) => (p.id === targetOffer.productId ? { ...p, status: 'vendida' } : p))
-        );
+        const recipientUserId =
+          userProfile.id === targetOffer.sellerId ? targetOffer.buyerId : targetOffer.sellerId;
+        const recipientName =
+          userProfile.id === targetOffer.sellerId ? targetOffer.buyerOrganization : targetOffer.sellerName;
+
+        dispatchNotificationEvent({
+          userId: recipientUserId,
+          type: notifType,
+          title: notifTitle,
+          message: notifMessage,
+          relatedOfferId: offerId,
+          relatedProductId: targetOffer.productId,
+          productName: targetOffer.productName,
+          recipientName,
+          actionLabel:
+            status === 'contraoferta'
+              ? 'Revisar Contraoferta en Negociaciones'
+              : 'Ver Detalle de la Operación',
+        });
       }
-
-      const notifType: NotificationType =
-        status === 'aceptada'
-          ? 'oferta_aceptada'
-          : status === 'rechazada'
-          ? 'oferta_rechazada'
-          : 'nueva_contraoferta';
-
-      const finalPrice = counterPrice ?? targetOffer.offeredPricePerUnit;
-      const finalQty = counterQuantity ?? targetOffer.requestedQuantity;
-
-      const notifTitle =
-        status === 'aceptada'
-          ? `¡Oferta aceptada para ${targetOffer.productName}!`
-          : status === 'rechazada'
-          ? `Oferta rechazada en ${targetOffer.productName}`
-          : `Nueva contraoferta recibida en ${targetOffer.productName}`;
-
-      const notifMessage =
-        status === 'aceptada'
-          ? `La oferta por ${finalQty} ${targetOffer.unit} de "${targetOffer.productName}" (${formatCOP(finalPrice * finalQty)}) ha sido ACEPTADA. Ingresa a la negociación para coordinar la entrega.`
-          : status === 'rechazada'
-          ? `La propuesta por "${targetOffer.productName}" ha sido rechazada por la contraparte.`
-          : `Se ha propuesto una contraoferta para "${targetOffer.productName}": ${formatCOP(finalPrice)}/${targetOffer.unit} por ${finalQty} ${targetOffer.unit} (Total: ${formatCOP(finalPrice * finalQty)}).`;
-
-      const recipientUserId =
-        userProfile.id === targetOffer.sellerId ? targetOffer.buyerId : targetOffer.sellerId;
-      const recipientName =
-        userProfile.id === targetOffer.sellerId ? targetOffer.buyerOrganization : targetOffer.sellerName;
-
-      dispatchNotificationEvent({
-        userId: recipientUserId,
-        type: notifType,
-        title: notifTitle,
-        message: notifMessage,
-        relatedOfferId: offerId,
-        relatedProductId: targetOffer.productId,
-        productName: targetOffer.productName,
-        recipientName,
-        actionLabel:
-          status === 'contraoferta'
-            ? 'Revisar Contraoferta en Negociaciones'
-            : 'Ver Detalle de la Operación',
-      });
+    } catch (err) {
+      console.error('Error actualizando oferta en Firestore:', err);
     }
   };
 
-  const sendOfferMessage = (
+  const sendOfferMessage = async (
     offerId: string,
     text: string,
     isProposal = false,
     proposedPrice?: number,
     proposedQuantity?: number
   ) => {
-    if (!isAuthenticated || !userProfile.id) return;
+    if (!isAuthenticated || !userProfile.id || !text.trim()) return;
 
-    const nowStamp = new Date().toISOString().replace('T', ' ').slice(0, 16);
-    const targetOffer = allOffers.find((o) => o.id === offerId);
-
-    setAllOffers((prev) =>
-      prev.map((offer) => {
-        if (offer.id !== offerId) return offer;
-
-        const newMessage = {
-          id: `msg-${Date.now()}`,
-          senderId: userProfile.id,
-          senderName: userProfile.organizationName || userProfile.name,
-          senderRole: userProfile.role,
-          timestamp: nowStamp,
-          text,
-          isOfferProposal: isProposal,
-          proposedPrice,
-          proposedQuantity,
-        };
-
-        const nextPrice = proposedPrice ?? offer.offeredPricePerUnit;
-        const nextQty = proposedQuantity ?? offer.requestedQuantity;
-
-        const updatedOffer: ProductOffer = {
-          ...offer,
-          status: isProposal ? 'contraoferta' : offer.status,
-          offeredPricePerUnit: nextPrice,
-          requestedQuantity: nextQty,
-          totalOfferedPrice: nextPrice * nextQty,
-          updatedAt: 'Hace un momento',
-          messages: [...offer.messages, newMessage],
-        };
-
-        if (activeNegotiationOffer?.id === offerId) {
-          setActiveNegotiationOffer(updatedOffer);
-        }
-
-        return updatedOffer;
-      })
-    );
-
-    if (targetOffer && isProposal && proposedPrice && proposedQuantity) {
-      const recipientUserId =
-        userProfile.id === targetOffer.sellerId ? targetOffer.buyerId : targetOffer.sellerId;
-      const recipientName =
-        userProfile.id === targetOffer.sellerId ? targetOffer.buyerOrganization : targetOffer.sellerName;
-
-      dispatchNotificationEvent({
-        userId: recipientUserId,
-        type: 'nueva_contraoferta',
-        title: `Contraoferta en negociación: ${targetOffer.productName}`,
-        message: `${userProfile.organizationName || userProfile.name} envió una contraoferta de ${formatCOP(proposedPrice)}/${targetOffer.unit} por ${proposedQuantity} ${targetOffer.unit} (Total: ${formatCOP(proposedPrice * proposedQuantity)}).`,
-        relatedOfferId: offerId,
-        relatedProductId: targetOffer.productId,
-        productName: targetOffer.productName,
-        recipientName,
-        actionLabel: 'Responder Contraoferta',
+    try {
+      await sendMessageInFirestore(offerId, {
+        senderId: userProfile.id,
+        senderName: userProfile.organizationName || userProfile.name,
+        senderRole: userProfile.role,
+        text: text.trim(),
+        isProposal,
+        proposedPrice,
+        proposedQuantity,
       });
+
+      const targetOffer = allOffers.find((o) => o.id === offerId);
+      if (targetOffer && isProposal && proposedPrice && proposedQuantity) {
+        const recipientUserId =
+          userProfile.id === targetOffer.sellerId ? targetOffer.buyerId : targetOffer.sellerId;
+        const recipientName =
+          userProfile.id === targetOffer.sellerId ? targetOffer.buyerOrganization : targetOffer.sellerName;
+
+        dispatchNotificationEvent({
+          userId: recipientUserId,
+          type: 'nueva_contraoferta',
+          title: `Contraoferta en negociación: ${targetOffer.productName}`,
+          message: `${userProfile.organizationName || userProfile.name} envió una contraoferta de ${formatCOP(proposedPrice)}/${targetOffer.unit} por ${proposedQuantity} ${targetOffer.unit} (Total: ${formatCOP(proposedPrice * proposedQuantity)}).`,
+          relatedOfferId: offerId,
+          relatedProductId: targetOffer.productId,
+          productName: targetOffer.productName,
+          recipientName,
+          actionLabel: 'Responder Contraoferta',
+        });
+      }
+    } catch (err) {
+      console.error('Error enviando mensaje en Firestore:', err);
     }
   };
 
@@ -2194,6 +2075,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         republishProduct,
         renewProduct: republishProduct,
         createOffer,
+        startNegotiationWithSeller,
         updateOfferStatus,
         respondToOffer: updateOfferStatus,
         sendOfferMessage,

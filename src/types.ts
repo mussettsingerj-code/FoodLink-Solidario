@@ -71,6 +71,8 @@ export interface CommissionPricing {
   30: number;
 }
 
+import { Comuna8Barrio } from './data/comuna8GeographicData';
+
 export interface FoodProduct {
   id: string;
   name: string;
@@ -85,6 +87,9 @@ export interface FoodProduct {
   recommendedConsumptionDate?: string;
   locationCity: string;
   locationAddress: string;
+  comuna: 'Comuna 8 — Villa Hermosa, Medellín' | string;
+  barrio: Comuna8Barrio;
+  locationReference?: string;
   originalPrice: number; // in COP
   requestedPrice: number; // in COP per unit
   minPurchaseQuantity: number;
@@ -125,6 +130,8 @@ export interface OfferMessage {
   isOfferProposal?: boolean;
   proposedPrice?: number;
   proposedQuantity?: number;
+  type?: 'message' | 'offer' | 'counteroffer' | 'status_change';
+  status?: OfferStatus;
 }
 
 export type OfferStatus = 'pendiente' | 'aceptada' | 'rechazada' | 'contraoferta';
@@ -213,6 +220,9 @@ export interface UserProfile {
   nitOrId: string;
   phone: string;
   city: string;
+  comuna?: 'Comuna 8 — Villa Hermosa, Medellín' | string;
+  barrio?: Comuna8Barrio;
+  operationZones?: Comuna8Barrio[];
   verified: boolean;
   twoFactorEnabled?: boolean;
   preferredLanguage?: SupportedLanguage;

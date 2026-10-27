@@ -339,7 +339,6 @@ export const LoginView: React.FC = () => {
   };
 
   const handleGoogleSignIn = async () => {
-    if (socialLoading || isSubmitting) return;
     setErrorMsg(null);
     setErrorCode(null);
     setSuccessMsg(null);
@@ -354,16 +353,8 @@ export const LoginView: React.FC = () => {
             : '¡Autenticación con Google exitosa! Ingresando al panel...'
         );
       } else {
-        setErrorCode(res.code || null);
         setErrorMsg(res.message);
       }
-    } catch (unhandledErr) {
-      console.error('Unhandled Google sign-in exception:', unhandledErr);
-      setErrorMsg(
-        isEn
-          ? 'Unable to complete Google authentication. Please try again.'
-          : 'No se pudo completar la autenticación con Google. Por favor intenta de nuevo.'
-      );
     } finally {
       setSocialLoading(false);
     }
@@ -1301,9 +1292,8 @@ export const LoginView: React.FC = () => {
                     <button
                       type="button"
                       onClick={handleGoogleSignIn}
-                      disabled={socialLoading || isSubmitting}
-                      aria-busy={socialLoading}
-                      className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-200 font-bold text-xs transition-all cursor-pointer shadow-2xs hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed disabled:scale-100"
+                      disabled={socialLoading}
+                      className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-200 font-bold text-xs transition-all cursor-pointer shadow-2xs hover:scale-[1.01] active:scale-[0.99]"
                     >
                       {socialLoading ? (
                         <>

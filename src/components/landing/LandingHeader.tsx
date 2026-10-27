@@ -1,11 +1,9 @@
 import React from 'react';
 import {
-  Leaf,
   Sun,
   Moon,
   Monitor,
   ShoppingBag,
-  Building2,
   LogIn,
   UserPlus,
 } from 'lucide-react';
@@ -37,19 +35,20 @@ export const LandingHeader: React.FC = () => {
             setCurrentView('landing');
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
-          className="flex items-center gap-3 cursor-pointer select-none group shrink-0"
+          className="flex items-center gap-2.5 sm:gap-3 cursor-pointer select-none group shrink-0"
         >
-          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-[#1B4332] to-emerald-700 flex items-center justify-center text-white shadow-md shadow-emerald-900/20 group-hover:scale-105 transition-transform">
-            <Leaf className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-300 stroke-[2.5]" />
+          <div className="relative w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 rounded-full overflow-hidden bg-white shadow-xs border border-emerald-500/20 dark:border-emerald-500/30 shrink-0 flex items-center justify-center p-0.5 group-hover:scale-105 transition-transform duration-200">
+            <img
+              src="/logo.png"
+              alt="FoodLink Solidario"
+              className="w-full h-full object-contain select-none"
+              draggable={false}
+              loading="eager"
+            />
           </div>
-          <div>
-            <span className="font-display font-black text-lg sm:text-xl text-slate-900 dark:text-white tracking-tight leading-none block">
-              FoodLink <span className="text-emerald-700 dark:text-emerald-400">Solidario</span>
-            </span>
-            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mt-0.5">
-              Colombia • B2B
-            </span>
-          </div>
+          <span className="font-display font-black text-lg sm:text-xl md:text-2xl text-slate-900 dark:text-white tracking-tight leading-none">
+            FoodLink <span className="text-emerald-700 dark:text-emerald-400">Solidario</span>
+          </span>
         </div>
 
         {/* Center Navigation Links (Hidden on small screens) */}
