@@ -71,6 +71,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelect }) =
           </span>
         )}
 
+        {/* Reserved badge if product status is reservado */}
+        {product.status === 'reservado' && (
+          <span className="absolute top-3 right-3 px-2.5 py-1 rounded-xl text-[10px] font-black bg-amber-500 text-white shadow-xs backdrop-blur-xs">
+            Lote Reservado
+          </span>
+        )}
+
         {/* Location pill */}
         <span className="absolute bottom-3 right-3 px-2.5 py-1 rounded-xl text-[10px] font-bold bg-slate-950/75 text-white backdrop-blur-xs flex items-center gap-1 shadow-xs">
           <MapPin className="w-3 h-3 text-emerald-400" />

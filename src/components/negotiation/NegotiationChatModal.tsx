@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
-import { ProductOffer } from '../../types';
+import React, { useState, useEffect, useRef } from 'react';
+import { ProductOffer, OfferMessage } from '../../types';
 import { useApp } from '../../context/AppContext';
 import { useI18n } from '../../i18n/I18nContext';
 import { ProductImage } from '../common/ProductImage';
 import { DeliveryCertificateModal } from '../common/DeliveryCertificateModal';
+import { subscribeToConversationMessages, markConversationAsReadInFirestore } from '../../services/firestoreService';
 import {
   X,
   Send,
@@ -22,16 +23,44 @@ interface NegotiationChatModalProps {
 }
 
 export const NegotiationChatModal: React.FC<NegotiationChatModalProps> = ({ offerId, onClose }) => {
-  const { offers, respondToOffer, sendMessageToOffer, currentUser, currentRole } = useApp();
+  const { offers, respondToOffer, sendMessageToOffer, currentUser, userProfile, currentRole } = useApp();
   const { t, language } = useI18n();
 
   const [messageText, setMessageText] = useState('');
+  const [liveMessages, setLiveMessages] = useState<OfferMessage[]>([]);
   const [isCounterOfferOpen, setIsCounterOfferOpen] = useState(false);
   const [counterPrice, setCounterPrice] = useState<number>(0);
   const [counterQty, setCounterQty] = useState<number>(0);
   const [isCertificateOpen, setIsCertificateOpen] = useState(false);
+  const messagesScrollRef = useRef<HTMLDivElement | null>(null);
 
   const offer = offers.find((o) => o.id === offerId);
+
+  // Suscripción en tiempo real a los mensajes de la subcolección
+  useEffect(() => {
+    if (!offerId) {
+      setLiveMessages([]);
+      return;
+    }
+    const unsubscribe = subscribeToConversationMessages(offerId, (msgs) => {
+      setLiveMessages(msgs);
+    });
+
+    const userRole: 'buyer' | 'seller' = userProfile?.role === 'seller' ? 'seller' : 'buyer';
+    markConversationAsReadInFirestore(offerId, userRole);
+
+    return () => {
+      unsubscribe();
+    };
+  }, [offerId, userProfile?.id, currentUser?.id]);
+
+  const displayedMessages = liveMessages.length > 0 ? liveMessages : (offer?.messages || []);
+
+  useEffect(() => {
+    if (messagesScrollRef.current) {
+      messagesScrollRef.current.scrollTop = messagesScrollRef.current.scrollHeight;
+    }
+  }, [offerId, displayedMessages.length]);
 
   if (!offerId || !offer) return null;
 
@@ -261,7 +290,10 @@ export const NegotiationChatModal: React.FC<NegotiationChatModalProps> = ({ offe
         )}
 
         {/* Messages Scroll Area */}
-        <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-slate-50 dark:bg-slate-950 text-sm">
+        <div
+          ref={messagesScrollRef}
+          className="flex-1 p-4 overflow-y-auto space-y-3 bg-slate-50 dark:bg-slate-950 text-sm"
+        >
           {/* Terms info card */}
           <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300 flex items-center justify-between">
             <span className="flex items-center gap-1.5">
@@ -271,15 +303,19 @@ export const NegotiationChatModal: React.FC<NegotiationChatModalProps> = ({ offe
             <span>{t('offer.proposedDate')}: <strong>{new Date(offer.proposedDate).toLocaleDateString(locale)}</strong></span>
           </div>
 
-          {offer.messages.map((msg) => {
-            const isMe = currentUser ? msg.senderId === currentUser.id : false;
+          {displayedMessages.map((msg) => {
+            const currentUserId = userProfile?.id || currentUser?.id;
+            const isMe = currentUserId ? msg.senderId === currentUserId : false;
+            const isCounterparty = !isMe;
+            const canActOnProposal = isCounterparty && (offer.status === 'pendiente' || offer.status === 'contraoferta');
+
             return (
               <div
                 key={msg.id}
                 className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
               >
                 <span className="text-[11px] text-slate-400 dark:text-slate-500 mb-1 px-1">
-                  {msg.senderName} • {msg.timestamp}
+                  {isMe ? 'Tú' : msg.senderName} • {msg.timestamp}
                 </span>
                 <div
                   className={`max-w-md p-3.5 rounded-2xl shadow-xs leading-relaxed ${
@@ -288,31 +324,73 @@ export const NegotiationChatModal: React.FC<NegotiationChatModalProps> = ({ offe
                       : 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-800 rounded-bl-xs'
                   }`}
                 >
-                  {msg.isOfferProposal && (
+                  {/* Tarjeta de propuesta si corresponde */}
+                  {(msg.isOfferProposal || msg.proposedPrice) && msg.proposedPrice && (
                     <div className={`mb-2 pb-2 border-b text-xs font-bold ${isMe ? 'border-white/20 text-emerald-100' : 'border-slate-200 dark:border-slate-800 text-emerald-800 dark:text-emerald-400'}`}>
-                      📋 {t('negotiation.economicProposal', 'Propuesta económica')}: ${msg.proposedPrice?.toLocaleString('es-CO')} c/u • {t('payment.totalToPay')}: ${((msg.proposedPrice || 0) * (msg.proposedQuantity || 1)).toLocaleString('es-CO')} COP
+                      📋 {t('negotiation.economicProposal', 'Propuesta económica')}: ${msg.proposedPrice.toLocaleString('es-CO')} c/u • {t('payment.totalToPay')}: ${(msg.proposedPrice * (msg.proposedQuantity || offer.requestedQuantity)).toLocaleString('es-CO')} COP
+                      {canActOnProposal && (
+                        <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-slate-200/50 dark:border-slate-700/50">
+                          <button
+                            type="button"
+                            onClick={() => respondToOffer(offer.id, 'aceptada')}
+                            className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[11px] font-bold cursor-pointer"
+                          >
+                            Aceptar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCounterPrice(msg.proposedPrice || 0);
+                              setCounterQty(msg.proposedQuantity || offer.requestedQuantity);
+                              setIsCounterOfferOpen(true);
+                            }}
+                            className="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-[11px] font-bold cursor-pointer"
+                          >
+                            Contraofertar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => respondToOffer(offer.id, 'rechazada')}
+                            className="px-2.5 py-1 bg-rose-600 hover:bg-rose-500 text-white rounded text-[11px] font-bold cursor-pointer"
+                          >
+                            Rechazar
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
-                  <p>{msg.text}</p>
+                  <p className="whitespace-pre-wrap">{msg.text}</p>
                 </div>
               </div>
             );
           })}
         </div>
 
-        {/* Chat Input */}
-        <form onSubmit={handleSendMessage} className="p-3 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center gap-2">
-          <input
-            type="text"
-            placeholder={t('negotiation.typeMessagePlaceholder', 'Escribe un mensaje de negociación...')}
+        {/* Chat Input con Enter y Shift+Enter */}
+        <form
+          onSubmit={handleSendMessage}
+          className="p-3 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-end gap-2"
+        >
+          <textarea
+            rows={1}
+            placeholder={t('negotiation.typeMessagePlaceholder', 'Escribe un mensaje de negociación (Enter para enviar, Shift+Enter para nueva línea)...')}
             value={messageText}
             onChange={(e) => setMessageText(e.target.value)}
-            className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-750 rounded-lg px-4 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-emerald-600 focus:bg-white dark:focus:bg-slate-800 transition-all"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                if (messageText.trim()) {
+                  sendMessageToOffer(offer.id, messageText.trim());
+                  setMessageText('');
+                }
+              }
+            }}
+            className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-emerald-600 focus:bg-white dark:focus:bg-slate-800 transition-all resize-none max-h-24"
           />
           <button
             type="submit"
             disabled={!messageText.trim()}
-            className={`p-2.5 rounded-lg shadow-xs transition-colors ${
+            className={`p-2.5 rounded-lg shadow-xs transition-colors shrink-0 ${
               messageText.trim()
                 ? 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer'
                 : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed'

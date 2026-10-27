@@ -17,7 +17,10 @@ import {
   Sparkles,
   ShoppingBag,
   Send,
+  MessageSquare,
+  Package,
 } from 'lucide-react';
+import { incrementProductViewsInFirestore } from '../../services/firestoreService';
 
 interface ProductDetailModalProps {
   productId: string | null;
@@ -25,11 +28,27 @@ interface ProductDetailModalProps {
 }
 
 export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ productId, onClose }) => {
-  const { products, toggleFavorite, isFavorite, currentRole, showToast } = useApp();
+  const {
+    products,
+    toggleFavorite,
+    isFavorite,
+    showToast,
+    startNegotiationWithSeller,
+    isAuthenticated,
+    userProfile,
+    setActiveTab,
+  } = useApp();
   const { t } = useI18n();
   const [isMakeOfferOpen, setIsMakeOfferOpen] = useState(false);
+  const [isStartingChat, setIsStartingChat] = useState(false);
 
   const product = products.find((p) => p.id === productId);
+
+  React.useEffect(() => {
+    if (productId) {
+      incrementProductViewsInFirestore(productId);
+    }
+  }, [productId]);
 
   if (!productId || !product) return null;
 
@@ -234,24 +253,81 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ productI
         </div>
 
         {/* Footer Actions */}
-        <div className="p-4 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3">
+        <div className="p-4 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-3">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-slate-600 dark:text-slate-300 font-semibold hover:bg-slate-200/60 dark:hover:bg-slate-700 rounded-lg transition-all text-xs sm:text-sm border border-slate-200 dark:border-slate-700 cursor-pointer"
+            className="px-4 py-2.5 text-slate-600 dark:text-slate-300 font-semibold hover:bg-slate-200/60 dark:hover:bg-slate-700 rounded-lg transition-all text-xs sm:text-sm border border-slate-200 dark:border-slate-700 cursor-pointer"
           >
             {t('negotiation.closeBtn')}
           </button>
 
-          <button
-            type="button"
-            id="btn-detail-make-offer"
-            onClick={() => setIsMakeOfferOpen(true)}
-            className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-xs transition-all text-xs sm:text-sm flex items-center gap-2 cursor-pointer"
-          >
-            <Send className="w-4 h-4" />
-            <span>{t('product.makeOfferBtn')}</span>
-          </button>
+          <div className="flex items-center gap-2">
+            {userProfile && product.sellerId === userProfile.id ? (
+              <button
+                type="button"
+                id="btn-detail-manage-my-publication"
+                onClick={() => {
+                  onClose();
+                  setActiveTab('my-publications');
+                }}
+                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-xs transition-all text-xs sm:text-sm flex items-center gap-2 cursor-pointer"
+              >
+                <Package className="w-4 h-4" />
+                <span>Gestionar mi publicación</span>
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  id="btn-detail-contact-seller"
+                  disabled={isStartingChat}
+                  onClick={async () => {
+                    if (!isAuthenticated) {
+                      showToast('Inicia sesión para contactar al vendedor', 'warning');
+                      setActiveTab('auth');
+                      onClose();
+                      return;
+                    }
+                    setIsStartingChat(true);
+                    try {
+                      const convId = await startNegotiationWithSeller(product);
+                      onClose();
+                      if (convId) {
+                        showToast('Conversación de negociación abierta', 'success');
+                      }
+                    } catch (err: any) {
+                      showToast(err?.message || 'Error al conectar con el vendedor', 'error');
+                    } finally {
+                      setIsStartingChat(false);
+                    }
+                  }}
+                  className="px-4 py-2.5 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-emerald-700 dark:text-emerald-400 font-bold rounded-lg border border-emerald-300 dark:border-emerald-700 shadow-xs transition-all text-xs sm:text-sm flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  <span>{isStartingChat ? 'Conectando...' : 'Contactar al vendedor'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  id="btn-detail-make-offer"
+                  onClick={() => {
+                    if (!isAuthenticated) {
+                      showToast('Inicia sesión para realizar una oferta', 'warning');
+                      setActiveTab('auth');
+                      onClose();
+                      return;
+                    }
+                    setIsMakeOfferOpen(true);
+                  }}
+                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-xs transition-all text-xs sm:text-sm flex items-center gap-2 cursor-pointer"
+                >
+                  <Send className="w-4 h-4" />
+                  <span>{t('product.makeOfferBtn')}</span>
+                </button>
+              </>
+            )}
+          </div>
         </div>
 
       </div>
