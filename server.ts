@@ -3,21 +3,6 @@ import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
-import {
-  COMUNA_8_NAME,
-  COMUNA_8_SHORT_NAME,
-  COMUNA_8_CODE,
-  CITY_NAME,
-  COMUNA_8_BARRIOS,
-  COMUNA_8_BARRIOS_DATA,
-  COMUNA_8_CENTER,
-  COMUNA_8_BOUNDS,
-  Comuna8Barrio,
-  isPointInsideComuna8,
-  isValidComuna8Barrio,
-  validateAddressTextForComuna8,
-  getBarrioCentroid,
-} from './src/data/comuna8GeographicData.js';
 
 const PORT = 3000;
 const DATA_DIR = path.resolve(process.cwd(), 'data');
@@ -319,76 +304,6 @@ async function startServer() {
       status,
       smtpConfigured: isSmtpConfigured,
       emailEntry: entry,
-    });
-  });
-
-  // Endpoints Geográficos: Comuna 8 — Villa Hermosa, Medellín
-  app.get('/api/geo/comuna8-barrios', (_req, res) => {
-    res.json({
-      comuna: COMUNA_8_NAME,
-      shortName: COMUNA_8_SHORT_NAME,
-      code: COMUNA_8_CODE,
-      city: CITY_NAME,
-      barrios: COMUNA_8_BARRIOS,
-      barriosData: COMUNA_8_BARRIOS_DATA,
-      center: COMUNA_8_CENTER,
-      bounds: COMUNA_8_BOUNDS,
-    });
-  });
-
-  app.post('/api/geo/validate-location', (req, res) => {
-    const { barrio, address, coordinates } = req.body as {
-      barrio?: string;
-      address?: string;
-      coordinates?: { lat: number; lng: number };
-    };
-
-    if (!barrio || typeof barrio !== 'string') {
-      res.status(400).json({
-        valid: false,
-        error: 'El campo "barrio" es obligatorio y debe pertenecer a la Comuna 8 — Villa Hermosa.',
-      });
-      return;
-    }
-
-    if (!isValidComuna8Barrio(barrio)) {
-      res.status(400).json({
-        valid: false,
-        error: `El barrio "${barrio}" no pertenece a los 18 barrios oficiales de la Comuna 8 — Villa Hermosa.`,
-        allowedBarrios: COMUNA_8_BARRIOS,
-      });
-      return;
-    }
-
-    if (address && typeof address === 'string') {
-      const textCheck = validateAddressTextForComuna8(address, barrio);
-      if (!textCheck.isValid) {
-        res.status(400).json({
-          valid: false,
-          error: textCheck.reason,
-        });
-        return;
-      }
-    }
-
-    if (coordinates && typeof coordinates.lat === 'number' && typeof coordinates.lng === 'number') {
-      const isInside = isPointInsideComuna8(coordinates.lat, coordinates.lng);
-      if (!isInside) {
-        res.status(400).json({
-          valid: false,
-          error: `Las coordenadas (${coordinates.lat.toFixed(5)}, ${coordinates.lng.toFixed(5)}) se encuentran fuera del polígono territorial de la Comuna 8 — Villa Hermosa.`,
-          comuna: COMUNA_8_NAME,
-        });
-        return;
-      }
-    }
-
-    res.json({
-      valid: true,
-      comuna: COMUNA_8_NAME,
-      barrio,
-      coordinates: coordinates || getBarrioCentroid(barrio as Comuna8Barrio),
-      message: 'Ubicación verificada exitosamente en la Comuna 8 — Villa Hermosa.',
     });
   });
 

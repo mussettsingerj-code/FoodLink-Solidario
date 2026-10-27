@@ -162,40 +162,6 @@
           "description": "Pickup street address.",
           "maxLength": 200
         },
-        "comuna": {
-          "type": "string",
-          "description": "Administrative Comuna in Medellín, strictly Comuna 8 — Villa Hermosa.",
-          "maxLength": 80
-        },
-        "barrio": {
-          "type": "string",
-          "description": "Official Barrio of Comuna 8.",
-          "enum": [
-            "Villa Hermosa",
-            "La Mansión",
-            "San Miguel",
-            "La Ladera",
-            "Batallón Girardot",
-            "Llanaditas",
-            "Los Mangos",
-            "Enciso",
-            "Sucre",
-            "El Pinal",
-            "Trece de Noviembre",
-            "La Libertad",
-            "Villatina",
-            "San Antonio",
-            "Las Estancias",
-            "Villa Turbay",
-            "La Sierra",
-            "Villa Liliam"
-          ]
-        },
-        "locationReference": {
-          "type": "string",
-          "description": "Establishment reference or neighborhood landmark.",
-          "maxLength": 250
-        },
         "requestedPrice": {
           "type": "number",
           "description": "Solidarity price per unit in COP."

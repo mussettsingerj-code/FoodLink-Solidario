@@ -27,14 +27,9 @@ import {
   ProductCondition,
 } from '../../types';
 import {
-  Comuna8LocationPicker,
-  Comuna8LocationValue,
-} from '../common/Comuna8LocationPicker';
-import {
-  COMUNA_8_NAME,
-  COMUNA_8_SHORT_NAME,
-  COMUNA_8_BARRIOS,
-} from '../../data/comuna8GeographicData';
+  GooglePlacesLocationPicker,
+  SelectedLocationData,
+} from '../common/GooglePlacesLocationPicker';
 import { uploadProductImage } from '../../utils/imageUpload';
 
 interface PublishProductViewProps {
@@ -103,8 +98,8 @@ export const PublishProductView: React.FC<PublishProductViewProps> = ({
   const [expirationDate, setExpirationDate] = useState<string>('');
   const [recommendedDate, setRecommendedDate] = useState<string>('');
 
-  // Ubicación: Exclusiva para la Comuna 8 — Villa Hermosa (18 barrios oficiales)
-  const [comuna8Location, setComuna8Location] = useState<Comuna8LocationValue | null>(null);
+  // Ubicación: Un solo campo integrado con Google Maps / Places
+  const [selectedLocation, setSelectedLocation] = useState<SelectedLocationData | null>(null);
 
   // Fotografías: Sistema de carga de archivos (con Firebase Storage y fallback a Data URL)
   const [uploadedPhotos, setUploadedPhotos] = useState<string[]>([]);
@@ -248,9 +243,9 @@ export const PublishProductView: React.FC<PublishProductViewProps> = ({
       }
     }
 
-    // Ubicación exclusiva para la Comuna 8 — Villa Hermosa
-    if (!comuna8Location || !comuna8Location.address.trim() || !comuna8Location.barrio) {
-      errors.location = 'Debes seleccionar un barrio oficial de la Comuna 8 e ingresar la dirección o sede de entrega.';
+    // 1. Ubicación (Requisito 1: Un solo campo integrado con Google Places)
+    if (!selectedLocation || !selectedLocation.address.trim()) {
+      errors.location = 'Debes buscar y seleccionar la ubicación de entrega o recogida.';
     }
 
     // Descripción
@@ -278,7 +273,7 @@ export const PublishProductView: React.FC<PublishProductViewProps> = ({
 
   // Publicación final en Firebase
   const handleFinalPublish = async () => {
-    if (!validateForm() || !comuna8Location) {
+    if (!validateForm() || !selectedLocation) {
       setStep('form');
       return;
     }
@@ -286,7 +281,7 @@ export const PublishProductView: React.FC<PublishProductViewProps> = ({
     setIsSubmitting(true);
 
     try {
-      // Guardar con valores numéricos limpios y campos territoriales en Firestore
+      // Guardar con valores numéricos limpios en Firestore
       await addProduct({
         name: name.trim(),
         category,
@@ -299,13 +294,10 @@ export const PublishProductView: React.FC<PublishProductViewProps> = ({
         condition,
         expirationDate,
         recommendedConsumptionDate: recommendedDate || undefined,
-        locationCity: 'Medellín',
-        locationAddress: comuna8Location.address,
-        comuna: COMUNA_8_NAME,
-        barrio: comuna8Location.barrio,
-        locationReference: comuna8Location.locationReference || '',
-        coordinates: comuna8Location.coordinates,
-        placeId: comuna8Location.placeId,
+        locationCity: selectedLocation.city || 'Medellín',
+        locationAddress: selectedLocation.address,
+        coordinates: selectedLocation.coordinates,
+        placeId: selectedLocation.placeId,
         requestedPrice: cleanRequestedPrice,
         originalPrice: cleanOriginalPrice > 0 ? cleanOriginalPrice : cleanRequestedPrice,
         minPurchaseQuantity: cleanMinPurchase > 0 ? cleanMinPurchase : 1,
@@ -363,15 +355,15 @@ export const PublishProductView: React.FC<PublishProductViewProps> = ({
               </span>
             </div>
             <div className="flex justify-between items-center py-1 border-b border-slate-200/60 dark:border-slate-700/60">
-              <span className="text-slate-500 dark:text-slate-400">Territorio y Barrio Oficial:</span>
-              <span className="font-bold text-emerald-800 dark:text-emerald-300">
-                {comuna8Location?.barrio || 'Villa Hermosa'} · {COMUNA_8_SHORT_NAME}
+              <span className="text-slate-500 dark:text-slate-400">Precio Solidario por {unit}:</span>
+              <span className="font-extrabold text-emerald-700 dark:text-emerald-400 text-sm">
+                {formatCOP(cleanRequestedPrice)} COP
               </span>
             </div>
             <div className="flex justify-between items-center py-1 border-b border-slate-200/60 dark:border-slate-700/60">
-              <span className="text-slate-500 dark:text-slate-400">Dirección Sede Comuna 8:</span>
+              <span className="text-slate-500 dark:text-slate-400">Ubicación Google Places:</span>
               <span className="font-medium text-slate-900 dark:text-white text-right max-w-[240px] truncate">
-                {comuna8Location?.address}
+                {selectedLocation?.address}
               </span>
             </div>
             <div className="flex justify-between items-center py-1">
@@ -418,7 +410,7 @@ export const PublishProductView: React.FC<PublishProductViewProps> = ({
                 setExpirationDate('');
                 setRecommendedDate('');
                 setDescription('');
-                setComuna8Location(null);
+                setSelectedLocation(null);
                 setUploadedPhotos([]);
                 setValidationErrors({});
                 setStep('form');
@@ -519,31 +511,23 @@ export const PublishProductView: React.FC<PublishProductViewProps> = ({
               )}
             </div>
 
-            {/* 3. Ubicación Comuna 8 — Villa Hermosa */}
+            {/* 3. Ubicación Google Places */}
             <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-700/80 sm:col-span-2">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">
                 <MapPin className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Ubicación en Comuna 8 (Medellín):</span>
+                <span>Ubicación de Recogida / Entrega (Google Places):</span>
               </div>
               <p className="text-sm font-bold text-slate-900 dark:text-white">
-                {comuna8Location?.address}
+                {selectedLocation?.address}
               </p>
-              {comuna8Location?.locationReference && (
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Ref: {comuna8Location.locationReference}
-                </p>
-              )}
-              <div className="flex flex-wrap items-center gap-2 mt-2 text-[11px]">
-                <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 font-bold">
-                  Barrio: {comuna8Location?.barrio}
+              <div className="flex flex-wrap items-center gap-2 mt-1.5 text-[11px]">
+                <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 font-bold">
+                  {selectedLocation?.city}
                 </span>
-                <span className="px-2.5 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold">
-                  {COMUNA_8_SHORT_NAME}
-                </span>
-                {comuna8Location?.coordinates && (
+                {selectedLocation?.coordinates && (
                   <span className="font-mono text-slate-500 dark:text-slate-400">
-                    GPS: {comuna8Location.coordinates.lat.toFixed(5)},{' '}
-                    {comuna8Location.coordinates.lng.toFixed(5)}
+                    GPS: {selectedLocation.coordinates.lat.toFixed(5)},{' '}
+                    {selectedLocation.coordinates.lng.toFixed(5)}
                   </span>
                 )}
               </div>
@@ -1078,12 +1062,13 @@ export const PublishProductView: React.FC<PublishProductViewProps> = ({
           </div>
         </div>
 
-        {/* SECCIÓN 5: UBICACIÓN TERRITORIAL COMUNA 8 — VILLA HERMOSA */}
+        {/* SECCIÓN 5: UBICACIÓN ÚNICA CON GOOGLE PLACES (Requisito 1) */}
+        {/* Un único campo integrado con Google Maps / Places: buscar, seleccionar, mostrar dirección, guardar ubicación y coordenadas */}
         <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-6 sm:p-7 shadow-xs space-y-4">
-          <Comuna8LocationPicker
-            value={comuna8Location}
+          <GooglePlacesLocationPicker
+            value={selectedLocation}
             onChange={(loc) => {
-              setComuna8Location(loc);
+              setSelectedLocation(loc);
               if (validationErrors.location) {
                 setValidationErrors((prev) => {
                   const next = { ...prev };
@@ -1094,6 +1079,7 @@ export const PublishProductView: React.FC<PublishProductViewProps> = ({
             }}
             error={validationErrors.location}
             required={true}
+            defaultCity={userProfile.city || 'Medellín'}
           />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
