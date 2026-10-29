@@ -55,6 +55,9 @@ service cloud.firestore {
           'nitOrId',
           'phone',
           'city',
+          'comuna',
+          'barrio',
+          'operationZones',
           'verified',
           'authProvider',
           'createdAt',
@@ -126,6 +129,9 @@ service cloud.firestore {
           'recommendedConsumptionDate',
           'locationCity',
           'locationAddress',
+          'comuna',
+          'barrio',
+          'locationReference',
           'coordinates',
           'placeId',
           'requestedPrice',
@@ -171,6 +177,9 @@ service cloud.firestore {
         data.locationCity.size() <= 80 &&
         data.locationAddress is string &&
         data.locationAddress.size() <= 200 &&
+        (!('comuna' in data) || (data.comuna is string && data.comuna.size() <= 80)) &&
+        (!('barrio' in data) || (data.barrio is string && data.barrio.size() <= 60)) &&
+        (!('locationReference' in data) || (data.locationReference is string && data.locationReference.size() <= 250)) &&
         data.requestedPrice is number &&
         data.requestedPrice >= 0 &&
         data.status is string &&

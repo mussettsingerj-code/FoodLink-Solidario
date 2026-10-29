@@ -97,7 +97,7 @@ export const AuthModal: React.FC = () => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   };
 
-  const handleEmailBlur = async () => {
+  const handleEmailBlur = () => {
     const trimmed = loginEmail.trim();
     if (!trimmed) {
       setEmailCheck(null);
@@ -107,13 +107,7 @@ export const AuthModal: React.FC = () => {
       setEmailCheck({ exists: false, message: 'Formato de correo inválido.' });
       return;
     }
-    setIsCheckingEmail(true);
-    try {
-      const res = await checkEmailExists(trimmed);
-      setEmailCheck(res);
-    } finally {
-      setIsCheckingEmail(false);
-    }
+    setEmailCheck(null);
   };
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
@@ -143,6 +137,7 @@ export const AuthModal: React.FC = () => {
         }
       } else {
         setSuccessMsg('¡Inicio de sesión exitoso! Ingresando a la plataforma...');
+        setTimeout(() => setIsAuthModalOpen(false), 700);
       }
     } finally {
       setIsSubmitting(false);
@@ -198,7 +193,8 @@ export const AuthModal: React.FC = () => {
         setErrorMsg(res.message);
         setErrorCode(res.code || null);
       } else {
-        setSuccessMsg(res.message);
+        setSuccessMsg('¡Cuenta creada exitosamente! Bienvenido a FoodLink Solidario.');
+        setTimeout(() => setIsAuthModalOpen(false), 800);
       }
     } finally {
       setIsSubmitting(false);
@@ -238,7 +234,8 @@ export const AuthModal: React.FC = () => {
       if (!res.success) {
         setErrorMsg(res.message);
       } else {
-        setSuccessMsg(res.message);
+        setSuccessMsg('¡Autenticación con Google exitosa!');
+        setTimeout(() => setIsAuthModalOpen(false), 800);
       }
     } finally {
       setSocialLoading(false);
@@ -507,18 +504,10 @@ export const AuthModal: React.FC = () => {
                         <Loader2 className="w-4 h-4 text-emerald-600 animate-spin absolute right-3 top-1/2 -translate-y-1/2" />
                       )}
                     </div>
-                    {emailCheck && !emailCheck.exists && validateEmailFormat(loginEmail) && (
-                      <div className="mt-1.5 flex items-center justify-between text-[11px] text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-1.5 rounded-lg border border-amber-200/70">
-                        <span>
-                          Esta cuenta no está registrada. Debes registrarte primero o crear una cuenta.
-                        </span>
-                        <button
-                          type="button"
-                          onClick={switchToRegisterWithPrefill}
-                          className="font-bold text-emerald-700 dark:text-emerald-400 hover:underline cursor-pointer shrink-0 ml-2"
-                        >
-                          Crear cuenta →
-                        </button>
+                    {emailCheck && !emailCheck.exists && emailCheck.message && (
+                      <div className="mt-1.5 flex items-center gap-2 text-[11px] text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-1.5 rounded-lg border border-amber-200/70">
+                        <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                        <span>{emailCheck.message}</span>
                       </div>
                     )}
                   </div>

@@ -109,7 +109,7 @@ export const LoginView: React.FC = () => {
     setThemeMode(next);
   };
 
-  const handleEmailBlur = async () => {
+  const handleEmailBlur = () => {
     const trimmed = loginEmail.trim();
     if (!trimmed) {
       setEmailCheck(null);
@@ -124,14 +124,7 @@ export const LoginView: React.FC = () => {
       });
       return;
     }
-
-    setIsCheckingEmail(true);
-    try {
-      const result = await checkEmailExists(trimmed);
-      setEmailCheck(result);
-    } finally {
-      setIsCheckingEmail(false);
-    }
+    setEmailCheck(null);
   };
 
   // State 1: CARGA & State 2: ÉXITO & State 3: ERROR & State 4: USUARIO INEXISTENTE & State 5: CORREO NO VERIFICADO
@@ -815,19 +808,11 @@ export const LoginView: React.FC = () => {
                         )}
                       </div>
 
-                      {/* Real-time email presence helper */}
-                      {emailCheck && !emailCheck.exists && validateEmailFormat(loginEmail) && !isUserNotFoundState && (
-                        <div className="mt-2.5 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/70 flex items-center justify-between gap-2 animate-fade-in">
-                          <span className="text-[11px] text-amber-900 dark:text-amber-200 font-medium">
-                            {t('auth.notRegisteredNotice')}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={switchToRegisterWithPrefill}
-                            className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 hover:underline shrink-0 cursor-pointer"
-                          >
-                            {isEn ? 'Register →' : 'Registrarse →'}
-                          </button>
+                      {/* Real-time email format helper */}
+                      {emailCheck && !emailCheck.exists && emailCheck.message && (
+                        <div className="mt-2.5 p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/70 flex items-center gap-2 animate-fade-in text-[11px] text-amber-900 dark:text-amber-200 font-medium">
+                          <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                          <span>{emailCheck.message}</span>
                         </div>
                       )}
                     </div>

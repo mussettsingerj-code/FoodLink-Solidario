@@ -47,6 +47,7 @@ import {
   sendEmailVerification,
   GoogleAuthProvider,
   signInWithPopup,
+  getRedirectResult,
   onAuthStateChanged,
   updateProfile as updateFirebaseProfile,
   fetchSignInMethodsForEmail,
@@ -508,9 +509,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         try {
           snapshot = await getDoc(userDocRef);
         } catch (error) {
-          if (!isOfflineFirestoreError(error)) {
-            handleFirestoreError(error, OperationType.GET, `users/${uid}`);
-          }
+          console.warn('Notice retrieving user profile from Firestore:', error);
         }
 
         const isGoogleProvider = firebaseUser.providerData.some(p => p.providerId === 'google.com');
@@ -530,7 +529,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             organizationName: String(data.organizationName || data.name || 'Usuario Independiente'),
             nitOrId: String(data.nitOrId || 'Pendiente'),
             phone: String(data.phone || 'Pendiente'),
-            city: String(data.city || 'Bogotá D.C.'),
+            city: String(data.city || 'Medellín'),
             verified: Boolean(firebaseUser.emailVerified || isGoogleProvider || data.verified),
             twoFactorEnabled: Boolean(data.twoFactorEnabled),
             preferredLanguage: (data.preferredLanguage as SupportedLanguage) || 'es',
@@ -583,7 +582,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const cleanPhone = (registrationDetails?.phone || firebaseUser.phoneNumber || 'Pendiente')
           .trim()
           .slice(0, 40);
-        const cleanCity = (registrationDetails?.city || 'Bogotá D.C.').trim().slice(0, 80);
+        const cleanCity = (registrationDetails?.city || 'Medellín').trim().slice(0, 80);
 
         const newFirestoreDoc = {
           uid,
@@ -604,9 +603,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         try {
           await setDoc(userDocRef, newFirestoreDoc);
         } catch (error) {
-          if (!isOfflineFirestoreError(error)) {
-            handleFirestoreError(error, OperationType.CREATE, `users/${uid}`);
-          }
+          console.warn('Notice saving user document to Firestore:', error);
         }
 
         const createdProfile: UserProfile = {
@@ -645,8 +642,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     [syncUserWithBackend]
   );
 
-  // Listen to Firebase Auth state changes
+  // Listen to Firebase Auth state changes & restore session reliably
   useEffect(() => {
+    // Process redirect result if any exists
+    getRedirectResult(auth)
+      .then(async (result) => {
+        if (result && result.user) {
+          const profile = await ensureUserProfileInFirestore(result.user);
+          setUserProfile(profile);
+          setCurrentRoleState(profile.role);
+          setIsAuthenticated(true);
+          setShowLanding(false);
+          localStorage.setItem('foodlink_is_auth_v3', 'true');
+        }
+      })
+      .catch((err: unknown) => {
+        console.warn('Notice from getRedirectResult:', err);
+      });
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (!firebaseUser) {
         setIsAuthenticated(false);
@@ -657,29 +670,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return;
       }
 
-      const isGoogleUser = firebaseUser.providerData.some(p => p.providerId === 'google.com');
-      const isPasswordUser = firebaseUser.providerData.some(p => p.providerId === 'password');
-
-      // Requirement 5: Email/password users must have emailVerified === true before accessing platform
-      if (isPasswordUser && !isGoogleUser && !firebaseUser.emailVerified) {
-        setEmailVerificationPending(true);
-        setPendingVerificationEmail(firebaseUser.email || '');
-        setIsAuthenticated(false);
-        localStorage.removeItem('foodlink_is_auth_v3');
-        setIsAuthReady(true);
-        return;
-      }
-
       try {
         const profile = await ensureUserProfileInFirestore(firebaseUser);
         setUserProfile(profile);
         setCurrentRoleState(profile.role);
-        setEmailVerificationPending(false);
-        setPendingVerificationEmail('');
         setIsAuthenticated(true);
         localStorage.setItem('foodlink_is_auth_v3', 'true');
       } catch (err) {
-        console.error('Error loading user profile from Firestore:', err);
+        console.error('Error loading user profile on auth state change:', err);
       } finally {
         setIsAuthReady(true);
       }
@@ -1094,7 +1092,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   /**
-   * Requirement 4 & 5: Real Firebase Email/Password Login + Email Verification Check
+   * Inicio de sesión real con Firebase Email/Password
    */
   const login = async (
     email: string,
@@ -1111,21 +1109,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     try {
       const cred = await signInWithEmailAndPassword(auth, normalized, password);
-      await cred.user.reload();
-
-      // Requirement 5: Verify emailVerified before allowing dashboard access
-      if (!cred.user.emailVerified) {
-        setEmailVerificationPending(true);
-        setPendingVerificationEmail(cred.user.email || normalized);
-        setIsAuthenticated(false);
-        localStorage.removeItem('foodlink_is_auth_v3');
-        return {
-          success: false,
-          code: 'email-not-verified',
-          requiresEmailVerification: true,
-          message: 'Tu correo electrónico aún no está verificado. Verifica tu correo antes de continuar.',
-        };
-      }
 
       const profile = await ensureUserProfileInFirestore(cred.user);
       setUserProfile(profile);
@@ -1149,42 +1132,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           ? String((firebaseErr as { code: unknown }).code)
           : '';
 
-      if (fbCode === 'auth/user-not-found') {
-        return {
-          success: false,
-          code: 'user-not-found',
-          message: 'Esta cuenta no está registrada. Debes registrarte primero o crear una cuenta.',
-        };
-      }
-
-      if (fbCode === 'auth/invalid-credential' || fbCode === 'auth/wrong-password') {
-        // Check if the email exists to distinguish unregistered accounts from wrong password
-        const check = await checkEmailExists(normalized);
-        if (!check.exists) {
-          return {
-            success: false,
-            code: 'user-not-found',
-            message: 'Esta cuenta no está registrada. Debes registrarte primero o crear una cuenta.',
-          };
-        }
-        return {
-          success: false,
-          code: 'wrong-password',
-          message: 'La contraseña ingresada es incorrecta. Inténtalo de nuevo o solicita recuperación.',
-        };
-      }
-
+      const friendlyMsg = getFirebaseAuthErrorMessage(fbCode);
       return {
         success: false,
         code: fbCode || 'auth-error',
-        message: getFirebaseAuthErrorMessage(fbCode),
+        message: friendlyMsg,
       };
     }
   };
 
   /**
-   * Requirement 2 & 5: Real Firebase Registration with Role Selection ('buyer' | 'seller')
-   * and Email Verification dispatch.
+   * Registro real de nuevos usuarios en Firebase Authentication y creación de perfil en Firestore
    */
   const registerUser = async (data: RegisterPayload): Promise<AuthActionResponse> => {
     const normalized = data.email.trim().toLowerCase();
@@ -1192,6 +1150,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (!data.name.trim()) {
       return { success: false, message: 'El nombre completo o razón social es obligatorio.' };
+    }
+
+    if (!normalized || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
+      return { success: false, message: 'Ingresa un correo electrónico con formato válido.' };
     }
 
     const strength = evaluatePasswordStrength(data.password);
@@ -1203,34 +1165,42 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     try {
+      // 1. Crear credenciales en Firebase Authentication
       const cred = await createUserWithEmailAndPassword(auth, normalized, data.password);
-      await updateFirebaseProfile(cred.user, { displayName: data.name.trim() });
 
-      // Save user profile and selected role in Firestore `users/{uid}`
-      await ensureUserProfileInFirestore(cred.user, selectedRole, {
+      try {
+        await updateFirebaseProfile(cred.user, { displayName: data.name.trim() });
+      } catch (profileErr) {
+        console.warn('Notice setting displayName:', profileErr);
+      }
+
+      // 2. Crear documento de perfil en Firestore `users/{uid}`
+      const profile = await ensureUserProfileInFirestore(cred.user, selectedRole, {
         ...data,
         email: normalized,
         role: selectedRole,
       });
 
-      // Send real Firebase verification email
+      // 3. Enviar correo de verificación en segundo plano
       try {
         await sendEmailVerification(cred.user);
       } catch (verifyErr) {
-        console.warn('Error al enviar correo de verificación inicial:', verifyErr);
+        console.warn('Notice sending initial verification email:', verifyErr);
       }
 
-      // Require email verification before entering dashboard
-      setEmailVerificationPending(true);
-      setPendingVerificationEmail(normalized);
-      setIsAuthenticated(false);
-      localStorage.removeItem('foodlink_is_auth_v3');
+      // 4. Autenticar inmediatamente y dirigir a la aplicación
+      setUserProfile(profile);
+      setCurrentRoleState(profile.role);
+      setEmailVerificationPending(false);
+      setPendingVerificationEmail('');
+      setIsAuthenticated(true);
+      setShowLanding(false);
+      setIsAuthModalOpen(false);
+      localStorage.setItem('foodlink_is_auth_v3', 'true');
 
       return {
         success: true,
-        code: 'email-verification-sent',
-        requiresEmailVerification: true,
-        message: 'Tu correo electrónico aún no está verificado. Verifica tu correo antes de continuar.',
+        message: `¡Cuenta creada exitosamente! Bienvenido a FoodLink Solidario, ${profile.name}.`,
       };
     } catch (firebaseErr: unknown) {
       const fbCode =
@@ -1247,14 +1217,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   /**
-   * Requirement 5: Resend verification email ("Reenviar correo de verificación")
+   * Reenvío del correo de verificación para el usuario autenticado
    */
   const resendVerificationEmail = async (): Promise<AuthActionResponse> => {
     const currentUser = auth.currentUser;
     if (!currentUser) {
       return {
         success: false,
-        message: 'Inicia sesión nuevamente con tu correo y contraseña para reenviar el enlace de verificación.',
+        message: 'Debes haber iniciado sesión para solicitar el reenvío del correo de verificación.',
       };
     }
 
@@ -1264,21 +1234,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const profile = await ensureUserProfileInFirestore(currentUser);
         setUserProfile(profile);
         setCurrentRoleState(profile.role);
-        setEmailVerificationPending(false);
-        setPendingVerificationEmail('');
-        setIsAuthenticated(true);
-        setShowLanding(false);
-        setIsAuthModalOpen(false);
         return {
           success: true,
-          message: 'Tu correo electrónico ya está verificado. Accediendo a la plataforma...',
+          message: 'Tu correo electrónico ya ha sido verificado.',
         };
       }
 
       await sendEmailVerification(currentUser);
       return {
         success: true,
-        message: `Se ha reenviado el correo de verificación a ${currentUser.email}. Revisa tu bandeja de entrada y carpeta de spam.`,
+        message: `Se ha enviado el enlace de verificación a ${currentUser.email}. Revisa tu bandeja de entrada o spam.`,
       };
     } catch (err: unknown) {
       const fbCode =
@@ -1286,25 +1251,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (fbCode === 'auth/too-many-requests') {
         return {
           success: false,
-          message: 'Ya se envió un correo recientemente. Por favor espera unos segundos antes de volver a intentarlo.',
+          message: 'Ya se envió un correo recientemente. Por favor espera unos momentos antes de reintentar.',
         };
       }
       return {
         success: false,
-        message: 'No se pudo reenviar el correo de verificación en este momento. Inténtalo nuevamente.',
+        message: getFirebaseAuthErrorMessage(fbCode),
       };
     }
   };
 
   /**
-   * Checks if the current user has clicked the verification link in their email
+   * Comprueba si el usuario ha completado la verificación de su correo
    */
   const checkEmailVerificationStatus = async (): Promise<{ verified: boolean; message: string }> => {
     const currentUser = auth.currentUser;
     if (!currentUser) {
       return {
         verified: false,
-        message: 'Tu correo electrónico aún no está verificado. Verifica tu correo antes de continuar.',
+        message: 'No hay una sesión activa para verificar.',
       };
     }
 
@@ -1324,25 +1289,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
         setUserProfile({ ...profile, verified: true });
         setCurrentRoleState(profile.role);
-        setEmailVerificationPending(false);
-        setPendingVerificationEmail('');
-        setIsAuthenticated(true);
-        setShowLanding(false);
-        setIsAuthModalOpen(false);
-        localStorage.setItem('foodlink_is_auth_v3', 'true');
         return {
           verified: true,
-          message: '¡Correo electrónico verificado correctamente! Bienvenido a FoodLink Solidario.',
+          message: '¡Correo verificado correctamente!',
         };
       }
       return {
         verified: false,
-        message: 'Tu correo electrónico aún no está verificado. Verifica tu correo antes de continuar.',
+        message: 'Tu correo aún no figura como verificado. Abre el enlace recibido en tu correo y reintenta.',
       };
     } catch {
       return {
         verified: false,
-        message: 'No se pudo comprobar el estado de verificación. Intenta nuevamente.',
+        message: 'No se pudo consultar el estado de verificación. Intenta nuevamente.',
       };
     }
   };
@@ -1350,24 +1309,46 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const clearEmailVerificationPending = async () => {
     setEmailVerificationPending(false);
     setPendingVerificationEmail('');
-    try {
-      await signOut(auth);
-    } catch {
-      // Ignore
-    }
   };
 
+  const socialAuthLockRef = useRef<boolean>(false);
+
   /**
-   * Requirement 6: Real Google Sign-In + Firebase Authentication + Firestore Profile Creation
+   * Autenticación real con Google y sincronización en Firestore
    */
   const loginWithSocial = async (
     _provider: 'google',
     preferredRole?: UserRole
   ): Promise<AuthActionResponse> => {
+    if (socialAuthLockRef.current) {
+      return {
+        success: false,
+        code: 'auth/cancelled-popup-request',
+        message: 'Ya hay un proceso de autenticación con Google en curso.',
+      };
+    }
+
+    socialAuthLockRef.current = true;
+
     try {
       const googleProvider = new GoogleAuthProvider();
       googleProvider.setCustomParameters({ prompt: 'select_account' });
-      const result = await signInWithPopup(auth, googleProvider);
+
+      let result;
+      try {
+        result = await signInWithPopup(auth, googleProvider);
+      } catch (popupErr: unknown) {
+        const fbCode =
+          popupErr && typeof popupErr === 'object' && 'code' in popupErr
+            ? String((popupErr as { code: unknown }).code)
+            : '';
+
+        return {
+          success: false,
+          code: fbCode || 'google-auth-error',
+          message: getFirebaseAuthErrorMessage(fbCode),
+        };
+      }
 
       const validRole: UserRole = preferredRole === 'seller' ? 'seller' : 'buyer';
       const profile = await ensureUserProfileInFirestore(result.user, validRole);
@@ -1383,7 +1364,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       return {
         success: true,
-        message: `Autenticado con Google como ${profile.name}`,
+        message: `Autenticado correctamente con Google como ${profile.name}`,
       };
     } catch (firebaseErr: unknown) {
       const fbCode =
@@ -1396,6 +1377,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         code: fbCode || 'google-auth-error',
         message: getFirebaseAuthErrorMessage(fbCode),
       };
+    } finally {
+      socialAuthLockRef.current = false;
     }
   };
 

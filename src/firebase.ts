@@ -142,37 +142,55 @@ export function isFirebaseApiKeyError(err: unknown): boolean {
 }
 
 /**
- * Traduce los códigos de error comunes de Firebase Authentication a mensajes claros en español.
+ * Traduce los códigos de error comunes de Firebase Authentication a mensajes claros y accionables en español.
  */
 export function getFirebaseAuthErrorMessage(errorCode: string): string {
+  const currentHost = typeof window !== 'undefined' ? window.location.hostname : 'este dominio';
+
   switch (errorCode) {
     case 'auth/api-key-not-valid.-please-pass-a-valid-api-key.':
     case 'auth/invalid-api-key':
     case 'auth/api-key-not-valid':
       return 'La API Key de Firebase no es válida o no está configurada.';
     case 'auth/user-not-found':
-      return 'Esta cuenta no está registrada. Debes registrarte primero o crear una cuenta.';
+      return 'No existe una cuenta registrada con este correo electrónico. Verifica tus datos o crea una cuenta.';
     case 'auth/wrong-password':
-      return 'La contraseña ingresada es incorrecta. Inténtalo de nuevo o solicita recuperación.';
     case 'auth/invalid-credential':
-      return 'Credenciales inválidas. Verifica tu correo y contraseña.';
+    case 'auth/invalid-login-credentials':
+      return 'Correo electrónico o contraseña incorrectos. Verifica tus credenciales o solicita recuperación de contraseña.';
     case 'auth/email-already-in-use':
-      return 'Este correo electrónico ya se encuentra registrado. Inicia sesión o recupera tu contraseña.';
+      return 'Este correo electrónico ya se encuentra registrado. Inicia sesión con tu contraseña o con Google.';
     case 'auth/weak-password':
-      return 'La contraseña es muy débil. Debe tener al menos 8 caracteres.';
+      return 'La contraseña es muy débil. Debe tener al menos 8 caracteres e incluir al menos un número.';
     case 'auth/invalid-email':
-      return 'El formato del correo electrónico no es válido.';
+      return 'El formato del correo electrónico no es válido (ejemplo: usuario@empresa.co).';
     case 'auth/user-disabled':
       return 'Esta cuenta de usuario ha sido inhabilitada por administración.';
     case 'auth/too-many-requests':
-      return 'Demasiados intentos fallidos consecutivos. Por seguridad, inténtalo más tarde.';
+      return 'Demasiados intentos fallidos consecutivos. Por seguridad, espera unos minutos antes de volver a intentarlo.';
     case 'auth/network-request-failed':
-      return 'Error de red. Verifica tu conexión a internet e inténtalo nuevamente.';
+      return 'Error de red o conexión. Verifica tu conexión a internet e inténtalo nuevamente.';
     case 'auth/popup-closed-by-user':
-      return 'El flujo de autenticación fue cancelado al cerrar la ventana emergente.';
+      return 'El flujo de inicio de sesión fue cancelado al cerrar la ventana emergente.';
+    case 'auth/popup-blocked':
+      return 'El navegador bloqueó la ventana emergente de Google. Por favor permite las ventanas emergentes (pop-ups) en este sitio para continuar.';
+    case 'auth/cancelled-popup-request':
+      return 'Ya hay una solicitud de autenticación en curso. Por favor espera a que termine.';
+    case 'auth/unauthorized-domain':
+      return `El dominio "${currentHost}" no está autorizado en Firebase. Para habilitarlo, ve a Firebase Console > Authentication > Settings > Dominios autorizados y agrega "${currentHost}".`;
     case 'auth/operation-not-allowed':
-      return 'El proveedor de inicio de sesión no está habilitado en la consola de Firebase.';
+      return 'El método de inicio de sesión no está habilitado en Firebase. Habilítalo en Firebase Console > Authentication > Sign-in method.';
+    case 'auth/account-exists-with-different-credential':
+      return 'Ya existe una cuenta registrada con este correo electrónico mediante contraseña. Inicia sesión con tu correo y contraseña.';
+    case 'auth/credential-already-in-use':
+      return 'Esta credencial ya está vinculada a otra cuenta existente.';
+    case 'auth/requires-recent-login':
+      return 'Por seguridad, debes cerrar sesión e iniciar sesión nuevamente para realizar esta acción.';
+    case 'auth/invalid-action-code':
+      return 'El enlace de recuperación o verificación es inválido o ya fue utilizado.';
+    case 'auth/expired-action-code':
+      return 'El enlace ha caducado. Por favor solicita uno nuevo.';
     default:
-      return 'Ocurrió un error en la autenticación. Por favor intenta de nuevo.';
+      return 'Ocurrió un error en la autenticación. Por favor verifica tus datos e intenta de nuevo.';
   }
 }
