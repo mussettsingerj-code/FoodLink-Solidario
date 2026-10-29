@@ -17,7 +17,17 @@ import {
   Sparkles,
   X,
   SlidersHorizontal,
+  Map as MapIcon,
+  LayoutGrid,
+  ShieldCheck,
 } from 'lucide-react';
+import {
+  COMUNA_8_BARRIOS,
+  COMUNA_8_SHORT_NAME,
+  COMUNA_8_NAME,
+  Comuna8Barrio,
+} from '../../data/comuna8GeographicData';
+import { Comuna8CatalogMap } from './Comuna8CatalogMap';
 
 export const FoodCatalog: React.FC = () => {
   const {
@@ -41,16 +51,17 @@ export const FoodCatalog: React.FC = () => {
 
   // Loading skeleton state
   const [isLoading, setIsLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<'grid' | 'map'>('grid');
 
   useEffect(() => {
     const timer = setTimeout(() => setIsLoading(false), 180);
     return () => clearTimeout(timer);
   }, []);
 
-  // Search & Filter states
+  // Search & Filter states - Comuna 8 Exclusive
   const [searchTerm, setSearchTerm] = useState(globalSearchQuery || '');
   const [selectedCategory, setSelectedCategory] = useState<string>('todas');
-  const [selectedCity, setSelectedCity] = useState<string>('todas');
+  const [selectedBarrio, setSelectedBarrio] = useState<string>('todos');
   const [selectedCondition, setSelectedCondition] = useState<string>('todas');
   const [sortBy, setSortBy] = useState<'urgency' | 'price_asc' | 'price_desc' | 'qty_desc' | 'recent'>('urgency');
   const [urgencyFilter, setUrgencyFilter] = useState<'todas' | 'urgente' | 'moderada'>('todas');
@@ -75,11 +86,10 @@ export const FoodCatalog: React.FC = () => {
     setProductForOffer(p);
   };
 
-  // Available cities in data
-  const cities = useMemo(() => {
-    const set = new Set(products.map((p) => p.locationCity).filter(Boolean));
-    return ['todas', ...Array.from(set)];
-  }, [products]);
+  // Available barrios in Comuna 8
+  const availableBarrios = useMemo(() => {
+    return ['todos', ...COMUNA_8_BARRIOS];
+  }, []);
 
   // Filtered and sorted products
   const filteredProducts = useMemo(() => {
@@ -104,7 +114,8 @@ export const FoodCatalog: React.FC = () => {
             p.category.toLowerCase().includes(term) ||
             (p.brand && p.brand.toLowerCase().includes(term)) ||
             (p.sellerName && p.sellerName.toLowerCase().includes(term)) ||
-            (p.locationCity && p.locationCity.toLowerCase().includes(term)) ||
+            (p.barrio && p.barrio.toLowerCase().includes(term)) ||
+            (p.locationAddress && p.locationAddress.toLowerCase().includes(term)) ||
             (p.condition && p.condition.toLowerCase().includes(term));
           if (!match) return false;
         }
@@ -113,7 +124,8 @@ export const FoodCatalog: React.FC = () => {
           return false;
         }
 
-        if (selectedCity !== 'todas' && p.locationCity !== selectedCity) {
+        // Filtro territorial exclusivo por barrio oficial de la Comuna 8
+        if (selectedBarrio !== 'todos' && p.barrio !== selectedBarrio) {
           return false;
         }
 
@@ -144,13 +156,13 @@ export const FoodCatalog: React.FC = () => {
         }
         return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
       });
-  }, [products, searchTerm, selectedCategory, selectedCity, selectedCondition, urgencyFilter, sortBy]);
+  }, [products, searchTerm, selectedCategory, selectedBarrio, selectedCondition, urgencyFilter, sortBy]);
 
   const resetFilters = () => {
     setSearchTerm('');
     setGlobalSearchQuery('');
     setSelectedCategory('todas');
-    setSelectedCity('todas');
+    setSelectedBarrio('todos');
     setSelectedCondition('todas');
     setUrgencyFilter('todas');
     setSortBy('urgency');
@@ -159,38 +171,74 @@ export const FoodCatalog: React.FC = () => {
   const hasActiveFilters =
     Boolean(searchTerm.trim()) ||
     selectedCategory !== 'todas' ||
-    selectedCity !== 'todas' ||
+    selectedBarrio !== 'todos' ||
     selectedCondition !== 'todas' ||
     urgencyFilter !== 'todas';
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      {/* Encabezado del Catálogo */}
+      {/* Encabezado del Catálogo con Identificación Territorial Oficial */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div className="space-y-1">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-300 text-xs font-bold shadow-2xs">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>{t('catalog.verifiedSurplus', 'Excedentes Verificados')}</span>
+        <div className="space-y-1.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/70 border border-emerald-300 dark:border-emerald-700/80 text-emerald-900 dark:text-emerald-300 text-xs font-black shadow-2xs">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
+              <span>FoodLink Solidario · {COMUNA_8_SHORT_NAME}</span>
+            </div>
+            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+              18 Barrios Oficiales · Medellín
+            </span>
           </div>
+
           <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight font-display">
             {t('catalog.title')}
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-2xl">
-            {t('catalog.subtitle')}
+            Lotes de excedentes alimentarios verificados y comercialización solidaria exclusiva dentro de la Comuna 8 — Villa Hermosa.
           </p>
         </div>
 
-        {isSeller && (
-          <button
-            type="button"
-            id="catalog-btn-publish"
-            onClick={() => setCurrentView('publish')}
-            className="btn-interaction px-5 py-3 bg-emerald-500 hover:bg-emerald-400 text-emerald-950 text-xs sm:text-sm font-black rounded-2xl shadow-md shadow-emerald-950/20 inline-flex items-center gap-2 whitespace-nowrap self-start sm:self-auto cursor-pointer"
-          >
-            <Plus className="w-4 h-4 stroke-[2.8]" />
-            <span>{t('catalog.publishProduct')}</span>
-          </button>
-        )}
+        <div className="flex items-center gap-2.5 self-start sm:self-auto">
+          {/* Alternador de Vista: Cuadrícula / Mapa */}
+          <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xs">
+            <button
+              type="button"
+              onClick={() => setViewMode('grid')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                viewMode === 'grid'
+                  ? 'bg-white dark:bg-slate-900 text-emerald-800 dark:text-emerald-400 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+              <span>Cuadrícula</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('map')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                viewMode === 'map'
+                  ? 'bg-white dark:bg-slate-900 text-emerald-800 dark:text-emerald-400 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <MapIcon className="w-3.5 h-3.5" />
+              <span>Mapa Comuna 8</span>
+            </button>
+          </div>
+
+          {isSeller && (
+            <button
+              type="button"
+              id="catalog-btn-publish"
+              onClick={() => setCurrentView('publish')}
+              className="btn-interaction px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-emerald-950 text-xs sm:text-sm font-black rounded-2xl shadow-md shadow-emerald-950/20 inline-flex items-center gap-2 whitespace-nowrap cursor-pointer"
+            >
+              <Plus className="w-4 h-4 stroke-[2.8]" />
+              <span>{t('catalog.publishProduct')}</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Barra de Búsqueda y Filtros */}
@@ -202,7 +250,7 @@ export const FoodCatalog: React.FC = () => {
             <input
               type="text"
               id="catalog-search-input"
-              placeholder={t('catalog.searchPlaceholder')}
+              placeholder="Buscar por alimento, marca, barrio (ej: Enciso)..."
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
@@ -225,25 +273,28 @@ export const FoodCatalog: React.FC = () => {
             )}
           </div>
 
-          {/* Filtro Ubicación */}
-          <div className="md:col-span-2 flex items-center gap-2 bg-slate-50 dark:bg-slate-800/80 px-3.5 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs">
+          {/* Filtro Barrio Oficial de la Comuna 8 */}
+          <div className="md:col-span-3 flex items-center gap-2 bg-slate-50 dark:bg-slate-800/80 px-3.5 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs">
             <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
             <select
-              value={selectedCity}
-              onChange={(e) => setSelectedCity(e.target.value)}
-              aria-label="Filtrar por ciudad"
+              value={selectedBarrio}
+              onChange={(e) => setSelectedBarrio(e.target.value)}
+              aria-label="Filtrar por barrio de la Comuna 8"
               className="w-full bg-transparent font-semibold text-slate-800 dark:text-slate-200 focus:outline-hidden cursor-pointer truncate"
             >
-              {cities.map((c) => (
-                <option key={c} value={c} className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">
-                  {c === 'todas' ? t('catalog.allCities') : c}
+              <option value="todos" className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">
+                Toda la Comuna 8 (18 barrios)
+              </option>
+              {COMUNA_8_BARRIOS.map((b) => (
+                <option key={b} value={b} className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">
+                  Barrio {b}
                 </option>
               ))}
             </select>
           </div>
 
           {/* Filtro Estado del Producto */}
-          <div className="md:col-span-3 flex items-center gap-2 bg-slate-50 dark:bg-slate-800/80 px-3.5 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs">
+          <div className="md:col-span-2 flex items-center gap-2 bg-slate-50 dark:bg-slate-800/80 px-3.5 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs">
             <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             <select
               value={selectedCondition}
@@ -377,8 +428,32 @@ export const FoodCatalog: React.FC = () => {
         </span>
       </div>
 
-      {/* Grilla de Productos */}
-      {isLoading ? (
+      {/* Vista de Mapa o Cuadrícula de Productos */}
+      {viewMode === 'map' ? (
+        <div className="space-y-4 animate-in fade-in duration-200">
+          <Comuna8CatalogMap
+            products={filteredProducts}
+            selectedBarrio={selectedBarrio}
+            onSelectProduct={(p) => setSelectedProductIdForDetail(p.id)}
+            className="h-[580px] w-full"
+          />
+
+          {filteredProducts.length === 0 && (
+            <div className="p-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 text-center">
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                No hay publicaciones registradas en este barrio con los filtros actuales.
+              </p>
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="mt-3 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
+              >
+                Ver toda la Comuna 8
+              </button>
+            </div>
+          )}
+        </div>
+      ) : isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
           {Array.from({ length: 8 }).map((_, i) => (
             <ProductCardSkeleton key={`skeleton-${i}`} />
@@ -396,7 +471,7 @@ export const FoodCatalog: React.FC = () => {
         </div>
       ) : (
         <motion.div
-          key={`${selectedCategory}-${selectedCity}-${selectedCondition}-${urgencyFilter}-${sortBy}-${searchTerm}`}
+          key={`${selectedCategory}-${selectedBarrio}-${selectedCondition}-${urgencyFilter}-${sortBy}-${searchTerm}`}
           variants={{
             hidden: { opacity: 0 },
             visible: {

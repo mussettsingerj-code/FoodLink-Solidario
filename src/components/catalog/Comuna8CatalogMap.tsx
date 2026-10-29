@@ -1,267 +1,258 @@
-import React, { useState, useMemo } from 'react';
-import { Map, Marker, InfoWindow } from '@vis.gl/react-google-maps';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  Map,
+  useMap,
+  useMapsLibrary,
+  AdvancedMarker,
+  InfoWindow,
+} from '@vis.gl/react-google-maps';
+import {
+  MapPin,
+  Crosshair,
+  Store,
+  ArrowRight,
+  ShieldCheck,
+  Tag,
+  Clock,
+  ExternalLink,
+} from 'lucide-react';
 import { FoodProduct } from '../../types';
 import {
   COMUNA_8_NAME,
+  COMUNA_8_SHORT_NAME,
   COMUNA_8_CENTER,
-  COMUNA_8_BARRIOS,
+  COMUNA_8_BOUNDS,
+  COMUNA_8_POLYGON,
   COMUNA_8_BARRIOS_DATA,
   Comuna8Barrio,
   getBarrioCentroid,
 } from '../../data/comuna8GeographicData';
-import { ProductImage } from '../common/ProductImage';
-import {
-  MapPin,
-  ExternalLink,
-  Store,
-  Clock,
-  Sparkles,
-  ArrowRight,
-  Info,
-  Layers,
-  Filter,
-} from 'lucide-react';
+import { useApp } from '../../context/AppContext';
 
 interface Comuna8CatalogMapProps {
   products: FoodProduct[];
-  selectedBarrio: string;
+  selectedBarrio?: string;
   onSelectProduct: (product: FoodProduct) => void;
-  onSelectBarrio: (barrio: string) => void;
+  className?: string;
 }
+
+/**
+ * Capa cartográfica con el polígono oficial de la Comuna 8
+ */
+const Comuna8BoundaryPolygon: React.FC = () => {
+  const map = useMap();
+  const mapsLib = useMapsLibrary('maps');
+  const polygonRef = useRef<google.maps.Polygon | null>(null);
+
+  useEffect(() => {
+    if (!map || !mapsLib) return;
+
+    if (!polygonRef.current) {
+      polygonRef.current = new mapsLib.Polygon({
+        paths: COMUNA_8_POLYGON,
+        strokeColor: '#059669',
+        strokeOpacity: 0.9,
+        strokeWeight: 3,
+        fillColor: '#10b981',
+        fillOpacity: 0.08,
+        clickable: false,
+        zIndex: 1,
+      });
+      polygonRef.current.setMap(map);
+    }
+
+    return () => {
+      if (polygonRef.current) {
+        polygonRef.current.setMap(null);
+        polygonRef.current = null;
+      }
+    };
+  }, [map, mapsLib]);
+
+  return null;
+};
 
 export const Comuna8CatalogMap: React.FC<Comuna8CatalogMapProps> = ({
   products,
   selectedBarrio,
   onSelectProduct,
-  onSelectBarrio,
+  className = 'h-[500px]',
 }) => {
+  const { formatCOP } = useApp();
+  const map = useMap();
   const [selectedProduct, setSelectedProduct] = useState<FoodProduct | null>(null);
-  const [hasMapError, setHasMapError] = useState(false);
 
-  // Filtrar productos con coordenadas válidas dentro del filtro actual
-  const mappableProducts = useMemo(() => {
-    return products.filter((p) => {
-      if (selectedBarrio !== 'todas' && p.barrio !== selectedBarrio) {
-        return false;
-      }
-      return Boolean(p.coordinates && typeof p.coordinates.lat === 'number' && typeof p.coordinates.lng === 'number');
-    });
-  }, [products, selectedBarrio]);
+  // Filtrar productos con ubicación válida en Comuna 8
+  const mappableProducts = products.map((p) => {
+    // Si ya tiene coordenadas exactas las usa; si no, utiliza el centroide de su barrio oficial
+    const coords =
+      p.coordinates && typeof p.coordinates.lat === 'number'
+        ? p.coordinates
+        : p.barrio && COMUNA_8_BARRIOS_DATA[p.barrio as Comuna8Barrio]
+        ? getBarrioCentroid(p.barrio as Comuna8Barrio)
+        : COMUNA_8_CENTER;
 
-  // Centro dinámico del mapa según el barrio seleccionado o centro general de la Comuna 8
-  const mapCenter = useMemo(() => {
-    if (selectedBarrio !== 'todas' && selectedBarrio in COMUNA_8_BARRIOS_DATA) {
-      const bCentroid = getBarrioCentroid(selectedBarrio as Comuna8Barrio);
-      return { lat: bCentroid.lat, lng: bCentroid.lng };
+    return {
+      product: p,
+      position: coords,
+    };
+  });
+
+  // Ajustar encuadre del mapa según los productos o el barrio seleccionado
+  const handleRecenter = () => {
+    if (!map) return;
+
+    if (selectedBarrio && selectedBarrio !== 'todos' && COMUNA_8_BARRIOS_DATA[selectedBarrio as Comuna8Barrio]) {
+      const centroid = getBarrioCentroid(selectedBarrio as Comuna8Barrio);
+      map.panTo(centroid);
+      map.setZoom(15);
+      return;
     }
-    return { lat: COMUNA_8_CENTER.lat, lng: COMUNA_8_CENTER.lng };
-  }, [selectedBarrio]);
 
-  const mapZoom = selectedBarrio !== 'todas' ? 15 : 14;
+    map.panTo(COMUNA_8_CENTER);
+    map.setZoom(14);
+  };
+
+  useEffect(() => {
+    handleRecenter();
+  }, [selectedBarrio, map]);
 
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col space-y-3">
-      {/* Cabecera del Mapa */}
-      <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/70 dark:bg-slate-900/60">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-400 border border-emerald-300/60 dark:border-emerald-800 flex items-center justify-center shrink-0 shadow-2xs">
-            <MapPin className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
-                Cobertura Territorial Exclusiva
-              </span>
-              <span className="text-[10px] bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 px-2 py-0.5 rounded-full font-bold">
-                18 Barrios
-              </span>
-            </div>
-            <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-slate-100 font-display">
-              Mapa de Alimentos Disponibles · {COMUNA_8_NAME}
-            </h3>
-          </div>
+    <div className={`relative w-full rounded-3xl overflow-hidden border border-slate-200/90 dark:border-slate-800 shadow-md ${className}`}>
+      {/* Top Banner de Control del Mapa */}
+      <div className="absolute top-3 left-3 right-3 z-10 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+        <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 shadow-md flex items-center gap-2 pointer-events-auto">
+          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+            {selectedBarrio && selectedBarrio !== 'todos'
+              ? `Barrio ${selectedBarrio}`
+              : COMUNA_8_SHORT_NAME}
+          </span>
+          <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 border-l border-slate-200 dark:border-slate-700 pl-2">
+            {mappableProducts.length} lotes ubicados
+          </span>
         </div>
 
-        {/* Selector rápido de Barrio en el Mapa */}
-        <div className="flex items-center gap-2">
-          <label htmlFor="map-barrio-filter" className="text-xs font-bold text-slate-600 dark:text-slate-400 flex items-center gap-1">
-            <Filter className="w-3.5 h-3.5" /> Barrio:
-          </label>
-          <select
-            id="map-barrio-filter"
-            value={selectedBarrio}
-            onChange={(e) => onSelectBarrio(e.target.value)}
-            className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-emerald-600 cursor-pointer shadow-2xs"
-          >
-            <option value="todas">Toda la Comuna 8 (18 barrios)</option>
-            {COMUNA_8_BARRIOS.map((b) => (
-              <option key={b} value={b}>
-                {b}
-              </option>
-            ))}
-          </select>
-        </div>
+        <button
+          type="button"
+          onClick={handleRecenter}
+          className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md px-3 py-2 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 shadow-md text-xs font-bold text-emerald-800 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-1.5 pointer-events-auto cursor-pointer"
+        >
+          <Crosshair className="w-3.5 h-3.5" />
+          <span>Centrar Comuna 8</span>
+        </button>
       </div>
 
-      {/* Contenedor del Mapa con Fallback integrado */}
-      <div className="relative w-full h-[460px] sm:h-[520px] bg-slate-100 dark:bg-slate-950">
-        {!hasMapError ? (
-          <Map
-            defaultCenter={mapCenter}
-            center={mapCenter}
-            defaultZoom={mapZoom}
-            zoom={mapZoom}
-            gestureHandling="greedy"
-            disableDefaultUI={false}
-            style={{ width: '100%', height: '100%' }}
-          >
-            {/* Marcadores de productos con coordenadas reales */}
-            {mappableProducts.map((p) => {
-              if (!p.coordinates) return null;
-              return (
-                <Marker
-                  key={p.id}
-                  position={{ lat: p.coordinates.lat, lng: p.coordinates.lng }}
-                  title={`${p.name} — ${p.sellerName}`}
-                  onClick={() => setSelectedProduct(p)}
-                />
-              );
-            })}
+      <Map
+        mapId="DEMO_MAP_ID"
+        defaultCenter={COMUNA_8_CENTER}
+        defaultZoom={14}
+        minZoom={12}
+        maxZoom={18}
+        gestureHandling="greedy"
+        disableDefaultUI={false}
+        className="w-full h-full"
+        internalUsageAttributionIds={['gmp_mcp_codeassist_v1_aistudio']}
+      >
+        <Comuna8BoundaryPolygon />
 
-            {/* Ventana de información cuando se selecciona un marcador */}
-            {selectedProduct && selectedProduct.coordinates && (
-              <InfoWindow
-                position={{
-                  lat: selectedProduct.coordinates.lat,
-                  lng: selectedProduct.coordinates.lng,
-                }}
-                onCloseClick={() => setSelectedProduct(null)}
-              >
-                <div className="p-1 max-w-xs text-slate-900 space-y-2">
-                  <div className="flex items-start gap-2.5">
-                    <ProductImage
-                      src={selectedProduct.imageUrl}
-                      alt={selectedProduct.name}
-                      category={selectedProduct.category}
-                      className="w-12 h-12 rounded-lg object-cover border border-slate-200 shrink-0"
-                    />
-                    <div className="min-w-0">
-                      <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">
-                        {selectedProduct.barrio || 'Comuna 8'}
-                      </span>
-                      <h4 className="font-bold text-xs truncate leading-snug">{selectedProduct.name}</h4>
-                      <p className="text-[11px] text-slate-500 truncate">{selectedProduct.sellerName}</p>
-                    </div>
-                  </div>
+        {/* Marcadores de productos con AdvancedMarkerElement */}
+        {mappableProducts.map(({ product, position }) => {
+          const isSelected = selectedProduct?.id === product.id;
 
-                  <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-100">
-                    <span className="font-bold text-emerald-800">
-                      ${selectedProduct.requestedPrice.toLocaleString('es-CO')} COP/{selectedProduct.unit}
-                    </span>
-                    <span className="text-[10px] font-semibold text-slate-600">
-                      {selectedProduct.quantity} {selectedProduct.unit} disp.
-                    </span>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onSelectProduct(selectedProduct);
-                      setSelectedProduct(null);
-                    }}
-                    className="w-full mt-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer"
-                  >
-                    <span>Ver publicación</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </InfoWindow>
-            )}
-          </Map>
-        ) : (
-          // Vista alternativa territorial en caso de error o conexión
-          <div className="h-full flex flex-col items-center justify-center p-6 text-center space-y-3 bg-slate-50 dark:bg-slate-950">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 flex items-center justify-center">
-              <Layers className="w-6 h-6" />
-            </div>
-            <h4 className="font-bold text-sm text-slate-900 dark:text-slate-100">
-              Directorio Territorial Comuna 8 — Villa Hermosa
-            </h4>
-            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md">
-              Actualmente visualizando los productos de los 18 barrios oficiales de la Comuna 8.
-            </p>
-          </div>
-        )}
-
-        {/* Tarjeta flotante de ayuda / resumen */}
-        <div className="absolute top-3 left-3 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xs border border-slate-200 dark:border-slate-800 rounded-2xl p-3 shadow-md text-xs max-w-xs pointer-events-auto">
-          <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200 font-bold mb-1">
-            <Info className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-            <span>Resumen del Territorio</span>
-          </div>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
-            {mappableProducts.length} lote(s) geolocalizado(s) en {selectedBarrio === 'todas' ? 'la Comuna 8' : `el barrio ${selectedBarrio}`}.
-          </p>
-          <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10px]">
-            <span className="text-slate-400 font-mono">Límites: POT Medellín</span>
-            <a
-              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent('Comuna 8 Villa Hermosa Medellín Antioquia')}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-emerald-700 dark:text-emerald-400 font-bold inline-flex items-center gap-1 hover:underline"
+          return (
+            <AdvancedMarker
+              key={product.id}
+              position={position}
+              onClick={() => setSelectedProduct(product)}
+              title={`${product.name} en ${product.barrio || 'Comuna 8'}`}
             >
-              <span>Abrir Maps</span>
-              <ExternalLink className="w-3 h-3" />
-            </a>
-          </div>
-        </div>
-      </div>
-
-      {/* Lista de accesos directos a los 18 Barrios de la Comuna 8 */}
-      <div className="p-4 bg-slate-50/50 dark:bg-slate-900/40 border-t border-slate-200 dark:border-slate-800">
-        <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 block mb-2">
-          Explorar por Barrio Oficial de la Comuna 8:
-        </span>
-        <div className="flex flex-wrap gap-1.5">
-          <button
-            type="button"
-            onClick={() => onSelectBarrio('todas')}
-            className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              selectedBarrio === 'todas'
-                ? 'bg-emerald-600 text-white shadow-xs'
-                : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-emerald-400'
-            }`}
-          >
-            Toda la Comuna 8
-          </button>
-          {COMUNA_8_BARRIOS.map((barrio) => {
-            const count = products.filter((p) => p.barrio === barrio).length;
-            const isSelected = selectedBarrio === barrio;
-            return (
-              <button
-                key={barrio}
-                type="button"
-                onClick={() => onSelectBarrio(barrio)}
-                className={`px-2.5 py-1 rounded-xl text-xs font-semibold transition-all inline-flex items-center gap-1.5 cursor-pointer ${
-                  isSelected
-                    ? 'bg-emerald-600 text-white font-bold shadow-xs'
-                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-emerald-400'
+              <div
+                className={`flex flex-col items-center group cursor-pointer transition-transform ${
+                  isSelected ? 'scale-110 z-20' : 'hover:scale-105 z-10'
                 }`}
               >
-                <span>{barrio}</span>
-                {count > 0 && (
-                  <span
-                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                      isSelected ? 'bg-white text-emerald-800' : 'bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300'
-                    }`}
-                  >
-                    {count}
-                  </span>
-                )}
+                {/* Chip flotante con precio solidario */}
+                <div className="px-2.5 py-1 rounded-full bg-slate-950/90 text-white text-[10px] font-extrabold shadow-md whitespace-nowrap mb-1 border border-emerald-400/40 flex items-center gap-1">
+                  <span>{formatCOP(product.requestedPrice)}</span>
+                </div>
+
+                {/* Pin visual */}
+                <div
+                  className={`w-9 h-9 rounded-2xl flex items-center justify-center text-white shadow-lg transition-colors ${
+                    isSelected
+                      ? 'bg-emerald-500 ring-4 ring-emerald-300/50'
+                      : 'bg-[#1B4332] group-hover:bg-emerald-700'
+                  }`}
+                >
+                  <MapPin className="w-5 h-5 stroke-[2.5]" />
+                </div>
+              </div>
+            </AdvancedMarker>
+          );
+        })}
+
+        {/* InfoWindow al hacer clic en un marcador de producto */}
+        {selectedProduct && (
+          <InfoWindow
+            position={
+              selectedProduct.coordinates ||
+              (selectedProduct.barrio &&
+                getBarrioCentroid(selectedProduct.barrio as Comuna8Barrio)) ||
+              COMUNA_8_CENTER
+            }
+            onCloseClick={() => setSelectedProduct(null)}
+          >
+            <div className="max-w-xs p-1 text-slate-900 font-sans">
+              <div className="relative h-28 w-full rounded-xl overflow-hidden mb-2 bg-slate-100">
+                <img
+                  src={selectedProduct.imageUrl}
+                  alt={selectedProduct.name}
+                  className="w-full h-full object-cover"
+                />
+                <span className="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-950/80 text-white">
+                  {selectedProduct.category}
+                </span>
+                <span className="absolute bottom-1.5 right-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-600 text-white">
+                  {selectedProduct.barrio || 'Comuna 8'}
+                </span>
+              </div>
+
+              <h4 className="font-bold text-sm text-slate-900 leading-snug line-clamp-1 mb-1">
+                {selectedProduct.name}
+              </h4>
+
+              <div className="flex items-center justify-between text-xs mb-2">
+                <span className="text-slate-600 font-medium">
+                  {selectedProduct.quantity} {selectedProduct.unit}
+                </span>
+                <span className="font-extrabold text-emerald-800 text-sm">
+                  {formatCOP(selectedProduct.requestedPrice)} COP
+                </span>
+              </div>
+
+              <div className="text-[11px] text-slate-500 mb-3 flex items-center gap-1 truncate">
+                <Store className="w-3 h-3 text-slate-400 shrink-0" />
+                <span className="truncate">{selectedProduct.sellerName}</span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => onSelectProduct(selectedProduct)}
+                className="w-full py-2 bg-[#1B4332] hover:bg-emerald-900 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 shadow-sm transition-colors cursor-pointer"
+              >
+                <span>Ver publicación completa</span>
+                <ArrowRight className="w-3.5 h-3.5" />
               </button>
-            );
-          })}
-        </div>
+            </div>
+          </InfoWindow>
+        )}
+      </Map>
+
+      {/* Nota de pie del mapa */}
+      <div className="absolute bottom-3 left-3 px-3 py-1.5 rounded-xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200/80 dark:border-slate-800 text-[10px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 shadow-sm pointer-events-none">
+        <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+        <span>Comuna 8 — Villa Hermosa: Límite Cartográfico Oficial</span>
       </div>
     </div>
   );

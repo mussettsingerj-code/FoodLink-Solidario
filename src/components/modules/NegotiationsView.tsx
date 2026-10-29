@@ -24,11 +24,13 @@ import {
   DollarSign,
   Package,
   Check,
+  MapPin,
 } from 'lucide-react';
 
 export const NegotiationsView: React.FC = () => {
   const {
     offers,
+    products,
     currentUser,
     userProfile,
     respondToOffer,
@@ -60,6 +62,7 @@ export const NegotiationsView: React.FC = () => {
   }, [selectedOfferIdForNegotiation, offers]);
 
   const activeOffer = offers.find((o) => o.id === activeOfferId) || offers[0] || null;
+  const activeProduct = products.find((p) => p.id === activeOffer?.productId);
 
   // Suscripción en tiempo real a los mensajes de la subcolección de Firestore
   useEffect(() => {
@@ -272,15 +275,30 @@ export const NegotiationsView: React.FC = () => {
                   <ProductImage src={activeOffer.productImageUrl} alt={activeOffer.productName} />
                 </div>
                 <div className="min-w-0">
-                  <h2 className="text-sm sm:text-base font-black text-slate-900 dark:text-slate-100 truncate font-display">
-                    {activeOffer.productName}
-                  </h2>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-sm sm:text-base font-black text-slate-900 dark:text-slate-100 truncate font-display">
+                      {activeOffer.productName}
+                    </h2>
+                    {activeProduct?.barrio && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                        <MapPin className="w-2.5 h-2.5 text-emerald-600" />
+                        {activeProduct.barrio} · Comuna 8
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
                     {activeOffer.buyerOrganization} ↔ {activeOffer.sellerName}
                   </p>
-                  <p className="text-[11px] font-black text-emerald-700 dark:text-emerald-400 tabular-nums mt-0.5">
-                    {activeOffer.requestedQuantity.toLocaleString('es-CO')} {activeOffer.unit} • ${activeOffer.totalOfferedPrice.toLocaleString('es-CO')} COP
-                  </p>
+                  <div className="flex items-center gap-3 flex-wrap mt-0.5">
+                    <p className="text-[11px] font-black text-emerald-700 dark:text-emerald-400 tabular-nums">
+                      {activeOffer.requestedQuantity.toLocaleString('es-CO')} {activeOffer.unit} • ${activeOffer.totalOfferedPrice.toLocaleString('es-CO')} COP
+                    </p>
+                    {activeProduct?.locationReference && (
+                      <span className="text-[10px] text-slate-400 truncate max-w-xs">
+                        Ref: {activeProduct.locationReference}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
 

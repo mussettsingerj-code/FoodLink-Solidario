@@ -19,6 +19,7 @@ import {
   Send,
   MessageSquare,
   Package,
+  ExternalLink,
 } from 'lucide-react';
 import { incrementProductViewsInFirestore } from '../../services/firestoreService';
 
@@ -230,16 +231,41 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ productI
                     <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" title="Verificado" />
                   )}
                 </div>
-                <span className="text-xs text-slate-400 dark:text-slate-400 block">{product.sellerType}</span>
-                <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 flex items-center gap-1">
-                  <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                  <span>{product.locationCity} — {product.locationAddress}</span>
-                </p>
-                {product.deliveryConditions && (
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                    📦 <span className="font-medium">{product.deliveryConditions}</span>
+                <div className="mt-2 space-y-1">
+                  <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                    <span className="px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-bold">
+                      Barrio {product.barrio || 'Villa Hermosa'}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-[11px] font-semibold">
+                      Comuna 8 — Villa Hermosa
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-slate-700 dark:text-slate-200 font-medium flex items-center gap-1.5 pt-1">
+                    <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span>{product.locationAddress}</span>
                   </p>
-                )}
+
+                  {product.locationReference && (
+                    <p className="text-xs text-slate-500 dark:text-slate-400 pl-5">
+                      Punto de referencia: {product.locationReference}
+                    </p>
+                  )}
+
+                  {product.coordinates && (
+                    <div className="pt-2">
+                      <a
+                        href={`https://www.google.com/maps/dir/?api=1&destination=${product.coordinates.lat},${product.coordinates.lng}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 underline"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        <span>Cómo llegar en Google Maps</span>
+                      </a>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>

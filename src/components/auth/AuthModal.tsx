@@ -26,6 +26,11 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { UserRole, EmailCheckResult } from '../../types';
+import {
+  COMUNA_8_BARRIOS,
+  Comuna8Barrio,
+  COMUNA_8_NAME,
+} from '../../data/comuna8GeographicData';
 
 type ModalMode = 'login' | 'register' | 'forgot';
 
@@ -57,13 +62,14 @@ export const AuthModal: React.FC = () => {
   const [emailCheck, setEmailCheck] = useState<EmailCheckResult | null>(null);
   const [isCheckingEmail, setIsCheckingEmail] = useState(false);
 
-  // Register State
+  // Register State - Comuna 8 Official
   const [regRole, setRegRole] = useState<UserRole>('buyer');
   const [regName, setRegName] = useState('');
   const [regOrg, setRegOrg] = useState('');
   const [regNit, setRegNit] = useState('');
   const [regPhone, setRegPhone] = useState('');
-  const [regCity, setRegCity] = useState('Bogotá D.C.');
+  const [regCity, setRegCity] = useState('Medellín');
+  const [regBarrio, setRegBarrio] = useState<Comuna8Barrio>('Villa Hermosa');
   const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
   const [regConfirmPassword, setRegConfirmPassword] = useState('');
@@ -186,7 +192,9 @@ export const AuthModal: React.FC = () => {
         organizationName: regOrg.trim() || regName.trim(),
         nitOrId: regNit.trim() || 'Pendiente',
         phone: regPhone.trim() || 'Pendiente',
-        city: regCity,
+        city: 'Medellín',
+        comuna: COMUNA_8_NAME,
+        barrio: regBarrio,
       });
 
       if (!res.success) {
@@ -682,17 +690,17 @@ export const AuthModal: React.FC = () => {
                       />
                     </div>
                     <div className="relative">
-                      <MapPin className="w-3.5 h-3.5 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2" />
+                      <MapPin className="w-3.5 h-3.5 text-emerald-600 absolute left-2 top-1/2 -translate-y-1/2" />
                       <select
-                        value={regCity}
-                        onChange={(e) => setRegCity(e.target.value)}
-                        className="w-full pl-6 pr-1 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:border-emerald-600"
+                        value={regBarrio}
+                        onChange={(e) => setRegBarrio(e.target.value as Comuna8Barrio)}
+                        className="w-full pl-6 pr-1 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:border-emerald-600 cursor-pointer font-medium"
                       >
-                        <option value="Bogotá D.C.">Bogotá</option>
-                        <option value="Medellín">Medellín</option>
-                        <option value="Cali">Cali</option>
-                        <option value="Barranquilla">Barranquilla</option>
-                        <option value="Bucaramanga">Bucaramanga</option>
+                        {COMUNA_8_BARRIOS.map((b) => (
+                          <option key={b} value={b}>
+                            {b}
+                          </option>
+                        ))}
                       </select>
                     </div>
                   </div>

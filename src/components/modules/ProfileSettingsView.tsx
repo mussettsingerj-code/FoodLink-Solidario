@@ -26,6 +26,12 @@ import {
 import { useApp } from '../../context/AppContext';
 import { ThemeMode, SupportedLanguage } from '../../types';
 import { AnimatedNumber } from '../common/AnimatedNumber';
+import {
+  COMUNA_8_BARRIOS,
+  Comuna8Barrio,
+  COMUNA_8_NAME,
+  COMUNA_8_SHORT_NAME,
+} from '../../data/comuna8GeographicData';
 
 export const ProfileSettingsView: React.FC = () => {
   const {
@@ -48,7 +54,13 @@ export const ProfileSettingsView: React.FC = () => {
   const [nitOrId, setNitOrId] = useState(userProfile.nitOrId);
   const [email, setEmail] = useState(userProfile.email);
   const [phone, setPhone] = useState(userProfile.phone);
-  const [city, setCity] = useState(userProfile.city);
+  const [city, setCity] = useState(userProfile.city || 'Medellín');
+  const [barrio, setBarrio] = useState<Comuna8Barrio>(
+    (userProfile.barrio as Comuna8Barrio) || 'Villa Hermosa'
+  );
+  const [operationZones, setOperationZones] = useState<Comuna8Barrio[]>(
+    userProfile.operationZones || [userProfile.barrio || 'Villa Hermosa']
+  );
 
   const [savedToast, setSavedToast] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -65,8 +77,20 @@ export const ProfileSettingsView: React.FC = () => {
     setNitOrId(userProfile.nitOrId);
     setEmail(userProfile.email);
     setPhone(userProfile.phone);
-    setCity(userProfile.city);
+    setCity('Medellín');
+    if (userProfile.barrio) {
+      setBarrio(userProfile.barrio as Comuna8Barrio);
+    }
+    if (userProfile.operationZones && userProfile.operationZones.length > 0) {
+      setOperationZones(userProfile.operationZones);
+    }
   }, [userProfile]);
+
+  const toggleOperationZone = (zone: Comuna8Barrio) => {
+    setOperationZones((prev) =>
+      prev.includes(zone) ? prev.filter((z) => z !== zone) : [...prev, zone]
+    );
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,7 +101,10 @@ export const ProfileSettingsView: React.FC = () => {
         organizationName,
         nitOrId,
         phone,
-        city,
+        city: 'Medellín',
+        comuna: COMUNA_8_NAME,
+        barrio,
+        operationZones,
       });
       setSavedToast(true);
       setTimeout(() => setSavedToast(false), 3500);
@@ -339,22 +366,94 @@ export const ProfileSettingsView: React.FC = () => {
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                  {t('profile.cityLabel')}
+                  <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+                  Ciudad y Comuna
+                </label>
+                <div className="w-full px-3.5 py-2.5 bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                  <span>Medellín · Comuna 8 (Villa Hermosa)</span>
+                  <span className="text-[10px] bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 font-bold px-2 py-0.5 rounded-full">
+                    Exclusivo
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+                  Barrio Principal (Comuna 8)
                 </label>
                 <select
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
+                  value={barrio}
+                  onChange={(e) => setBarrio(e.target.value as Comuna8Barrio)}
                   className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:border-emerald-600"
                 >
-                  <option value="Bogotá D.C.">Bogotá D.C.</option>
-                  <option value="Medellín">Medellín</option>
-                  <option value="Cali">Cali</option>
-                  <option value="Barranquilla">Barranquilla</option>
-                  <option value="Bucaramanga">Bucaramanga</option>
-                  <option value="Cartagena">Cartagena</option>
-                  <option value="Pereira">Pereira</option>
+                  {COMUNA_8_BARRIOS.map((b) => (
+                    <option key={b} value={b}>
+                      {b}
+                    </option>
+                  ))}
                 </select>
+              </div>
+            </div>
+
+            {/* Operation / Coverage Zones in Comuna 8 */}
+            <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+              <div className="mb-2.5">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Zonas y Barrios de Operación / Cobertura en Comuna 8
+                </label>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Selecciona los barrios donde tu organización o negocio ofrece entregas, recolecciones o atención prioritaria.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto p-2 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/60">
+                {COMUNA_8_BARRIOS.map((b) => {
+                  const isChecked = operationZones.includes(b);
+                  return (
+                    <button
+                      key={b}
+                      type="button"
+                      onClick={() => toggleOperationZone(b)}
+                      className={`flex items-center gap-2 p-2 rounded-lg text-left text-xs transition-colors cursor-pointer border ${
+                        isChecked
+                          ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-500 text-emerald-900 dark:text-emerald-200 font-semibold'
+                          : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300'
+                      }`}
+                    >
+                      <div
+                        className={`w-3.5 h-3.5 rounded flex items-center justify-center shrink-0 border ${
+                          isChecked
+                            ? 'bg-emerald-600 border-emerald-600 text-white'
+                            : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900'
+                        }`}
+                      >
+                        {isChecked && <CheckCircle2 className="w-3 h-3 text-white" />}
+                      </div>
+                      <span className="truncate">{b}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="flex items-center justify-between mt-2 text-[11px] text-slate-500 dark:text-slate-400">
+                <span>{operationZones.length} de {COMUNA_8_BARRIOS.length} barrios seleccionados</span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setOperationZones([...COMUNA_8_BARRIOS])}
+                    className="text-emerald-700 dark:text-emerald-400 hover:underline font-semibold"
+                  >
+                    Seleccionar todos
+                  </button>
+                  <span>·</span>
+                  <button
+                    type="button"
+                    onClick={() => setOperationZones([barrio])}
+                    className="text-slate-500 hover:underline"
+                  >
+                    Solo mi barrio
+                  </button>
+                </div>
               </div>
             </div>
 

@@ -73,6 +73,9 @@ export interface RegisterPayload {
   nitOrId?: string;
   phone?: string;
   city?: string;
+  comuna?: string;
+  barrio?: string;
+  operationZones?: string[];
 }
 
 export interface AuthActionResponse {
@@ -583,6 +586,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           .trim()
           .slice(0, 40);
         const cleanCity = (registrationDetails?.city || 'Medellín').trim().slice(0, 80);
+        const cleanComuna = (registrationDetails?.comuna || 'Comuna 8 — Villa Hermosa, Medellín').trim().slice(0, 80);
+        const cleanBarrio = (registrationDetails?.barrio || 'Villa Hermosa').trim().slice(0, 60);
+        const cleanOperationZones = registrationDetails?.operationZones && registrationDetails.operationZones.length > 0
+          ? registrationDetails.operationZones
+          : [cleanBarrio];
 
         const newFirestoreDoc = {
           uid,
@@ -594,6 +602,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           nitOrId: cleanNit,
           phone: cleanPhone,
           city: cleanCity,
+          comuna: cleanComuna,
+          barrio: cleanBarrio,
+          operationZones: cleanOperationZones,
           verified: Boolean(firebaseUser.emailVerified || isGoogleProvider),
           authProvider: providerType,
           createdAt: serverTimestamp(),
@@ -618,6 +629,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           nitOrId: cleanNit,
           phone: cleanPhone,
           city: cleanCity,
+          comuna: cleanComuna,
+          barrio: cleanBarrio as any,
+          operationZones: cleanOperationZones as any,
           verified: Boolean(firebaseUser.emailVerified || isGoogleProvider),
           twoFactorEnabled: false,
           preferredLanguage: 'es',

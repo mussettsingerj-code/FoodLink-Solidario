@@ -15,6 +15,7 @@ import {
   AlertCircle,
   Truck,
   FileText,
+  MapPin,
 } from 'lucide-react';
 
 interface NegotiationChatModalProps {
@@ -23,7 +24,7 @@ interface NegotiationChatModalProps {
 }
 
 export const NegotiationChatModal: React.FC<NegotiationChatModalProps> = ({ offerId, onClose }) => {
-  const { offers, respondToOffer, sendMessageToOffer, currentUser, userProfile, currentRole } = useApp();
+  const { offers, products, respondToOffer, sendMessageToOffer, currentUser, userProfile, currentRole } = useApp();
   const { t, language } = useI18n();
 
   const [messageText, setMessageText] = useState('');
@@ -35,6 +36,7 @@ export const NegotiationChatModal: React.FC<NegotiationChatModalProps> = ({ offe
   const messagesScrollRef = useRef<HTMLDivElement | null>(null);
 
   const offer = offers.find((o) => o.id === offerId);
+  const product = products.find((p) => p.id === offer?.productId);
 
   // Suscripción en tiempo real a los mensajes de la subcolección
   useEffect(() => {
@@ -138,9 +140,17 @@ export const NegotiationChatModal: React.FC<NegotiationChatModalProps> = ({ offe
               />
             </div>
             <div>
-              <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">
-                {t('negotiation.moduleTitle', 'Módulo de Negociación Solidaria')}
-              </span>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">
+                  {t('negotiation.moduleTitle', 'Módulo de Negociación Solidaria')}
+                </span>
+                {product?.barrio && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-950/80 text-emerald-300 border border-emerald-800">
+                    <MapPin className="w-2.5 h-2.5 text-emerald-400" />
+                    {product.barrio} · Comuna 8
+                  </span>
+                )}
+              </div>
               <h3 className="font-bold text-sm sm:text-base font-display truncate max-w-xs sm:max-w-md text-white">
                 {offer.productName}
               </h3>

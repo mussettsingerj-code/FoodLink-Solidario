@@ -78,10 +78,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelect }) =
           </span>
         )}
 
-        {/* Location pill */}
+        {/* Location pill with Comuna 8 barrio */}
         <span className="absolute bottom-3 right-3 px-2.5 py-1 rounded-xl text-[10px] font-bold bg-slate-950/75 text-white backdrop-blur-xs flex items-center gap-1 shadow-xs">
           <MapPin className="w-3 h-3 text-emerald-400" />
-          <span>{product.locationCity}</span>
+          <span>{product.barrio ? `${product.barrio} · Comuna 8` : (product.locationCity || 'Comuna 8')}</span>
         </span>
       </div>
 
